@@ -65,7 +65,6 @@ function loadEntityUdef(entityId, entityKey, udefIdx, callback) {
   var cardsEl = document.getElementById(entityKey + 'UdefCards');
   var summaryEl = document.getElementById(entityKey + 'UdefSummary');
 
-  // Hide start button, show progress
   if (startEl) {
     var btns = startEl.querySelectorAll('.btn-analyze');
     for (var i = 0; i < btns.length; i++) btns[i].style.display = 'none';
@@ -166,11 +165,93 @@ var entityConfig = {
   requests: { udefId: 0,  udefIdx: 0,   extraType: 'Ticket',  tabKey: 'requests', hasTicketFields: true }
 };
 
-// Full entity load with unified progress bar
+// ===========================================================
+// EXTRA TABLES GLOBAL CACHE — load once, reuse across entities
+// ===========================================================
+var _extraCache = null;        // { tables:[], data:{id:responseData}, ready:false }
+var _extraCacheQueue = null;   // array of callbacks waiting, or null if not loading
+
+function getExtraTablesFromCache(callback) {
+  // If already cached, return immediately
+  if (_extraCache && _extraCache.ready) {
+    callback(_extraCache);
+    return;
+  }
+  // If currently loading, queue the callback
+  if (_extraCacheQueue) {
+    _extraCacheQueue.push(callback);
+    return;
+  }
+  // Start loading
+  _extraCacheQueue = [callback];
+  ajax(extraUrl, function(d) {
+    if (!d || !d.tables || d.tables.length === 0) {
+      _extraCache = { tables: [], data: {}, ready: true };
+      _flushExtraCacheQueue();
+      return;
+    }
+    _extraCache = { tables: d.tables, data: {}, ready: false };
+    var remaining = d.tables.length;
+    for (var i = 0; i < d.tables.length; i++) {
+      (function(tbl) {
+        ajax(extraUrl + String.fromCharCode(38) + 'tableId=' + tbl.id, function(td) {
+          _extraCache.data[tbl.id] = td;
+          remaining--;
+          if (remaining <= 0) {
+            _extraCache.ready = true;
+            _flushExtraCacheQueue();
+          }
+        });
+      })(d.tables[i]);
+    }
+  });
+}
+
+function _flushExtraCacheQueue() {
+  var cbs = _extraCacheQueue;
+  _extraCacheQueue = null;
+  if (cbs) {
+    for (var i = 0; i < cbs.length; i++) cbs[i](_extraCache);
+  }
+}
+
+function invalidateExtraCache() {
+  _extraCache = null;
+  _extraCacheQueue = null;
+}
+
+// ===========================================================
+// LOADING PLACEHOLDER HELPERS
+// ===========================================================
+function loadingPlaceholder(label) {
+  return '<div style="display:flex;align-items:center;gap:12px;padding:32px 20px;color:#999">' +
+    '<div style="width:20px;height:20px;border:2.5px solid #e0dfdc;border-top-color:var(--so-green);border-radius:50%;animation:spin .8s linear infinite"></div>' +
+    '<span style="font-size:.85rem">' + label + '</span></div>';
+}
+
+// Add CSS animation for spinner (inject once)
+(function() {
+  if (document.getElementById('progressiveLoadStyles')) return;
+  var style = document.createElement('style');
+  style.id = 'progressiveLoadStyles';
+  style.textContent = '@keyframes spin{to{transform:rotate(360deg)}}' +
+    '.section-loaded{animation:fadeIn .3s ease}' +
+    '@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}' +
+    '.progress-inline{display:flex;align-items:center;gap:8px;padding:8px 16px;margin:0 0 12px;border-radius:8px;background:var(--so-cream,#faf9f7);font-size:.8rem;color:#666}' +
+    '.progress-inline .pi-bar{flex:1;height:4px;background:#e0dfdc;border-radius:2px;overflow:hidden}' +
+    '.progress-inline .pi-fill{height:100%;background:var(--so-green);border-radius:2px;transition:width .3s}' +
+    '.progress-inline .pi-check{color:var(--so-green);font-weight:600}';
+  document.head.appendChild(style);
+})();
+
+// ===========================================================
+// PROGRESSIVE startFullEntity — parallel loads, show as ready
+// ===========================================================
 function startFullEntity(key) {
   captureEntityFilter(key);
   var ec = entityConfig[key];
   var tabKey = ec ? ec.tabKey : key;
+  var hasDetails = (key === 'company');
 
   var progressScreen = document.getElementById(tabKey + 'ProgressScreen');
   var progressBar = document.getElementById(tabKey + 'ProgressBar');
@@ -178,161 +259,158 @@ function startFullEntity(key) {
   var progressStatus = document.getElementById(tabKey + 'ProgressStatus');
   var subTabs = document.getElementById(tabKey + 'SubTabs');
   var resultsContainer = document.getElementById(tabKey + 'Results');
-
   var headerBtn = document.getElementById(tabKey + 'AnalyzeBtn');
+
   if (headerBtn) headerBtn.disabled = true;
-  if (progressScreen) progressScreen.style.display = '';
-  if (progressBar) { progressBar.style.width = '0'; progressBar.classList.add('loading'); }
-  if (progressPercent) progressPercent.textContent = '0' + P;
 
-  var hasDetails = (key === 'company');
-  var ranges = {
-    overview: { start: 0, end: 15 },
-    udef: { start: 15, end: hasDetails ? 22 : 25 },
-    details: { start: 22, end: 30 },
-    extra: { start: hasDetails ? 30 : 25, end: 100 }
-  };
+  // === PROGRESSIVE: Show results immediately with loading placeholders ===
+  if (progressScreen) progressScreen.style.display = 'none';
+  if (subTabs) subTabs.style.display = '';
+  if (resultsContainer) resultsContainer.style.display = '';
 
-  var currentPct = 0;
-  var fakeTimer = null;
+  // Set loading placeholders in each section
+  var overviewEl = document.getElementById(tabKey + 'OverviewContent');
+  if (overviewEl) overviewEl.innerHTML = loadingPlaceholder('Loading overview data...');
 
-  function setProgress(pct, status) {
-    currentPct = pct;
-    if (progressBar) progressBar.style.width = pct + P;
-    if (progressPercent) progressPercent.textContent = Math.round(pct) + P;
-    if (progressStatus) progressStatus.innerHTML = status;
+  if (ec && ec.udefId > 0) {
+    var udefCards = document.getElementById(tabKey + 'UdefCards');
+    var udefSummary = document.getElementById(tabKey + 'UdefSummary');
+    if (udefCards) udefCards.innerHTML = loadingPlaceholder('Loading extra fields...');
+    if (udefSummary) udefSummary.textContent = '';
   }
 
-  function startFakeProgress(targetPct, status) {
-    stopFakeProgress();
-    var maxPct = targetPct - 1; // Never quite reach target
-    setProgress(currentPct, status);
-    fakeTimer = setInterval(function() {
-      if (currentPct < maxPct) {
-        var remaining = maxPct - currentPct;
-        var increment = Math.max(0.3, remaining * 0.08);
-        currentPct = Math.min(currentPct + increment, maxPct);
-        if (progressBar) progressBar.style.width = currentPct + P;
-        if (progressPercent) progressPercent.textContent = Math.round(currentPct) + P;
-      }
-    }, 150);
+  if (hasDetails) {
+    var detailEl = document.getElementById('companyDetailContent');
+    if (detailEl) detailEl.innerHTML = loadingPlaceholder('Loading detail analysis...');
   }
 
-  function stopFakeProgress() {
-    if (fakeTimer) { clearInterval(fakeTimer); fakeTimer = null; }
+  var extraCards = document.getElementById(tabKey + 'ExtraCards');
+  var extraSummary = document.getElementById(tabKey + 'ExtraSummary');
+  if (extraCards) extraCards.innerHTML = loadingPlaceholder('Loading extra tables...');
+  if (extraSummary) extraSummary.textContent = '';
+
+  // Show inline progress bar
+  var inlineProgress = document.createElement('div');
+  inlineProgress.className = 'progress-inline';
+  inlineProgress.id = tabKey + 'InlineProgress';
+  inlineProgress.innerHTML = '<span id="' + tabKey + 'IPLabel">Loading...</span>' +
+    '<div class="pi-bar"><div class="pi-fill" id="' + tabKey + 'IPBar" style="width:0"></div></div>' +
+    '<span id="' + tabKey + 'IPPct">0' + P + '</span>';
+  if (overviewEl && overviewEl.parentNode) {
+    overviewEl.parentNode.insertBefore(inlineProgress, overviewEl);
   }
 
-  // Step 1: Load overview with fake progress
-  startFakeProgress(ranges.overview.end, 'Loading overview data...');
+  // === Track completion of parallel loads ===
+  var totalSteps = 2; // overview + extra (always)
+  if (ec && ec.udefId > 0) totalSteps++;
+  if (ec && ec.hasTicketFields) totalSteps++;
+  if (hasDetails) totalSteps++;
+  var completedSteps = 0;
+  var dfParam = getDateFilterParam();
 
-  ajax(overviewUrl + String.fromCharCode(38) + 'entity=' + key + getDateFilterParam(), function(d) {
-    stopFakeProgress();
-    if (d) renderEntityOverview(key, d);
-    setProgress(ranges.overview.end, 'Overview loaded');
-    loadStep2();
-  });
+  function stepDone(label) {
+    completedSteps++;
+    var pct = Math.round((completedSteps / totalSteps) * 100);
+    var barEl = document.getElementById(tabKey + 'IPBar');
+    var pctEl = document.getElementById(tabKey + 'IPPct');
+    var labelEl = document.getElementById(tabKey + 'IPLabel');
+    if (barEl) barEl.style.width = pct + P;
+    if (pctEl) pctEl.textContent = pct + P;
+    if (labelEl) labelEl.textContent = label;
 
-  // Step 2: UDEF or Ticket Fields
-  function loadStep2() {
-    if (ec && ec.udefId > 0) {
-      startFakeProgress(ranges.udef.end, 'Loading extra fields...');
-      loadEntityUdefQuiet(ec.udefId, tabKey, ec.udefIdx, function() {
-        stopFakeProgress();
-        setProgress(ranges.udef.end, 'UDEF fields loaded');
-        loadStepDetails();
-      });
-    } else if (ec && ec.hasTicketFields) {
-      startFakeProgress(ranges.udef.end, 'Loading custom ticket fields...');
-      loadTicketFieldsQuiet(function() {
-        stopFakeProgress();
-        setProgress(ranges.udef.end, 'Custom fields loaded');
-        loadStepDetails();
-      });
-    } else {
-      setProgress(ranges.udef.end, 'Preparing extra tables...');
-      loadStepDetails();
-    }
-  }
-
-  // Step 3: Extra tables with real per-table progress
-
-  function loadStepDetails() {
-    if (hasDetails) {
-      startFakeProgress(ranges.details.end, 'Loading detail analysis...');
-      loadCompanyDetails(function() {
-        stopFakeProgress();
-        setProgress(ranges.details.end, 'Details loaded');
-        loadStep3();
-      });
-    } else {
-      loadStep3();
-    }
-  }
-
-  function loadStep3() {
-    if (ec) {
-      startFakeProgress(ranges.extra.start + 5, 'Loading extra tables list...');
-      loadEntityExtraWithProgress(tabKey, ec.extraType, function(cur, total, tableName) {
-        stopFakeProgress();
-        var extraPct = ranges.extra.start + ((cur / total) * (ranges.extra.end - ranges.extra.start));
-        var status = 'Loading: <span class="progress-detail">' + tableName + '</span> (' + cur + '/' + total + ')';
-        setProgress(extraPct, status);
-      }, function() {
-        stopFakeProgress();
-        finishLoad();
-      });
-    } else {
-      finishLoad();
-    }
-  }
-
-  function finishLoad() {
-    stopFakeProgress();
-    setProgress(100, 'Complete!');
-    if (progressBar) progressBar.classList.remove('loading');
-
-    setTimeout(function() {
-      if (progressScreen) progressScreen.style.display = 'none';
-      if (subTabs) subTabs.style.display = '';
-      if (resultsContainer) resultsContainer.style.display = '';
+    if (completedSteps >= totalSteps) {
+      // All done
+      if (labelEl) labelEl.innerHTML = '<span class="pi-check">\u2713 Analysis complete</span>';
       var expBtn = document.getElementById(tabKey + 'ExportBtn') || document.getElementById('ticketExportBtn');
       if (expBtn) expBtn.style.display = '';
       if (headerBtn) { headerBtn.disabled = false; headerBtn.onclick = function(){ reAnalyze(key); }; }
-    }, 500);
-  }
-}
-
-function loadEntityExtraWithProgress(key, entityType, onProgress, onComplete) {
-  if (!entExtra[key]) entExtra[key] = { tables:[], cur:0, data:{} };
-  ajax(extraUrl + getDateFilterParam(), function(d) {
-    if (d && d.tables && d.tables.length > 0) {
-      entExtra[key].tables = d.tables;
-      entExtra[key].cur = 0;
-      entExtra[key].entityType = entityType;
-      loadExtraChainWithProgress(key, onProgress, onComplete);
-    } else {
-      showEntityExtraQuiet(key);
-      if (onComplete) onComplete();
+      // Auto-hide progress bar after 3 seconds
+      setTimeout(function() {
+        var ip = document.getElementById(tabKey + 'InlineProgress');
+        if (ip) { ip.style.opacity = '0'; ip.style.transition = 'opacity .5s'; setTimeout(function() { if (ip.parentNode) ip.parentNode.removeChild(ip); }, 500); }
+      }, 3000);
     }
+  }
+
+  // === PARALLEL LOAD 1: Overview ===
+  ajax(overviewUrl + String.fromCharCode(38) + 'entity=' + key + dfParam, function(d) {
+    if (d) renderEntityOverview(key, d);
+    if (overviewEl) overviewEl.style.animation = 'fadeIn .3s ease';
+    stepDone('Overview loaded');
   });
+
+  // === PARALLEL LOAD 2: UDEF / Ticket Fields ===
+  if (ec && ec.udefId > 0) {
+    ajax(udefUrl + String.fromCharCode(38) + 'entityId=' + ec.udefId + dfParam, function(d) {
+      udefData[ec.udefId] = d;
+      var cardsEl = document.getElementById(tabKey + 'UdefCards');
+      var summaryEl = document.getElementById(tabKey + 'UdefSummary');
+      if (d && summaryEl) {
+        summaryEl.textContent = d.fields.length + ' active extra fields. Click column headers to sort.';
+        if (cardsEl) { cardsEl.innerHTML = renderUdef(d, ec.udefIdx); cardsEl.style.animation = 'fadeIn .3s ease'; }
+      } else {
+        if (summaryEl) summaryEl.textContent = 'No extra fields found.';
+        if (cardsEl) cardsEl.innerHTML = '';
+      }
+      // Make UDEF sub-panel visible
+      var udefStart = document.getElementById(tabKey + 'UdefStart');
+      var udefResults = document.getElementById(tabKey + 'UdefResults');
+      if (udefStart) udefStart.style.display = 'none';
+      if (udefResults) udefResults.style.display = 'block';
+      stepDone('Extra fields loaded');
+    });
+  } else if (ec && ec.hasTicketFields) {
+    ajax(ticketUrl + dfParam, function(d) {
+      ticketData = d;
+      showTicketQuiet();
+      stepDone('Custom fields loaded');
+    });
+  }
+
+  // === PARALLEL LOAD 3: Company Details (company only) ===
+  if (hasDetails) {
+    var catParam = '';
+    if (companyDetailCatValue) {
+      catParam = String.fromCharCode(38) + 'categoryName=' + encodeURIComponent(companyDetailCatValue);
+    }
+    ajax(detailUrl + dfParam + catParam, function(d) {
+      companyDetailData = d;
+      if (d) renderCompanyDetails(d);
+      populateDetailCatFilter();
+      var countEl = document.getElementById('companyDetailFilterCount');
+      if (countEl && d && d.activityHealth) {
+        countEl.textContent = companyDetailCatValue ? fmtNum(d.activityHealth.total) + ' companies' : '';
+      }
+      var detailEl2 = document.getElementById('companyDetailContent');
+      if (detailEl2) detailEl2.style.animation = 'fadeIn .3s ease';
+      stepDone('Details loaded');
+    });
+  }
+
+  // === PARALLEL LOAD 4: Extra Tables (from cache) ===
+  if (ec) {
+    getExtraTablesFromCache(function(cache) {
+      if (!entExtra[tabKey]) entExtra[tabKey] = { tables: [], cur: 0, data: {} };
+      entExtra[tabKey].tables = cache.tables;
+      entExtra[tabKey].entityType = ec.extraType;
+      // Copy cached data
+      for (var i = 0; i < cache.tables.length; i++) {
+        var tbl = cache.tables[i];
+        entExtra[tabKey].data[tbl.id] = cache.data[tbl.id];
+      }
+      entExtra[tabKey].cur = cache.tables.length;
+      showEntityExtraQuiet(tabKey);
+      if (extraCards) extraCards.style.animation = 'fadeIn .3s ease';
+      stepDone('Extra tables loaded');
+    });
+  } else {
+    // No extra tables for this entity type
+    if (extraCards) extraCards.innerHTML = '';
+    stepDone('Complete');
+  }
 }
 
-function loadExtraChainWithProgress(key, onProgress, onComplete) {
-  var es = entExtra[key];
-  if (es.cur >= es.tables.length) {
-    showEntityExtraQuiet(key);
-    if (onComplete) onComplete();
-    return;
-  }
-  var tbl = es.tables[es.cur];
-  // Report progress
-  if (onProgress) onProgress(es.cur + 1, es.tables.length, tbl.displayName);
-  ajax(extraUrl + String.fromCharCode(38) + 'tableId=' + tbl.id + getDateFilterParam(), function(d) {
-    es.data[tbl.id] = d;
-    es.cur++;
-    loadExtraChainWithProgress(key, onProgress, onComplete);
-  });
-}
+function startCompanyOverview() { startFullEntity('company'); }
 
 function startEntityOverview(key) {
   if (entityConfig[key]) {
@@ -381,22 +459,17 @@ function startEntityOverview(key) {
     }, 500);
   });
 }
-function startCompanyOverview() { startFullEntity('company'); }
 
 function renderEntityOverview(key, d) {
-  // Store data for export
   overviewData[key] = d;
-
   var cfg = ovLabels[key];
   var o = d.overview;
   var totalKey = cfg.stats[0][0];
   var total = o[totalKey];
   var h = '';
 
-  // Show date filter notice if active
   h += dateFilterNotice();
 
-  // Stat cards
   h += '<div class="detail-section">';
   h += '<div class="detail-section-head">' + secHead(cfg.title) + '</div>';
   h += '<div class="stat-row">';
@@ -405,12 +478,11 @@ function renderEntityOverview(key, d) {
     if (s[0] === totalKey) {
       h += ovCard(s[1], total, '', '');
     } else {
-      h += ovCard(s[1], o[s[0] ], total, '');
+      h += ovCard(s[1], o[s[0]], total, '');
     }
   }
   h += '</div></div>';
 
-  // Extra sections (e.g. Activities has a Document Overview section)
   if (cfg.sections) {
     for (var si = 0; si < cfg.sections.length; si++) {
       var sec = cfg.sections[si];
@@ -423,16 +495,15 @@ function renderEntityOverview(key, d) {
         if (ss[0] === sec.totalKey) {
           h += ovCard(ss[1], secTotal, '', '');
         } else if (ss[2]) {
-          h += ovCard(ss[1], o[ss[0] ], '', '');
+          h += ovCard(ss[1], o[ss[0]], '', '');
         } else {
-          h += ovCard(ss[1], o[ss[0] ], secTotal, '');
+          h += ovCard(ss[1], o[ss[0]], secTotal, '');
         }
       }
       h += '</div></div>';
     }
   }
 
-  // Completeness (company only)
   if (cfg.completeness && d.completeness) {
     var c = d.completeness;
     h += '<div class="detail-section">';
@@ -440,12 +511,11 @@ function renderEntityOverview(key, d) {
     h += '<div class="stat-row">';
     for (var j = 0; j < cfg.completeness.length; j++) {
       var cm = cfg.completeness[j];
-      h += ovCard(cm[1], c[cm[0] ], total, '');
+      h += ovCard(cm[1], c[cm[0]], total, '');
     }
     h += '</div></div>';
   }
 
-  // Distribution tables (generic from array)
   if (d.distributions && d.distributions.length > 0) {
     var cols = d.distributions.length >= 2 ? 2 : 1;
     if (cols === 2) {
@@ -496,7 +566,6 @@ function fmtNum(n) {
 
 function fmtDate(d) {
   if (!d || d === '0' || d === '') return '';
-  // Handle "YYYY-MM-DD HH:MM:SS" or "YYYY-MM-DD"
   var datePart = d.split(' ')[0];
   var parts = datePart.split('-');
   if (parts.length === 3 && parts[0].length === 4) return parts[2] + '-' + parts[1] + '-' + parts[0];
@@ -552,7 +621,7 @@ function startProjectUdef() { loadEntityUdef(9, 'project', 400); }
 
 // === COMPANY DETAILS ===
 var companyDetailData = null;
-var companyDetailCatValue = ''; // Store current filter value
+var companyDetailCatValue = '';
 
 function loadCompanyDetails(cb) {
   fetchCompanyDetails(cb);
@@ -566,9 +635,7 @@ function fetchCompanyDetails(cb) {
   ajax(detailUrl + getDateFilterParam() + catParam, function(d) {
     companyDetailData = d;
     if (d) renderCompanyDetails(d);
-    // Populate category dropdown after render
     populateDetailCatFilter();
-    // Show filter count
     var countEl = document.getElementById('companyDetailFilterCount');
     if (countEl && d && d.activityHealth) {
       countEl.textContent = companyDetailCatValue ? fmtNum(d.activityHealth.total) + ' companies' : '';
@@ -580,9 +647,7 @@ function fetchCompanyDetails(cb) {
 function populateDetailCatFilter() {
   var sel = document.getElementById('companyDetailCatFilter');
   if (!sel) return;
-  // Clear existing options except first
   while (sel.options.length > 1) sel.remove(1);
-  // Populate from overview data
   if (overviewData['company'] && overviewData['company'].distributions) {
     var cats = overviewData['company'].distributions[0];
     if (cats && cats.items) {
@@ -605,9 +670,7 @@ function populateDetailCatFilter() {
       }
     }
   }
-  // Restore selected value
   if (companyDetailCatValue) sel.value = companyDetailCatValue;
-  // Update badge
   var badge = document.getElementById('companyFilterBadge');
   var resetBtn = document.getElementById('companyFilterReset');
   if (badge) badge.style.display = companyDetailCatValue ? '' : 'none';
@@ -620,12 +683,10 @@ function reloadCompanyDetails() {
   fetchCompanyDetails(null);
 }
 
-// Filter popover
 function togDetailFilter(key) {
   var pop = document.getElementById(key + 'FilterPopover');
   if (!pop) return;
   var isOpen = pop.classList.contains('show');
-  // Close all open popovers first
   document.querySelectorAll('.detail-filter-popover.show').forEach(function(p) { p.classList.remove('show'); });
   if (!isOpen) pop.classList.add('show');
 }
@@ -641,7 +702,6 @@ function resetDetailFilter(key) {
   reloadCompanyDetails();
 }
 
-// Close filter popover on outside click
 document.addEventListener('click', function(e) {
   if (!e.target.closest('.detail-filter-wrap')) {
     document.querySelectorAll('.detail-filter-popover.show').forEach(function(p) { p.classList.remove('show'); });
@@ -656,7 +716,6 @@ function renderCompanyDetails(d) {
   var ah = d.activityHealth;
   var total = ah ? ah.total : 0;
 
-  // Populate sub-tabs-right with filter + badges
   var subRight = document.getElementById('companySubTabsRight');
   if (subRight) {
     var sr = '';
@@ -681,9 +740,7 @@ function renderCompanyDetails(d) {
   var q = d.quality;
   if (q && total > 0) {
     h += '<div class="detail-section">';
-    h += '<div class="detail-section-head">';
-    h += secHead('Data Quality Issues');
-    h += '</div>';
+    h += '<div class="detail-section-head">' + secHead('Data Quality Issues') + '</div>';
     h += '<div class="stat-row">';
     var issues = [
       { label: 'No contact person', val: q.noPerson },
@@ -718,11 +775,9 @@ function renderCompanyDetails(d) {
         h += '<span class="record-badge">' + fmtNum(beforeTotal) + ' before ' + visibleTrend[0].year + '</span>';
       }
       h += '</div>';
-      // Chart dimensions (pixel-based)
       var cW = 960, cH = 200, padL = 40, padR = 10, padT = 15, padB = 40;
       var plotW = cW - padL - padR, plotH = cH - padT - padB;
-      var dataInset = 15; // inner margin so dots don't sit on grid edge
-      // Nice Y-axis scale
+      var dataInset = 15;
       var niceMax = maxCount;
       var mag = Math.pow(10, Math.floor(Math.log10(maxCount)));
       var options = [1, 1.5, 2, 2.5, 3, 4, 5, 8, 10];
@@ -738,24 +793,18 @@ function renderCompanyDetails(d) {
       }
       var areaPath = 'M' + (padL + dataInset) + ',' + (padT + plotH) + ' L' + pts.join(' L') + ' L' + (padL + dataInset + (visibleTrend.length - 1) * step).toFixed(1) + ',' + (padT + plotH) + ' Z';
       h += '<svg viewBox="0 0 ' + cW + ' ' + cH + '" style="width:100%;height:auto;display:block;max-height:220px">';
-      // Y-axis grid + labels
       for (var gi = 0; gi <= ySteps; gi++) {
         var gy = padT + plotH - (gi / ySteps) * plotH;
         var yVal = Math.round(gi * yStep);
         h += '<line x1="' + padL + '" y1="' + gy.toFixed(1) + '" x2="' + (cW - padR) + '" y2="' + gy.toFixed(1) + '" stroke="#e0dfdc" stroke-width="1"/>';
         h += '<text x="' + (padL - 8) + '" y="' + (gy + 4).toFixed(1) + '" text-anchor="end" fill="#999" font-size="11" font-family="DM Sans,sans-serif">' + fmtNum(yVal) + '</text>';
       }
-      // Area fill
       h += '<path d="' + areaPath + '" fill="rgba(22,91,112,0.06)"/>';
-      // Line
       h += '<polyline points="' + pts.join(' ') + '" fill="none" stroke="var(--so-green)" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>';
-      // Dots + X labels
       for (var i = 0; i < visibleTrend.length; i++) {
         var xy = pts[i].split(',');
         h += '<circle cx="' + xy[0] + '" cy="' + xy[1] + '" r="5" fill="var(--so-green)" stroke="#fff" stroke-width="2"/>';
-        // Value above dot
         h += '<text x="' + xy[0] + '" y="' + (parseFloat(xy[1]) - 12).toFixed(1) + '" text-anchor="middle" fill="var(--so-charcoal)" font-size="11" font-weight="600" font-family="DM Sans,sans-serif">' + fmtNum(visibleTrend[i].count) + '</text>';
-        // Year below axis
         h += '<text x="' + xy[0] + '" y="' + (padT + plotH + 22) + '" text-anchor="middle" fill="#999" font-size="11" font-family="DM Sans,sans-serif">' + visibleTrend[i].year + '</text>';
       }
       h += '</svg>';
@@ -800,7 +849,7 @@ function renderCompanyDetails(d) {
     h += '</tbody></table></div>';
   }
 
-  // 3. ASSOCIATE BREAKDOWN (grouped by user group if available)
+  // 3. ASSOCIATE BREAKDOWN
   var assocs = d.associates;
   if (assocs && assocs.length > 0) {
     assocs.sort(function(a, b) { return b.total - a.total; });
@@ -808,11 +857,7 @@ function renderCompanyDetails(d) {
     for (var i = 0; i < assocs.length; i++) totalAll += assocs[i].total;
     var Q = String.fromCharCode(39);
     var tid = 'tbl-assoc';
-
-    // Check if user group data is available
     var hasGroups = assocs.length > 0 && assocs[0].groupName;
-
-    // Build group map
     var groups = {};
     var groupOrder = [];
     for (var i = 0; i < assocs.length; i++) {
@@ -825,7 +870,6 @@ function renderCompanyDetails(d) {
       groups[gn].withEmail += assocs[i].withEmail || 0;
       groups[gn].stale += assocs[i].stale || 0;
     }
-    // Sort groups by total desc
     groupOrder.sort(function(a, b) { return groups[b].total - groups[a].total; });
 
     h += '<div class="entity-card">';
@@ -911,18 +955,16 @@ function startExtra() {
   if (btn) btn.disabled = true;
   document.getElementById('extraStart').style.display = '';
   document.getElementById('extraStatus').textContent = 'Loading tables...';
-  ajax(extraUrl + getDateFilterParam(), function(d) {
-    if (d) { extraTables = d.tables; extraCur = 0; loadExtra(); }
-  });
-}
 
-function loadExtra() {
-  if (extraCur >= extraTables.length) { showExtra(); return; }
-  var tbl = extraTables[extraCur];
-  var pct = Math.round((extraCur / extraTables.length) * 100);
-  document.getElementById('extraBar').style.width = pct + P;
-  document.getElementById('extraStatus').textContent = 'Loading: ' + tbl.displayName + ' (' + (extraCur+1) + '/' + extraTables.length + ')';
-  ajax(extraUrl + String.fromCharCode(38) + 'tableId=' + tbl.id + getDateFilterParam(), function(d) { extraData[tbl.id] = d; extraCur++; loadExtra(); });
+  // Use cache for extra tables tab too
+  getExtraTablesFromCache(function(cache) {
+    extraTables = cache.tables;
+    extraData = {};
+    for (var i = 0; i < cache.tables.length; i++) {
+      extraData[cache.tables[i].id] = cache.data[cache.tables[i].id];
+    }
+    showExtra();
+  });
 }
 
 function showExtra() {
@@ -933,7 +975,7 @@ function showExtra() {
     document.getElementById('extraResults').style.display = 'block';
     document.getElementById('extraExportBtn').style.display = '';
     var btn = document.getElementById('extraAnalyzeBtn');
-    if (btn) { btn.disabled = false; btn.onclick = function(){ document.getElementById('extraResults').style.display = 'none'; document.getElementById('extraCards').innerHTML = ''; extraData = {}; startExtra(); }; }
+    if (btn) { btn.disabled = false; btn.onclick = function(){ document.getElementById('extraResults').style.display = 'none'; document.getElementById('extraCards').innerHTML = ''; extraData = {}; invalidateExtraCache(); startExtra(); }; }
     var wr = 0;
     for (var i = 0; i < extraTables.length; i++) {
       var d = extraData[extraTables[i].id];
@@ -1013,8 +1055,8 @@ function renderExtra(tbl, idx) {
   return h;
 }
 
-// === ENTITY EXTRA TABLES ===
-var entExtra = {}; // { key: { tables:[], cur:0, data:{} } }
+// === ENTITY EXTRA TABLES (now using global cache) ===
+var entExtra = {};
 
 function startEntityExtra(key, entityType) {
   if (!entExtra[key]) entExtra[key] = { tables:[], cur:0, data:{} };
@@ -1022,27 +1064,15 @@ function startEntityExtra(key, entityType) {
   for (var i = 0; i < btns.length; i++) btns[i].style.display = 'none';
   document.getElementById(key + 'ExtraProgress').style.display = 'block';
   document.getElementById(key + 'ExtraStatus').textContent = 'Loading tables...';
-  ajax(extraUrl + getDateFilterParam(), function(d) {
-    if (d) {
-      entExtra[key].tables = d.tables;
-      entExtra[key].cur = 0;
-      entExtra[key].entityType = entityType;
-      loadEntityExtra(key);
-    }
-  });
-}
 
-function loadEntityExtra(key) {
-  var es = entExtra[key];
-  if (es.cur >= es.tables.length) { showEntityExtra(key); return; }
-  var tbl = es.tables[es.cur];
-  var pct = Math.round((es.cur / es.tables.length) * 100);
-  document.getElementById(key + 'ExtraBar').style.width = pct + P;
-  document.getElementById(key + 'ExtraStatus').textContent = 'Loading: ' + tbl.displayName + ' (' + (es.cur+1) + '/' + es.tables.length + ')';
-  ajax(extraUrl + String.fromCharCode(38) + 'tableId=' + tbl.id + getDateFilterParam(), function(d) {
-    es.data[tbl.id] = d;
-    es.cur++;
-    loadEntityExtra(key);
+  getExtraTablesFromCache(function(cache) {
+    entExtra[key].tables = cache.tables;
+    entExtra[key].entityType = entityType;
+    for (var i = 0; i < cache.tables.length; i++) {
+      entExtra[key].data[cache.tables[i].id] = cache.data[cache.tables[i].id];
+    }
+    entExtra[key].cur = cache.tables.length;
+    showEntityExtra(key);
   });
 }
 
@@ -1079,34 +1109,26 @@ function showEntityExtra(key) {
 
 function startCompanyExtra() { startEntityExtra('company', 'Company'); }
 
-function loadEntityExtraQuiet(key, entityType, callback) {
+// Used by startFullEntity (progressive) and aaRunFullEntity
+function loadEntityExtraWithProgress(key, entityType, onProgress, onComplete) {
   if (!entExtra[key]) entExtra[key] = { tables:[], cur:0, data:{} };
-  ajax(extraUrl + getDateFilterParam(), function(d) {
-    if (d) {
-      entExtra[key].tables = d.tables;
-      entExtra[key].cur = 0;
-      entExtra[key].entityType = entityType;
-      loadEntityExtraChain(key, function() {
-        showEntityExtraQuiet(key);
-        if (callback) callback();
-      });
-    } else {
-      if (callback) callback();
+
+  getExtraTablesFromCache(function(cache) {
+    entExtra[key].tables = cache.tables;
+    entExtra[key].entityType = entityType;
+    for (var i = 0; i < cache.tables.length; i++) {
+      entExtra[key].data[cache.tables[i].id] = cache.data[cache.tables[i].id];
+      if (onProgress) onProgress(i + 1, cache.tables.length, cache.tables[i].displayName);
     }
+    entExtra[key].cur = cache.tables.length;
+    showEntityExtraQuiet(key);
+    if (onComplete) onComplete();
   });
 }
-function loadEntityExtraChain(key, callback) {
-  var es = entExtra[key];
-  if (es.cur >= es.tables.length) { if (callback) callback(); return; }
-  var tbl = es.tables[es.cur];
-  ajax(extraUrl + String.fromCharCode(38) + 'tableId=' + tbl.id + getDateFilterParam(), function(d) {
-    es.data[tbl.id] = d;
-    es.cur++;
-    loadEntityExtraChain(key, callback);
-  });
-}
+
 function showEntityExtraQuiet(key) {
   var es = entExtra[key];
+  if (!es) return;
   var startEl = document.getElementById(key + 'ExtraStart');
   var resultsEl = document.getElementById(key + 'ExtraResults');
   if (startEl) startEl.style.display = 'none';
@@ -1129,7 +1151,16 @@ function showEntityExtraQuiet(key) {
   if (key === 'sale') baseIdx = 700;
   if (key === 'project') baseIdx = 800;
   if (key === 'requests') baseIdx = 900;
-  if (c) { for (var i = 0; i < related.length; i++) { var d = es.data[related[i].id]; if (d) c.innerHTML += renderExtra(d, baseIdx + i); } }
+  if (c) { c.innerHTML = ''; for (var i = 0; i < related.length; i++) { var d = es.data[related[i].id]; if (d) c.innerHTML += renderExtra(d, baseIdx + i); } }
+}
+
+function loadEntityExtraQuiet(key, entityType, callback) {
+  loadEntityExtraWithProgress(key, entityType, null, callback);
+}
+
+function loadEntityExtraChain(key, callback) {
+  // Legacy — now just uses cache
+  loadEntityExtraWithProgress(entExtra[key] ? key : key, entExtra[key] ? entExtra[key].entityType : '', null, callback);
 }
 
 function loadTicketFields(callback) {
