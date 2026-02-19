@@ -24,13 +24,13 @@ function swSettings(panel, el) {
 }
 
 // === DATE FILTER (per-entity) ===
-var activeFilterValue = {}; // Stores resolved YYYY-MM-DD per entity key
-var activeFilterLabel = {}; // Stores human-readable label per entity key
-var currentAnalysisEntity = ''; // Current entity being analyzed (for sub-loaders)
+var activeFilterValue = {};
+var activeFilterLabel = {};
+var currentAnalysisEntity = '';
 
 function resolveDate(val) {
   if (!val) return '';
-  if (val === 'custom') return ''; // should not reach here; handled by getSelDateVal
+  if (val === 'custom') return '';
   var now = new Date();
   if (val === 'thisyear') { return now.getFullYear() + '-01-01'; }
   if (val === 'last6m') { now.setMonth(now.getMonth() - 6); return now.toISOString().split('T')[0]; }
@@ -40,7 +40,6 @@ function resolveDate(val) {
 }
 
 function getSelDateVal(sel) {
-  // Returns the effective value from a date select, including custom date input
   if (!sel) return '';
   var v = sel.value;
   if (v === 'custom') {
@@ -82,7 +81,6 @@ function handleDateSelect(sel) {
 }
 
 function validateCustomDates() {
-  // Returns true if all visible custom date inputs have a value
   var selects = document.querySelectorAll('select');
   for (var i = 0; i < selects.length; i++) {
     if (selects[i].value === 'custom') {
@@ -97,13 +95,11 @@ function validateCustomDates() {
   return true;
 }
 
-// Event delegation for all date selects
 document.addEventListener('change', function(e) {
   var t = e.target;
   if (t.tagName === 'SELECT' && (t.id.indexOf('dateFilter') > -1 || t.id.indexOf('DateFilter') > -1 || t.id.indexOf('aaDate') > -1 || t.id.indexOf('setupDate') > -1)) {
     handleDateSelect(t);
   }
-  // Reset border on custom date input when filled
   if (t.classList.contains('custom-date-input') && t.value) {
     t.style.borderColor = '';
   }
@@ -117,7 +113,6 @@ function captureEntityFilter(key) {
 }
 
 function getDateFilterParam() {
-  // Reads from the stored filter value for the currently-loading entity
   var df = activeFilterValue[currentAnalysisEntity] || '';
   if (!df) return '';
   return String.fromCharCode(38) + 'dateFilter=' + df;
@@ -131,6 +126,7 @@ function dateFilterNotice() {
   return '<div class="filter-notice"><span class="fn-icon">&#9202;</span> Filtered: <strong>' + lbl + '</strong> (since ' + df + ')</div>';
 }
 
+// v2: invalidate extra cache on reset
 function resetEntity(key) {
   delete overviewData[key];
   var ec = entityConfig[key];
@@ -141,6 +137,7 @@ function resetEntity(key) {
     companyDetailCatValue = '';
   }
   delete entExtra[key];
+  if (typeof invalidateExtraCache === 'function') invalidateExtraCache();
 }
 
 function reAnalyze(key) {
@@ -164,9 +161,7 @@ var aaIdx = 0;
 var aaEntities = ['company','contact','activities','sale','project','requests','selection','marketing'];
 var aaEntityNames = {company:'Company',contact:'Contact',activities:'Activities',sale:'Sale',project:'Project',requests:'Requests',selection:'Selection',marketing:'Marketing'};
 
-function onAADateChange() {
-  // Date override counts no longer displayed
-}
+function onAADateChange() {}
 
 function togGroup(headerRow) {
   var collapsed = headerRow.classList.toggle('group-collapsed');
@@ -201,12 +196,9 @@ function togAssocGroup() {
   }
 }
 
-function onSetupDateChange() {
-  // Date override counts no longer displayed
-}
+function onSetupDateChange() {}
 
 function startAnalyzeAll() {
-  // Validate custom dates
   var globalSel = document.getElementById('aaDateFilter');
   if (globalSel && globalSel.value === 'custom') {
     var gdi = globalSel.parentNode.querySelector('.custom-date-input');
@@ -215,7 +207,6 @@ function startAnalyzeAll() {
       return;
     }
   }
-  // Read global filter and apply to all entity dropdowns
   var globalVal = getSelDateVal(globalSel);
   aaQueue = [];
   for (var i = 0; i < aaEntities.length; i++) {
@@ -223,21 +214,17 @@ function startAnalyzeAll() {
     var cb = document.getElementById('aa_' + k);
     if (cb && cb.checked) {
       aaQueue.push(k);
-      // Per-entity override takes priority over global filter
       var overrideSel = document.getElementById('aaDate_' + k);
       var overrideVal = getSelDateVal(overrideSel);
       var useVal = overrideVal ? overrideVal : globalVal;
       var entSel = document.getElementById('dateFilter_' + k);
       if (entSel) {
-        // If the resolved value is an ISO date, set it directly
         if (useVal && useVal.match(/^\d{4}-\d{2}-\d{2}$/)) {
-          // Check if this exact value exists as an option
           var found = false;
           for (var j = 0; j < entSel.options.length; j++) {
             if (entSel.options[j].value === useVal) { found = true; break; }
           }
           if (!found) {
-            // Set to custom and create/update the date input
             entSel.value = 'custom';
             handleDateSelect(entSel);
             var di = entSel.parentNode.querySelector('.custom-date-input');
@@ -253,13 +240,11 @@ function startAnalyzeAll() {
   }
   if (aaQueue.length === 0) return;
 
-  // Show progress screen
   document.getElementById('aaStartScreen').style.display = 'none';
   document.getElementById('aaDoneBanner').style.display = 'none';
   var progScreen = document.getElementById('aaProgressScreen');
   progScreen.style.display = '';
 
-  // Build entity list
   var listHtml = '';
   for (var j = 0; j < aaQueue.length; j++) {
     listHtml += '<div class="aa-progress-item" id="aaProg_' + aaQueue[j] + '">';
@@ -275,7 +260,6 @@ function startAnalyzeAll() {
 
 function runNextAA() {
   if (aaIdx >= aaQueue.length) {
-    // All done!
     document.getElementById('aaProgressBar').classList.remove('loading');
     document.getElementById('aaProgressBar').style.width = '100' + P;
     document.getElementById('aaProgressPercent').textContent = '100' + P;
@@ -287,7 +271,6 @@ function runNextAA() {
       document.getElementById('aaDoneSummary').textContent = aaQueue.length + ' entities analyzed.';
       if (setupAnalysisRunning) { setupAnalysisComplete(); return; }
       document.getElementById('aaStartBtn').innerHTML = '<img src="data:image/svg+xml;base64,' + icoPlayO + '"> Run Again';
-
     }, 800);
     return;
   }
@@ -298,11 +281,9 @@ function runNextAA() {
   document.getElementById('aaProgressPercent').textContent = pct + P;
   document.getElementById('aaProgressStatus').textContent = 'Analyzing ' + aaEntityNames[key] + '...';
 
-  // Update status badge
   var stEl = document.getElementById('aaSt_' + key);
   if (stEl) { stEl.className = 'aa-status aa-status-loading'; stEl.textContent = 'Loading...'; }
 
-  // Use a hidden analysis - capture filter, run, then proceed
   captureEntityFilter(key);
 
   if (entityConfig[key]) {
@@ -333,26 +314,68 @@ function aaRunSimpleEntity(key, cb) {
   });
 }
 
+// v2: PARALLEL sub-loads within each entity
+// Previously: overview → udef → details → extras (sequential, ~44s for company)
+// Now: overview + udef + details + extras fire simultaneously (~17s for company)
 function aaRunFullEntity(key, cb) {
   var ec = entityConfig[key];
   var tabKey = ec.tabKey;
   var hasDetails = (key === 'company');
-  ajax(overviewUrl + String.fromCharCode(38) + 'entity=' + key + getDateFilterParam(), function(d) {
-    if (d) renderEntityOverview(key, d);
-    var afterUdef = function() {
-      if (hasDetails) {
-        loadCompanyDetails(function() { aaLoadExtra(key, ec, tabKey, cb); });
-      } else {
-        aaLoadExtra(key, ec, tabKey, cb);
-      }
-    };
-    if (ec.udefId > 0) {
-      loadEntityUdefQuiet(ec.udefId, tabKey, ec.udefIdx, afterUdef);
-    } else if (ec.hasTicketFields) {
-      loadTicketFieldsQuiet(afterUdef);
-    } else {
-      afterUdef();
+
+  // Build date filter param NOW (while currentAnalysisEntity is correct)
+  var dfParam = getDateFilterParam();
+
+  // Count how many parallel loads we need
+  var totalSteps = 1; // overview always
+  if (ec.udefId > 0) totalSteps++;
+  if (ec.hasTicketFields) totalSteps++;
+  if (hasDetails) totalSteps++;
+  totalSteps++; // extra tables always
+
+  var completed = 0;
+  function stepDone() {
+    completed++;
+    if (completed >= totalSteps) {
+      // All sub-loads done — show entity results
+      var rs = document.getElementById(tabKey + 'Results');
+      var st2 = document.getElementById(tabKey + 'SubTabs');
+      var ab = document.getElementById(tabKey + 'AnalyzeBtn');
+      var eb = document.getElementById(tabKey + 'ExportBtn') || document.getElementById('ticketExportBtn');
+      if (rs) rs.style.display = '';
+      if (st2) st2.style.display = '';
+      if (ab) ab.textContent = 'Re-analyze';
+      if (eb) eb.style.display = '';
+      if (cb) cb();
     }
+  }
+
+  // === PARALLEL 1: Overview ===
+  ajax(overviewUrl + String.fromCharCode(38) + 'entity=' + key + dfParam, function(d) {
+    if (d) renderEntityOverview(key, d);
+    stepDone();
+  });
+
+  // === PARALLEL 2: UDEF or Ticket Fields ===
+  if (ec.udefId > 0) {
+    loadEntityUdefQuiet(ec.udefId, tabKey, ec.udefIdx, function() {
+      stepDone();
+    });
+  } else if (ec.hasTicketFields) {
+    loadTicketFieldsQuiet(function() {
+      stepDone();
+    });
+  }
+
+  // === PARALLEL 3: Company Details (company only) ===
+  if (hasDetails) {
+    loadCompanyDetails(function() {
+      stepDone();
+    });
+  }
+
+  // === PARALLEL 4: Extra Tables (from cache) ===
+  aaLoadExtra(key, ec, tabKey, function() {
+    stepDone();
   });
 }
 
@@ -360,12 +383,7 @@ function aaLoadExtra(key, ec, tabKey, cb) {
   loadEntityExtraWithProgress(tabKey, ec.extraType, null, function() {
     var rs = document.getElementById(tabKey + 'Results');
     var st2 = document.getElementById(tabKey + 'SubTabs');
-    var ab = document.getElementById(tabKey + 'AnalyzeBtn');
-    var eb = document.getElementById(tabKey + 'ExportBtn') || document.getElementById('ticketExportBtn');
-    if (rs) rs.style.display = '';
-    if (st2) st2.style.display = '';
-    if (ab) ab.textContent = 'Re-analyze';
-    if (eb) eb.style.display = '';
+    // Don't show results here — let stepDone handle it when ALL are complete
     if (cb) cb();
   });
 }
@@ -386,7 +404,6 @@ function sw(id, el) {
 }
 
 function launchDashboard() {
-  // Validate custom date if selected
   var setupDate = document.getElementById('setupDateFilter');
   if (setupDate && setupDate.value === 'custom') {
     var di = setupDate.parentNode.querySelector('.custom-date-input');
@@ -395,7 +412,6 @@ function launchDashboard() {
       return;
     }
   }
-  // Copy setup settings to Analyze All controls
   var setupVal = getSelDateVal(setupDate);
   if (setupDate) {
     var globalSel = document.getElementById('aaDateFilter');
@@ -410,13 +426,11 @@ function launchDashboard() {
       }
     }
   }
-  // Sync entity checkboxes and per-entity date overrides
   for (var i = 0; i < aaEntities.length; i++) {
     var k = aaEntities[i];
     var setupCb = document.getElementById('setup_' + k);
     var aaCb = document.getElementById('aa_' + k);
     if (setupCb && aaCb) aaCb.checked = setupCb.checked;
-    // Per-entity date override from setup
     var setupEntDate = document.getElementById('setupDate_' + k);
     var aaEntDate = document.getElementById('aaDate_' + k);
     if (setupEntDate && aaEntDate) {
@@ -428,12 +442,10 @@ function launchDashboard() {
         if (sdi && adi) adi.value = sdi.value;
       }
     }
-    // Set entity page dropdown: per-entity override takes priority
     var entSel = document.getElementById('dateFilter_' + k);
     var setupEntVal = setupEntDate ? getSelDateVal(setupEntDate) : '';
     var effectiveVal = setupEntVal || setupVal;
     if (entSel && effectiveVal) {
-      // Check if value exists as option
       var found = false;
       for (var j = 0; j < entSel.options.length; j++) {
         if (entSel.options[j].value === effectiveVal) { found = true; break; }
@@ -459,14 +471,12 @@ function launchDashboard() {
       }
     }
   }
-  // Hide config panels + button, show loading state ON the setup screen
   var setupTabs = document.querySelector('.setup-tabs');
   var loadingDiv = document.getElementById('setupLoadingState');
   var tabContent = document.querySelector('.setup-tab-content');
   if (tabContent) tabContent.style.display = 'none';
   if (setupTabs) setupTabs.style.display = 'none';
   if (loadingDiv) loadingDiv.style.display = '';
-  // Start analysis (will call back setupProgressUpdate)
   setupAnalysisRunning = true;
   startAnalyzeAll();
 }
@@ -491,11 +501,9 @@ function setupAnalysisComplete() {
   if (pctEl) pctEl.textContent = '100%';
   if (bar) bar.style.width = '100%';
   if (statusEl) statusEl.textContent = 'Complete!';
-  // Smooth transition: keep loading screen visible, fade overlay out
   setTimeout(function() {
     var overlay = document.getElementById('setupScreen');
     overlay.classList.add('hiding');
-    // Prepare dashboard behind overlay
     document.body.classList.remove('sidebar-hidden');
     if (aaQueue.length > 0) {
       var navItems = document.querySelectorAll('.nav-item');
@@ -519,7 +527,6 @@ function st(ent, sub, el) {
   if (t) t.classList.add('active');
   p.querySelectorAll('.sub-tab').forEach(function(t) { t.classList.remove('active'); });
   if (el) el.classList.add('active');
-  // Show/hide sub-tabs-right (filter area) only on details tab
   var sr = document.getElementById(ent + 'SubTabsRight');
   if (sr) sr.style.display = (sub === 'details') ? '' : 'none';
 }
@@ -558,7 +565,6 @@ function sortT(tid, col) {
     return av < bv ? 1 : av > bv ? -1 : 0;
   };
 
-  // Check if table has group headers — sort within each group
   var groupHeaders = tb.querySelectorAll('.assoc-group-header');
   if (groupHeaders.length > 0) {
     for (var gi = 0; gi < groupHeaders.length; gi++) {
