@@ -564,12 +564,13 @@ function ovCard(label, value, total, color) {
   return h;
 }
 
-function pctCard(label, pct, color) {
+function pctCard(label, pct, desc, color) {
   var v = (typeof pct === 'number' && !isNaN(pct)) ? pct : 0;
   var h = '<div class="stat-card">';
   h += '<div class="stat-value">' + v + P + '</div>';
   h += '<div class="stat-label">' + label + '</div>';
   h += '<div style="margin-top:6px">' + fillBar(v, 8, color) + '</div>';
+  h += '<div class="stat-label" style="margin-top:4px;font-size:.7rem;color:#999">' + desc + '</div>';
   h += '</div>';
   return h;
 }
@@ -752,24 +753,23 @@ function renderCrossEntityFunnel(d) {
   var m = f.metrics;
   var h = '';
 
-  // -- CRM Health metrics (same stat-card pattern as overview) --
+  // -- CRM Health metrics with context descriptions --
   h += '<div class="detail-section">';
   h += '<div class="detail-section-head">' + secHead('CRM Health Pipeline') + '</div>';
   h += '<div class="stat-row">';
-  h += pctCard('Person Coverage', m.personCoverage, m.personCoverage >= 60 ? 'var(--so-meadow-dark1)' : m.personCoverage >= 40 ? 'var(--so-mango)' : 'var(--so-coral)');
-  h += pctCard('Activity Rate', m.activityRate, m.activityRate >= 50 ? 'var(--so-meadow-dark1)' : m.activityRate >= 30 ? 'var(--so-mango)' : 'var(--so-coral)');
-  h += pctCard('Pipeline Rate', m.pipelineRate, m.pipelineRate >= 30 ? 'var(--so-meadow-dark1)' : m.pipelineRate >= 15 ? 'var(--so-mango)' : 'var(--so-coral)');
-  h += pctCard('Overall Health', m.overallHealth, m.overallHealth >= 20 ? 'var(--so-meadow-dark1)' : m.overallHealth >= 10 ? 'var(--so-mango)' : 'var(--so-coral)');
+  h += pctCard('Person Coverage', m.personCoverage, 'Companies with a contact person', m.personCoverage >= 60 ? 'var(--so-meadow-dark1)' : m.personCoverage >= 40 ? 'var(--so-mango)' : 'var(--so-coral)');
+  h += pctCard('Activity Rate', m.activityRate, 'With person + activity in 12 months', m.activityRate >= 50 ? 'var(--so-meadow-dark1)' : m.activityRate >= 30 ? 'var(--so-mango)' : 'var(--so-coral)');
+  h += pctCard('Pipeline Rate', m.pipelineRate, 'Active companies with an open sale', m.pipelineRate >= 30 ? 'var(--so-meadow-dark1)' : m.pipelineRate >= 15 ? 'var(--so-mango)' : 'var(--so-coral)');
+  h += pctCard('Overall Health', m.overallHealth, 'Person + activity + sale (fully engaged)', m.overallHealth >= 20 ? 'var(--so-meadow-dark1)' : m.overallHealth >= 10 ? 'var(--so-mango)' : 'var(--so-coral)');
   h += '</div></div>';
 
-  // -- Engagement Funnel (entity-card + data-table pattern, same as Category/Business) --
+  // -- Engagement Funnel --
   var funnelSteps = [
     { label: 'Total Companies', count: f.total, pct: 100, drop: null },
     { label: 'With Contact Person', count: f.withPerson, pct: f.total > 0 ? Math.round(f.withPerson / f.total * 1000) / 10 : 0 },
     { label: 'With Activity (12m)', count: f.withPersonActivity, pct: f.total > 0 ? Math.round(f.withPersonActivity / f.total * 1000) / 10 : 0 },
     { label: 'With Open Sale', count: f.withPersonActivitySale, pct: f.total > 0 ? Math.round(f.withPersonActivitySale / f.total * 1000) / 10 : 0 }
   ];
-  // Compute dropoff
   for (var i = 1; i < funnelSteps.length; i++) {
     var prev = funnelSteps[i-1].count;
     var cur = funnelSteps[i].count;
@@ -777,43 +777,47 @@ function renderCrossEntityFunnel(d) {
   }
 
   h += '<div class="entity-card">';
-  h += '<div class="entity-header"><div class="entity-info"><h3>Company Engagement Funnel</h3></div></div>';
+  h += '<div class="entity-header"><div class="entity-info"><h3>Company Engagement Funnel</h3></div>';
+  h += '<span class="record-badge">' + fmtNum(f.total) + ' companies</span></div>';
   h += '<table class="data-table"><thead><tr>';
-  h += '<th>Stage</th><th class="col-right">Count</th><th class="col-right">' + P + ' of total</th><th class="col-right">Dropoff</th>';
+  h += '<th>Stage</th><th class="col-right">Companies</th><th class="col-right">' + P + ' of total</th><th class="col-right">vs. previous stage</th>';
   h += '</tr></thead><tbody>';
   for (var i = 0; i < funnelSteps.length; i++) {
     var step = funnelSteps[i];
-    var barW = step.pct;
     h += '<tr>';
     h += '<td><span style="font-weight:500">' + step.label + '</span></td>';
-    h += '<td class="col-right"><strong>' + fmtNum(step.count) + '</strong></td>';
-    h += '<td class="col-right"><span class="fill-bar" style="width:80px;display:inline-block;vertical-align:middle;margin-right:6px"><span class="bar bar-high" style="width:' + barW + P + '"></span></span>' + step.pct + P + '</td>';
+    h += '<td class="col-right">' + fmtNum(step.count) + '</td>';
+    h += '<td class="col-right">' + fillBar(step.pct, 14, '') + ' ' + step.pct + P + '</td>';
     if (step.drop === null) {
-      h += '<td class="col-right" style="color:#999">\u2014</td>';
+      h += '<td class="col-right" style="color:#ccc">\u2014</td>';
+    } else if (step.drop === 0) {
+      h += '<td class="col-right" style="color:var(--so-meadow-dark1)">0' + P + '</td>';
     } else {
-      h += '<td class="col-right" style="color:var(--so-coral-dark)">-' + step.drop + P + '</td>';
+      h += '<td class="col-right" style="color:var(--so-coral-dark)">\u2212' + step.drop + P + '</td>';
     }
     h += '</tr>';
   }
   h += '</tbody></table></div>';
 
-  // -- Segments (stat-row + stat-card pattern with colored left border) --
-  h += '<div class="detail-section">';
-  h += '<div class="detail-section-head">' + secHead('Company Segments') + '</div>';
-  h += '<div class="stat-row">';
+  // -- Segments as data-table (same pattern as Category/Business tables) --
+  h += '<div class="entity-card">';
+  h += '<div class="entity-header"><div class="entity-info"><h3>Company Segments</h3></div>';
+  h += '<span class="record-badge">4 segments</span></div>';
+  h += '<table class="data-table"><thead><tr>';
+  h += '<th>Segment</th><th class="col-right">Companies</th><th class="col-right">' + P + '</th><th>Description</th>';
+  h += '</tr></thead><tbody>';
   for (var si = 0; si < segs.length; si++) {
     var seg = segs[si];
     var segPct = f.total > 0 ? Math.round(seg.count / f.total * 1000) / 10 : 0;
-    h += '<div class="stat-card" style="border-left:4px solid ' + seg.color + ';text-align:left">';
-    h += '<div style="display:flex;justify-content:space-between;align-items:baseline">';
-    h += '<div class="stat-label" style="font-weight:600;color:var(--so-charcoal);font-size:.82rem">' + seg.name + '</div>';
-    h += '<div class="stat-value" style="font-size:1.1rem">' + fmtNum(seg.count) + '</div>';
-    h += '</div>';
-    h += '<div style="margin-top:6px">' + fillBar(segPct, 6, seg.color) + '</div>';
-    h += '<div class="stat-label" style="margin-top:4px;font-size:.72rem">' + seg.description + ' (' + segPct + P + ')</div>';
-    h += '</div>';
+    h += '<tr>';
+    h += '<td><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:' + seg.color + ';margin-right:8px;vertical-align:middle"></span>';
+    h += '<span style="font-weight:500">' + seg.name + '</span></td>';
+    h += '<td class="col-right">' + fmtNum(seg.count) + '</td>';
+    h += '<td class="col-right">' + fillBar(segPct, 14, seg.color) + ' ' + segPct + P + '</td>';
+    h += '<td style="color:var(--so-text-muted);font-size:.82rem">' + seg.description + '</td>';
+    h += '</tr>';
   }
-  h += '</div></div>';
+  h += '</tbody></table></div>';
 
   el.innerHTML = h;
 }
