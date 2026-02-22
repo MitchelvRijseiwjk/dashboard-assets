@@ -150,11 +150,10 @@
     .data-table tbody tr.unused td{opacity:.4;text-decoration:line-through}
 
     /* === FILL BAR === */
-    .fill-bar{width:100%;max-width:120px;height:14px;background:#eeecea;border-radius:3px;overflow:hidden}
+    .fill-bar{width:100%;max-width:120px;height:13px;background:#eeecea;border-radius:200px;overflow:hidden}
     .data-table .fill-bar{display:inline-block;vertical-align:middle;width:60px;max-width:60px;min-width:60px}
-    .fill-bar .bar{height:100%;min-width:1px;border-radius:3px 0 0 3px}
-    .stat-card .fill-bar{max-width:none;border-radius:3px}
-    .stat-card .fill-bar .bar{border-radius:3px}
+    .fill-bar .bar{height:100%;min-width:1px;border-radius:0}
+    .stat-card .fill-bar{max-width:none}
     .bar-high{background:var(--so-meadow-dark1)} .bar-mid{background:var(--so-coast-dark1)} .bar-low{background:var(--so-coral)} .bar-none{background:var(--so-plum)}
     .bar-cell{display:inline-flex;align-items:center;gap:6px;justify-content:flex-end}
     .bar-cell .pct-text{min-width:42px;text-align:right;font-size:.82rem;color:#666}
