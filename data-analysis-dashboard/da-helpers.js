@@ -253,6 +253,18 @@ function startAnalyzeAll() {
     listHtml += '</div>';
   }
   document.getElementById('aaEntityList').innerHTML = listHtml;
+  // Mirror entity list to setup screen (with different IDs)
+  var setupList = document.getElementById('setupEntityList');
+  if (setupList) {
+    var setupHtml = '';
+    for (var j = 0; j < aaQueue.length; j++) {
+      setupHtml += '<div class="aa-progress-item">';
+      setupHtml += '<span>' + aaEntityNames[aaQueue[j]] + '</span>';
+      setupHtml += '<span class="aa-status aa-status-pending" id="setupSt_' + aaQueue[j] + '">Pending</span>';
+      setupHtml += '</div>';
+    }
+    setupList.innerHTML = setupHtml;
+  }
 
   // Initialize progress bar
   var aaBar = document.getElementById('aaProgressBar');
@@ -275,13 +287,15 @@ var _aaFakeTimer = null;
 var _aaCurrentPct = 0;
 
 function _aaSetProgress(pct, status) {
+  // Never go backward
+  if (pct < _aaCurrentPct) pct = _aaCurrentPct;
   _aaCurrentPct = pct;
   var bar = document.getElementById('aaProgressBar');
   var pctEl = document.getElementById('aaProgressPercent');
   var statusEl = document.getElementById('aaProgressStatus');
   if (bar) bar.style.width = pct + P;
   if (pctEl) pctEl.textContent = Math.round(pct) + P;
-  if (statusEl) statusEl.innerHTML = status;
+  if (statusEl && status) statusEl.textContent = status;
   setupProgressUpdate(Math.round(pct), status);
 }
 
@@ -384,57 +398,47 @@ function runNextAA() {
   var entityName = aaEntityNames[key];
 
   var stEl = document.getElementById('aaSt_' + key);
-  if (stEl) { stEl.className = 'aa-status aa-status-loading'; stEl.textContent = 'Loading...'; }
+  var stEl2 = document.getElementById('setupSt_' + key);
+  function setEntityStatus(cls, txt) {
+    if (stEl) { stEl.className = cls; stEl.textContent = txt; }
+    if (stEl2) { stEl2.className = cls; stEl2.textContent = txt; }
+  }
+  setEntityStatus('aa-status aa-status-loading', 'Loading...');
 
   captureEntityFilter(key);
 
-  // Build sub-step tracker for this entity
-  var steps = [];
-  steps.push({ id: 'overview', label: 'Overview', done: false });
+  // Track which sub-loads are still running
+  var pending = {};
   var ec = entityConfig[key];
   if (ec) {
-    if (ec.udefId > 0) steps.push({ id: 'fields', label: 'Extra Fields', done: false });
-    if (ec.hasTicketFields) steps.push({ id: 'tfields', label: 'Ticket Fields', done: false });
-    if (key === 'company') steps.push({ id: 'details', label: 'Details', done: false });
-    steps.push({ id: 'tables', label: 'Tables', done: false });
+    pending['overview'] = 'overview';
+    if (ec.udefId > 0) pending['fields'] = 'extra fields';
+    if (ec.hasTicketFields) pending['tfields'] = 'ticket fields';
+    if (key === 'company') pending['details'] = 'details';
+    pending['tables'] = 'tables';
+  } else {
+    pending['overview'] = 'overview';
   }
 
-  function renderStepStatus() {
+  function getStatusText() {
     var parts = [];
-    for (var si = 0; si < steps.length; si++) {
-      var s = steps[si];
-      if (s.done) {
-        parts.push('<span style="color:var(--so-green,#2a6e50)">&#10003; ' + s.label + '</span>');
-      } else {
-        parts.push('<span style="color:#999">&#8987; ' + s.label + '</span>');
-      }
-    }
-    return entityName + ':&ensp;' + parts.join(' &ensp; ');
+    for (var k in pending) { parts.push(pending[k]); }
+    if (parts.length === 0) return entityName;
+    return entityName + ' — loading ' + parts.join(', ');
   }
 
   function markStepDone(stepId) {
-    for (var si = 0; si < steps.length; si++) {
-      if (steps[si].id === stepId) steps[si].done = true;
-    }
-    // Calculate sub-progress: proportional within entity range
-    var doneCount = 0;
-    for (var si = 0; si < steps.length; si++) { if (steps[si].done) doneCount++; }
-    var subPct = range.start + ((doneCount / steps.length) * (range.end - range.start));
-    _aaStopSmooth();
-    _aaSetProgress(subPct, renderStepStatus());
-    // Resume smooth animation toward next milestone
-    if (doneCount < steps.length) {
-      _aaStartSmooth(range.end, renderStepStatus());
-    }
+    delete pending[stepId];
+    _aaSetProgress(_aaCurrentPct, getStatusText());
   }
 
-  // Start smooth animation with initial status
-  _aaStartSmooth(range.end, renderStepStatus());
+  // Start smooth animation
+  _aaStartSmooth(range.end, getStatusText());
 
   function onEntityDone() {
     _aaStopSmooth();
-    _aaSetProgress(range.end, entityName + ' &#10003;');
-    if (stEl) { stEl.className = 'aa-status aa-status-done'; stEl.textContent = 'Done'; }
+    _aaSetProgress(range.end, entityName + ' complete');
+    setEntityStatus('aa-status aa-status-done', 'Done');
     aaIdx++;
     runNextAA();
   }
@@ -631,7 +635,7 @@ function setupProgressUpdate(pct, status) {
   var statusEl = document.getElementById('setupProgressStatus');
   if (bar) bar.style.width = pct + '%';
   if (pctEl) pctEl.textContent = pct + '%';
-  if (statusEl && status) statusEl.innerHTML = status;
+  if (statusEl && status) statusEl.textContent = status;
 }
 
 function setupAnalysisComplete() {
