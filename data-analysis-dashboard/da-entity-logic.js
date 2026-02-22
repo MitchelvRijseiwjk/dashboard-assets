@@ -752,6 +752,7 @@ function renderCrossEntityFunnel(d) {
   var segs = f.segments;
   var m = f.metrics;
   var h = '';
+  h += dateFilterNotice();
 
   // -- CRM Health metrics with context descriptions --
   h += '<div class="detail-section">';
@@ -832,46 +833,62 @@ function renderDQScore(key) {
   var scores = [];
   var h = '';
 
-  // Company-specific quality issues
-  if (key === 'company' && companyDetailData && companyDetailData.quality) {
-    var q = companyDetailData.quality;
-    var total = companyDetailData.activityHealth ? companyDetailData.activityHealth.total : 0;
-    if (total > 0) {
-      h += '<div class="detail-section">';
-      h += '<div class="detail-section-head">' + secHead('Data Quality Issues') + '</div>';
-      h += '<div class="stat-row">';
-      var issues = [
-        { label: 'No contact person', val: q.noPerson },
-        { label: 'No category', val: q.noCategory },
-        { label: 'No business type', val: q.noBusiness },
-        { label: 'No org. number', val: q.noOrgNr },
-        { label: 'Unreachable', val: q.unreachable }
-      ];
-      for (var i = 0; i < issues.length; i++) {
-        var pct = Math.round((issues[i].val / total) * 1000) / 10;
-        var col = pct < 10 ? 'var(--so-meadow)' : pct < 30 ? 'var(--so-mango)' : 'var(--so-coral)';
-        h += ovCard(issues[i].label, issues[i].val, total, col);
-      }
-      h += '</div></div>';
-    }
-  }
+  // Company-specific: Issues + Completeness side by side as tables
+  var hasIssues = (key === 'company' && companyDetailData && companyDetailData.quality);
+  var hasCpl = (key === 'company' && overviewData['company'] && overviewData['company'].completeness);
+  if (hasIssues || hasCpl) {
+    var cols = (hasIssues && hasCpl) ? 2 : 1;
+    if (cols === 2) h += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-bottom:18px">';
 
-  // Overview completeness (company)
-  if (key === 'company' && overviewData['company'] && overviewData['company'].completeness) {
-    var ov = overviewData['company'];
-    var c = ov.completeness;
-    var total = ov.overview.total || 0;
-    var ovLabCfg = ovLabels['company'];
-    if (ovLabCfg && ovLabCfg.completeness && total > 0) {
-      h += '<div class="detail-section">';
-      h += '<div class="detail-section-head">' + secHead('Standard Field Completeness') + '</div>';
-      h += '<div class="stat-row">';
-      for (var j = 0; j < ovLabCfg.completeness.length; j++) {
-        var cm = ovLabCfg.completeness[j];
-        h += ovCard(cm[1], c[cm[0]], total, '');
+    if (hasIssues) {
+      var q = companyDetailData.quality;
+      var total = companyDetailData.activityHealth ? companyDetailData.activityHealth.total : 0;
+      if (total > 0) {
+        var issues = [
+          { label: 'No contact person', val: q.noPerson },
+          { label: 'No category', val: q.noCategory },
+          { label: 'No business type', val: q.noBusiness },
+          { label: 'No org. number', val: q.noOrgNr },
+          { label: 'Unreachable', val: q.unreachable }
+        ];
+        h += '<div class="entity-card">';
+        h += '<div class="entity-header"><div class="entity-info"><h3>Data Quality Issues</h3></div>';
+        h += '<span class="record-badge">' + fmtNum(total) + ' companies</span></div>';
+        h += '<table class="data-table"><thead><tr><th>Issue</th><th class="col-right">Count</th><th class="col-right">' + P + '</th></tr></thead><tbody>';
+        for (var i = 0; i < issues.length; i++) {
+          var pct = Math.round((issues[i].val / total) * 1000) / 10;
+          var col = pct < 10 ? 'var(--so-meadow-dark1)' : pct < 30 ? 'var(--so-mango)' : 'var(--so-coral)';
+          h += '<tr><td>' + issues[i].label + '</td>';
+          h += '<td class="col-right">' + fmtNum(issues[i].val) + '</td>';
+          h += '<td class="col-right">' + barCell(pct, col) + '</td></tr>';
+        }
+        h += '</tbody></table></div>';
       }
-      h += '</div></div>';
     }
+
+    if (hasCpl) {
+      var ov = overviewData['company'];
+      var c = ov.completeness;
+      var total = ov.overview.total || 0;
+      var ovLabCfg = ovLabels['company'];
+      if (ovLabCfg && ovLabCfg.completeness && total > 0) {
+        h += '<div class="entity-card">';
+        h += '<div class="entity-header"><div class="entity-info"><h3>Standard Field Completeness</h3></div>';
+        h += '<span class="record-badge">' + fmtNum(total) + ' companies</span></div>';
+        h += '<table class="data-table"><thead><tr><th>Field</th><th class="col-right">Filled</th><th class="col-right">' + P + '</th></tr></thead><tbody>';
+        for (var j = 0; j < ovLabCfg.completeness.length; j++) {
+          var cm = ovLabCfg.completeness[j];
+          var val = c[cm[0]] || 0;
+          var pct = Math.round((val / total) * 1000) / 10;
+          h += '<tr><td>' + cm[1] + '</td>';
+          h += '<td class="col-right">' + fmtNum(val) + '</td>';
+          h += '<td class="col-right">' + barCell(pct, '') + '</td></tr>';
+        }
+        h += '</tbody></table></div>';
+      }
+    }
+
+    if (cols === 2) h += '</div>';
   }
 
   // DQ Score summary card
@@ -943,7 +960,7 @@ function renderCompanyDetails(d) {
   var el = document.getElementById('companyDetailContent');
   if (!el) return;
   var h = '';
-  h += dateFilterNotice();
+  // Filter notice is shown at top of Adoption tab (in renderCrossEntityFunnel)
   var ah = d.activityHealth;
   var total = ah ? ah.total : 0;
 
@@ -967,50 +984,47 @@ function renderCompanyDetails(d) {
     subRight.innerHTML = sr;
   }
 
-  // 1. ACTIVITY HEALTH — visualize engagement status
+  // 1. ACTIVITY HEALTH — single stacked bar with detailed legend
   var ah = d.activityHealth;
   if (ah && total > 0) {
-    h += '<div class="detail-section">';
-    h += '<div class="detail-section-head">' + secHead('Activity Health') + '</div>';
-    h += '<div class="stat-row">';
-    var ahItems = [
-      { label: 'Active (6m)', val: ah.active6m, col: 'var(--so-meadow)' },
-      { label: 'Cooling (6-12m)', val: ah.dormant12m, col: 'var(--so-mango)' },
-      { label: 'Dormant (>12m)', val: ah.dormantOlder, col: 'var(--so-coral)' },
-      { label: 'No Activity', val: ah.noActivity, col: '#999' }
-    ];
-    for (var i = 0; i < ahItems.length; i++) {
-      h += ovCard(ahItems[i].label, ahItems[i].val, total, ahItems[i].col);
-    }
-    h += '</div>';
-    // Stacked bar with inline labels + legend
-    h += '<div style="padding:4px 0 8px">';
+    h += '<div class="entity-card">';
+    h += '<div class="entity-header"><div class="entity-info"><h3>Activity Health</h3></div>';
+    h += '<span class="record-badge">' + fmtNum(total) + ' companies</span></div>';
+
     var ahParts = [
-      { pct: ah.active6m / total * 100, col: 'var(--so-meadow)', label: 'Active (6m)' },
-      { pct: ah.dormant12m / total * 100, col: 'var(--so-mango)', label: 'Cooling (6-12m)' },
-      { pct: ah.dormantOlder / total * 100, col: 'var(--so-coral)', label: 'Dormant (>12m)' },
-      { pct: ah.noActivity / total * 100, col: '#ccc', label: 'No Activity' }
+      { val: ah.active6m, col: 'var(--so-meadow)', label: 'Active', desc: 'Activity within last 6 months' },
+      { val: ah.dormant12m, col: 'var(--so-mango)', label: 'Cooling', desc: 'Last activity 6\u201312 months ago' },
+      { val: ah.dormantOlder, col: 'var(--so-coral)', label: 'Dormant', desc: 'No activity for over 12 months' },
+      { val: ah.noActivity, col: '#ccc', label: 'No Activity', desc: 'Never had any registered activity' }
     ];
-    h += '<div class="stacked-bar">';
+
+    // Taller stacked bar with inline labels
+    h += '<div style="padding:14px 18px 0">';
+    h += '<div class="stacked-bar" style="height:32px;border-radius:6px">';
     for (var i = 0; i < ahParts.length; i++) {
-      var rp = Math.round(ahParts[i].pct);
-      if (rp > 0) {
-        var segLabel = rp >= 10 ? '<span style="font-size:.7rem;color:#fff;font-weight:600;padding:0 6px">' + rp + P + '</span>' : '';
-        h += '<div class="stacked-segment" style="width:' + ahParts[i].pct + P + ';background:' + ahParts[i].col + ';display:flex;align-items:center;justify-content:center;overflow:hidden">' + segLabel + '</div>';
+      var pct = ahParts[i].val / total * 100;
+      if (pct > 0) {
+        var segLabel = pct >= 8 ? '<span style="font-size:.75rem;color:#fff;font-weight:600">' + fmtNum(ahParts[i].val) + ' (' + Math.round(pct) + P + ')</span>' : '';
+        h += '<div class="stacked-segment" style="width:' + pct + P + ';background:' + ahParts[i].col + ';display:flex;align-items:center;justify-content:center;overflow:hidden;border-radius:0">' + segLabel + '</div>';
       }
     }
-    h += '</div>';
-    // Legend
-    h += '<div style="display:flex;gap:16px;margin-top:6px;flex-wrap:wrap">';
-    for (var i = 0; i < ahParts.length; i++) {
-      var rp = Math.round(ahParts[i].pct * 10) / 10;
-      h += '<span style="font-size:.75rem;color:#666;display:flex;align-items:center;gap:4px">';
-      h += '<span style="width:8px;height:8px;border-radius:50%;background:' + ahParts[i].col + ';flex-shrink:0"></span>';
-      h += ahParts[i].label + ' (' + rp + P + ')';
-      h += '</span>';
-    }
     h += '</div></div>';
-    h += '</div>';
+
+    // Legend as mini data-table
+    h += '<table class="data-table"><thead><tr>';
+    h += '<th>Status</th><th class="col-right">Companies</th><th class="col-right">' + P + '</th><th>Description</th>';
+    h += '</tr></thead><tbody>';
+    for (var i = 0; i < ahParts.length; i++) {
+      var pct = Math.round(ahParts[i].val / total * 1000) / 10;
+      h += '<tr>';
+      h += '<td><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:' + ahParts[i].col + ';margin-right:8px;vertical-align:middle"></span>';
+      h += '<span style="font-weight:500">' + ahParts[i].label + '</span></td>';
+      h += '<td class="col-right">' + fmtNum(ahParts[i].val) + '</td>';
+      h += '<td class="col-right">' + pct + P + '</td>';
+      h += '<td style="color:var(--so-text-muted);font-size:.82rem">' + ahParts[i].desc + '</td>';
+      h += '</tr>';
+    }
+    h += '</tbody></table></div>';
   }
 
   // 1b. REGISTRATION TREND (with active overlay)
@@ -1058,7 +1072,7 @@ function renderCompanyDetails(d) {
         h += '<span class="record-badge">' + fmtNum(beforeTotal) + ' before ' + visibleData[0].label + '</span>';
       }
       h += '</div>';
-      var cW = 960, cH = 220, padL = 40, padR = 10, padT = 15, padB = 40;
+      var cW = 960, cH = 250, padL = 40, padR = 10, padT = 20, padB = 40;
       var plotW = cW - padL - padR, plotH = cH - padT - padB;
       var dataInset = 15;
       var niceMax = maxCount;
@@ -1087,7 +1101,7 @@ function renderCompanyDetails(d) {
       }
 
       var areaPath = 'M' + (padL + dataInset) + ',' + (padT + plotH) + ' L' + pts.join(' L') + ' L' + (padL + dataInset + (visibleData.length - 1) * step).toFixed(1) + ',' + (padT + plotH) + ' Z';
-      h += '<svg viewBox="0 0 ' + cW + ' ' + cH + '" style="width:100%;height:auto;display:block;max-height:240px">';
+      h += '<svg viewBox="0 0 ' + cW + ' ' + cH + '" style="width:100%;height:auto;display:block;max-height:260px">';
       // Y grid
       for (var gi = 0; gi <= ySteps; gi++) {
         var gy = padT + plotH - (gi / ySteps) * plotH;
@@ -1109,10 +1123,13 @@ function renderCompanyDetails(d) {
         if (visibleData[i].count > 0) {
           h += '<text x="' + xy[0] + '" y="' + (parseFloat(xy[1]) - 10).toFixed(1) + '" text-anchor="middle" fill="var(--so-charcoal)" font-size="10" font-weight="600" font-family="DM Sans,sans-serif">' + fmtNum(visibleData[i].count) + '</text>';
         }
-        // Active dot
+        // Active dot + label (below the dot, skip when same as count)
         if (hasActiveData) {
           var axy = aPts[i].split(',');
           h += '<circle cx="' + axy[0] + '" cy="' + axy[1] + '" r="3" fill="var(--so-meadow-dark1)" stroke="#fff" stroke-width="1.5"/>';
+          if (visibleData[i].active !== visibleData[i].count) {
+            h += '<text x="' + axy[0] + '" y="' + (parseFloat(axy[1]) + 14).toFixed(1) + '" text-anchor="middle" fill="var(--so-meadow-dark1)" font-size="9" font-weight="600" font-family="DM Sans,sans-serif">' + visibleData[i].active + '</text>';
+          }
         }
         // X labels (skip some for monthly to avoid overlap)
         var showLabel = !useMonthly || (i === 0 || i === visibleData.length - 1 || i % 3 === 0);
