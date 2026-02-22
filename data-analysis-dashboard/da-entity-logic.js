@@ -564,11 +564,16 @@ function ovCard(label, value, total, color) {
   return h;
 }
 
-function pctCard(label, pct, desc, color) {
+function pctCard(label, pct, desc, color, count, base) {
   var v = (typeof pct === 'number' && !isNaN(pct)) ? pct : 0;
   var h = '<div class="stat-card">';
-  h += '<div class="stat-value">' + v + P + '</div>';
-  h += '<div class="stat-label">' + label + '</div>';
+  if (typeof count === 'number' && typeof base === 'number') {
+    h += '<div class="stat-value">' + fmtNum(count) + '<span style="font-size:.55em;color:#999;font-weight:400"> / ' + fmtNum(base) + '</span></div>';
+    h += '<div class="stat-label">' + label + ' <span style="font-weight:700;color:' + color + '">' + v + P + '</span></div>';
+  } else {
+    h += '<div class="stat-value">' + v + P + '</div>';
+    h += '<div class="stat-label">' + label + '</div>';
+  }
   h += '<div style="margin-top:6px">' + fillBar(v, 8, color) + '</div>';
   h += '<div class="stat-label" style="margin-top:4px;font-size:.7rem;color:#999">' + desc + '</div>';
   h += '</div>';
@@ -758,10 +763,10 @@ function renderCrossEntityFunnel(d) {
   h += '<div class="detail-section">';
   h += '<div class="detail-section-head">' + secHead('CRM Health Pipeline') + '</div>';
   h += '<div class="stat-row">';
-  h += pctCard('Person Coverage', m.personCoverage, 'Companies with a contact person', slColor(m.personCoverage));
-  h += pctCard('Activity Rate', m.activityRate, 'With person + activity in 12 months', slColor(m.activityRate));
-  h += pctCard('Pipeline Rate', m.pipelineRate, 'Active companies with an open sale', slColor(m.pipelineRate));
-  h += pctCard('Overall Health', m.overallHealth, 'Person + activity + sale (fully engaged)', slColor(m.overallHealth));
+  h += pctCard('Person Coverage', m.personCoverage, 'Companies with a contact person', slColor(m.personCoverage), f.withPerson, f.total);
+  h += pctCard('Activity Rate', m.activityRate, 'With person + activity in 12 months', slColor(m.activityRate), f.withPersonActivity, f.withPerson);
+  h += pctCard('Pipeline Rate', m.pipelineRate, 'Active companies with an open sale', slColor(m.pipelineRate), f.withPersonActivitySale, f.withPersonActivity);
+  h += pctCard('Overall Health', m.overallHealth, 'Person + activity + sale (fully engaged)', slColor(m.overallHealth), f.withPersonActivitySale, f.total);
   h += '</div></div>';
 
   // -- Engagement Funnel --
@@ -897,7 +902,7 @@ function renderDQScore(key) {
     var scoreColor = slColor(dqScore);
     var scoreHtml = '<div class="dq-score-banner">';
     scoreHtml += '<div class="dq-score-ring" style="--score:' + dqScore + ';--color:' + scoreColor + '">';
-    scoreHtml += '<span class="dq-score-value">' + dqScore + '</span>';
+    scoreHtml += '<span class="dq-score-value">' + dqScore + '<span style="font-size:.5em">%</span></span>';
     scoreHtml += '</div>';
     scoreHtml += '<div class="dq-score-info">';
     scoreHtml += '<div class="dq-score-label">Data Quality Score</div>';
@@ -1143,7 +1148,7 @@ function renderCompanyDetails(d) {
       h += '<div style="display:flex;gap:16px;margin-top:4px;padding-left:' + padL + 'px">';
       h += '<span style="font-size:.75rem;color:#666;display:flex;align-items:center;gap:4px"><span style="width:12px;height:3px;background:var(--so-green);border-radius:2px"></span> Registered</span>';
       if (hasActiveData) {
-        h += '<span style="font-size:.75rem;color:#666;display:flex;align-items:center;gap:4px"><span style="width:12px;height:0;border-top:2px dashed var(--sl-good)"></span> Still active (had activity in last 12m)</span>';
+        h += '<span style="font-size:.75rem;color:#666;display:flex;align-items:center;gap:4px"><span style="width:12px;height:0;border-top:2px dashed var(--sl-good)"></span> Retention \u2014 of which still active today</span>';
       }
       h += '</div>';
       h += '</div>';
