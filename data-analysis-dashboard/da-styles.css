@@ -298,3 +298,11 @@
     .dq-score-info{flex:1}
     .dq-score-label{font-size:1rem;font-weight:600;color:var(--so-charcoal);margin-bottom:4px}
     .dq-score-desc{font-size:.78rem;color:var(--so-text-muted);line-height:1.4}
+    .loading-overlay{position:absolute;top:0;left:0;right:0;bottom:0;background:rgba(242,239,234,.95);z-index:50;display:flex;align-items:flex-start;justify-content:center;padding-top:120px;min-height:400px}
+    .loading-overlay-inner{text-align:center;max-width:320px}
+    .loading-spinner{width:40px;height:40px;border:3px solid var(--so-border);border-top-color:var(--so-green);border-radius:50%;animation:spin 1s linear infinite;margin:0 auto 16px}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    .loading-title{font-size:1.1rem;font-weight:600;color:var(--so-charcoal);margin-bottom:12px}
+    .loading-progress-wrap{width:100%;height:6px;background:var(--so-border);border-radius:3px;overflow:hidden;margin-bottom:8px}
+    .loading-progress-bar{height:100%;background:var(--so-green);border-radius:3px;width:0;transition:width .4s ease}
+    .loading-status{font-size:.82rem;color:var(--so-text-muted)}
