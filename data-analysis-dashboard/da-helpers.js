@@ -32,10 +32,16 @@ function resolveDate(val) {
   if (!val) return '';
   if (val === 'custom') return '';
   var now = new Date();
+  function fmt(d) {
+    var y = d.getFullYear();
+    var m = ('0' + (d.getMonth() + 1)).slice(-2);
+    var day = ('0' + d.getDate()).slice(-2);
+    return y + '-' + m + '-' + day;
+  }
   if (val === 'thisyear') { return now.getFullYear() + '-01-01'; }
-  if (val === 'last6m') { now.setMonth(now.getMonth() - 6); now.setDate(1); return now.toISOString().split('T')[0]; }
-  if (val === 'last12m') { now.setMonth(now.getMonth() - 12); now.setDate(1); return now.toISOString().split('T')[0]; }
-  if (val === 'last24m') { now.setMonth(now.getMonth() - 24); now.setDate(1); return now.toISOString().split('T')[0]; }
+  if (val === 'last6m') { now.setDate(1); now.setMonth(now.getMonth() - 6); return fmt(now); }
+  if (val === 'last12m') { now.setDate(1); now.setMonth(now.getMonth() - 12); return fmt(now); }
+  if (val === 'last24m') { now.setDate(1); now.setMonth(now.getMonth() - 24); return fmt(now); }
   return val;
 }
 
