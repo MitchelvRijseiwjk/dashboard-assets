@@ -266,12 +266,15 @@ function startAnalyzeAll() {
     setupList.innerHTML = setupHtml;
   }
 
-  // Initialize progress bar
+  // Initialize progress bar and parallel counters
   var aaBar = document.getElementById('aaProgressBar');
   if (aaBar) { aaBar.style.width = '0'; aaBar.classList.add('loading'); }
   var aaPctEl = document.getElementById('aaProgressPercent');
   if (aaPctEl) aaPctEl.textContent = '0' + P;
   _aaCurrentPct = 0;
+  _aaCompleted = 0;
+  _aaRunning = 0;
+  _aaStatusTexts = {};
 
   aaIdx = 0;
   runNextAA();
@@ -338,62 +341,103 @@ function _aaCalcRanges() {
 }
 
 var _aaRanges = {};
+var _aaConcurrency = 2; // run 2 entities at once
+var _aaCompleted = 0;
+var _aaRunning = 0;
+var _aaStatusTexts = {}; // track status per running entity
 
-function runNextAA() {
-  if (aaIdx >= aaQueue.length) {
-    _aaStopSmooth();
-    document.getElementById('aaProgressBar').classList.remove('loading');
-    _aaSetProgress(100, 'All analyses complete!');
-    setTimeout(function() {
-      // Auto-populate standalone Extra Tables tab from cache
-      if (typeof _extraCache !== 'undefined' && _extraCache && _extraCache.ready) {
-        extraTables = _extraCache.tables;
-        extraData = {};
-        for (var ei = 0; ei < _extraCache.tables.length; ei++) {
-          extraData[_extraCache.tables[ei].id] = _extraCache.data[_extraCache.tables[ei].id];
-        }
-        var extraStartEl = document.getElementById('extraStart');
-        var extraResultsEl = document.getElementById('extraResults');
-        var extraExportEl = document.getElementById('extraExportBtn');
-        var extraBtn = document.getElementById('extraAnalyzeBtn');
-        if (extraStartEl) extraStartEl.style.display = 'none';
-        if (extraResultsEl) extraResultsEl.style.display = 'block';
-        if (extraExportEl) extraExportEl.style.display = '';
-        if (extraBtn) { extraBtn.disabled = false; extraBtn.onclick = function(){ document.getElementById('extraResults').style.display = 'none'; document.getElementById('extraCards').innerHTML = ''; extraData = {}; invalidateExtraCache(); startExtra(); }; }
-        var wr = 0;
+function _aaUpdateCombinedStatus() {
+  var parts = [];
+  for (var k in _aaStatusTexts) { parts.push(_aaStatusTexts[k]); }
+  var combined = parts.join('  |  ');
+  var bar = document.getElementById('aaProgressBar');
+  var pctEl = document.getElementById('aaProgressPercent');
+  var statusEl = document.getElementById('aaProgressStatus');
+  var pct = _aaCurrentPct;
+  if (bar) bar.style.width = pct + P;
+  if (pctEl) pctEl.textContent = Math.round(pct) + P;
+  if (statusEl && combined) statusEl.textContent = combined;
+  setupProgressUpdate(Math.round(pct), combined);
+}
+
+function _aaOnAllDone() {
+  _aaStopSmooth();
+  document.getElementById('aaProgressBar').classList.remove('loading');
+  _aaSetProgress(100, 'All analyses complete!');
+  setTimeout(function() {
+    // Auto-populate standalone Extra Tables tab from cache
+    if (typeof _extraCache !== 'undefined' && _extraCache && _extraCache.ready) {
+      extraTables = _extraCache.tables;
+      extraData = {};
+      for (var ei = 0; ei < _extraCache.tables.length; ei++) {
+        extraData[_extraCache.tables[ei].id] = _extraCache.data[_extraCache.tables[ei].id];
+      }
+      var extraStartEl = document.getElementById('extraStart');
+      var extraResultsEl = document.getElementById('extraResults');
+      var extraExportEl = document.getElementById('extraExportBtn');
+      var extraBtn = document.getElementById('extraAnalyzeBtn');
+      if (extraStartEl) extraStartEl.style.display = 'none';
+      if (extraResultsEl) extraResultsEl.style.display = 'block';
+      if (extraExportEl) extraExportEl.style.display = '';
+      if (extraBtn) { extraBtn.disabled = false; extraBtn.onclick = function(){ document.getElementById('extraResults').style.display = 'none'; document.getElementById('extraCards').innerHTML = ''; extraData = {}; invalidateExtraCache(); startExtra(); }; }
+      var wr = 0;
+      for (var ei = 0; ei < extraTables.length; ei++) {
+        var ed = extraData[extraTables[ei].id];
+        if (ed && ed.relationFields && ed.relationFields.length > 0) wr++;
+      }
+      var extraSumEl = document.getElementById('extraSummary');
+      if (extraSumEl) extraSumEl.textContent = extraTables.length + ' extra tables, ' + wr + ' with relation fields.';
+      var extraCardsEl = document.getElementById('extraCards');
+      if (extraCardsEl) {
+        extraCardsEl.innerHTML = '';
         for (var ei = 0; ei < extraTables.length; ei++) {
           var ed = extraData[extraTables[ei].id];
-          if (ed && ed.relationFields && ed.relationFields.length > 0) wr++;
-        }
-        var extraSumEl = document.getElementById('extraSummary');
-        if (extraSumEl) extraSumEl.textContent = extraTables.length + ' extra tables, ' + wr + ' with relation fields.';
-        var extraCardsEl = document.getElementById('extraCards');
-        if (extraCardsEl) {
-          extraCardsEl.innerHTML = '';
-          for (var ei = 0; ei < extraTables.length; ei++) {
-            var ed = extraData[extraTables[ei].id];
-            if (ed) extraCardsEl.innerHTML += renderExtra(ed, ei);
-          }
+          if (ed) extraCardsEl.innerHTML += renderExtra(ed, ei);
         }
       }
+    }
 
-      document.getElementById('aaProgressScreen').style.display = 'none';
-      document.getElementById('aaStartScreen').style.display = '';
-      document.getElementById('aaDoneBanner').style.display = '';
-      document.getElementById('aaDoneSummary').textContent = aaQueue.length + ' entities analyzed.';
-      if (setupAnalysisRunning) { setupAnalysisComplete(); return; }
-      document.getElementById('aaStartBtn').innerHTML = '<img src="data:image/svg+xml;base64,' + icoPlayO + '"> Run Again';
-    }, 800);
-    return;
-  }
+    document.getElementById('aaProgressScreen').style.display = 'none';
+    document.getElementById('aaStartScreen').style.display = '';
+    document.getElementById('aaDoneBanner').style.display = '';
+    document.getElementById('aaDoneSummary').textContent = aaQueue.length + ' entities analyzed.';
+    if (setupAnalysisRunning) { setupAnalysisComplete(); return; }
+    document.getElementById('aaStartBtn').innerHTML = '<img src="data:image/svg+xml;base64,' + icoPlayO + '"> Run Again';
+  }, 800);
+}
 
+function runNextAA() {
   // Calculate ranges on first call
-  if (aaIdx === 0) {
+  if (_aaCompleted === 0 && _aaRunning === 0) {
     _aaRanges = _aaCalcRanges();
     _aaCurrentPct = 0;
+    _aaStatusTexts = {};
   }
 
-  var key = aaQueue[aaIdx];
+  // Launch entities up to concurrency limit
+  while (_aaRunning < _aaConcurrency && aaIdx < aaQueue.length) {
+    _aaLaunchEntity(aaQueue[aaIdx]);
+    aaIdx++;
+  }
+
+  // Start smooth animation toward current progress + running entities' weight
+  var totalWeight = 0;
+  var potentialWeight = 0;
+  for (var qi = 0; qi < aaQueue.length; qi++) {
+    var qk = aaQueue[qi];
+    var w = aaWeights[qk] || 5;
+    totalWeight += w;
+    var qStEl = document.getElementById('aaSt_' + qk);
+    if (qStEl && (qStEl.textContent === 'Done' || qStEl.textContent === 'Loading...')) {
+      potentialWeight += w;
+    }
+  }
+  var targetPct = (potentialWeight / totalWeight) * 100;
+  if (targetPct > _aaCurrentPct) _aaStartSmooth(targetPct, '');
+}
+
+function _aaLaunchEntity(key) {
+  _aaRunning++;
   var range = _aaRanges[key];
   var entityName = aaEntityNames[key];
 
@@ -405,9 +449,10 @@ function runNextAA() {
   }
   setEntityStatus('aa-status aa-status-loading', 'Loading...');
 
+  // Capture filter params synchronously BEFORE any async calls
   captureEntityFilter(key);
 
-  // Track which sub-loads are still running
+  // Track which sub-loads are still running for this entity
   var pending = {};
   var ec = entityConfig[key];
   if (ec) {
@@ -424,25 +469,49 @@ function runNextAA() {
     var parts = [];
     for (var k in pending) { parts.push(pending[k]); }
     if (parts.length === 0) return entityName;
-    return entityName + ' — loading ' + parts.join(', ');
+    return entityName + ' — ' + parts.join(', ');
   }
+
+  _aaStatusTexts[key] = getStatusText();
+  _aaUpdateCombinedStatus();
 
   function markStepDone(stepId) {
     delete pending[stepId];
-    _aaSetProgress(_aaCurrentPct, getStatusText());
+    _aaStatusTexts[key] = getStatusText();
+    // Bump progress based on overall completed weight
+    _aaUpdateCombinedStatus();
   }
-
-  // Start smooth animation
-  _aaStartSmooth(range.end, getStatusText());
 
   function onEntityDone() {
-    _aaStopSmooth();
-    _aaSetProgress(range.end, entityName + ' complete');
+    _aaRunning--;
+    _aaCompleted++;
+    delete _aaStatusTexts[key];
     setEntityStatus('aa-status aa-status-done', 'Done');
-    aaIdx++;
-    runNextAA();
+
+    // Update progress: percentage = completed weight / total weight
+    var totalWeight = 0;
+    var doneWeight = 0;
+    for (var qi = 0; qi < aaQueue.length; qi++) {
+      var qk = aaQueue[qi];
+      var w = aaWeights[qk] || 5;
+      totalWeight += w;
+      var qStEl = document.getElementById('aaSt_' + qk);
+      if (qStEl && qStEl.textContent === 'Done') {
+        doneWeight += w;
+      }
+    }
+    var donePct = (doneWeight / totalWeight) * 100;
+    _aaStopSmooth();
+    _aaSetProgress(donePct, _aaCompleted >= aaQueue.length ? 'All analyses complete!' : '');
+
+    if (_aaCompleted >= aaQueue.length) {
+      _aaOnAllDone();
+    } else {
+      runNextAA(); // launch next available entity
+    }
   }
 
+  // Launch the entity (all URL construction happens synchronously here)
   if (entityConfig[key]) {
     aaRunFullEntity(key, onEntityDone, markStepDone);
   } else {
