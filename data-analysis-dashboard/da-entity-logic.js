@@ -780,14 +780,14 @@ function renderCrossEntityFunnel(d) {
   h += '<div class="entity-header"><div class="entity-info"><h3>Company Engagement Funnel</h3></div>';
   h += '<span class="record-badge">' + fmtNum(f.total) + ' companies</span></div>';
   h += '<table class="data-table"><thead><tr>';
-  h += '<th>Stage</th><th class="col-right">Companies</th><th class="col-right">' + P + ' of total</th><th class="col-right">vs. previous stage</th>';
+  h += '<th>Stage</th><th class="col-right">Companies</th><th class="col-right">' + P + ' of total</th><th class="col-right">vs. previous</th>';
   h += '</tr></thead><tbody>';
   for (var i = 0; i < funnelSteps.length; i++) {
     var step = funnelSteps[i];
     h += '<tr>';
     h += '<td><span style="font-weight:500">' + step.label + '</span></td>';
     h += '<td class="col-right">' + fmtNum(step.count) + '</td>';
-    h += '<td class="col-right">' + fillBar(step.pct, 14, '') + ' ' + step.pct + P + '</td>';
+    h += '<td class="col-right">' + barCell(step.pct, '') + '</td>';
     if (step.drop === null) {
       h += '<td class="col-right" style="color:#ccc">\u2014</td>';
     } else if (step.drop === 0) {
@@ -813,7 +813,7 @@ function renderCrossEntityFunnel(d) {
     h += '<td><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:' + seg.color + ';margin-right:8px;vertical-align:middle"></span>';
     h += '<span style="font-weight:500">' + seg.name + '</span></td>';
     h += '<td class="col-right">' + fmtNum(seg.count) + '</td>';
-    h += '<td class="col-right">' + fillBar(segPct, 14, seg.color) + ' ' + segPct + P + '</td>';
+    h += '<td class="col-right">' + barCell(segPct, seg.color) + '</td>';
     h += '<td style="color:var(--so-text-muted);font-size:.82rem">' + seg.description + '</td>';
     h += '</tr>';
   }
@@ -1086,7 +1086,7 @@ function renderCompanyDetails(d) {
       h += '<td class="col-right" data-sort-value="' + pctPers + '">' + fmtNum(c.withPerson) + '<span style="color:#999;font-size:.75rem;margin-left:4px">' + pctPers + P + '</span></td>';
       h += '<td class="col-right" data-sort-value="' + pctAct + '">' + fmtNum(c.withActivity) + '<span style="color:#999;font-size:.75rem;margin-left:4px">' + pctAct + P + '</span></td>';
       h += '<td class="col-right" data-sort-value="' + pctSale + '">' + fmtNum(c.withSale) + '<span style="color:#999;font-size:.75rem;margin-left:4px">' + pctSale + P + '</span></td>';
-      h += '<td class="col-right" data-sort-value="' + engagement + '">' + fillBar(engagement, 8, engCol) + '<span style="color:#999;font-size:.75rem;margin-left:6px">' + engagement + P + '</span></td>';
+      h += '<td class="col-right" data-sort-value="' + engagement + '">' + barCell(engagement, engCol) + '</td>';
       h += '</tr>';
     }
     h += '</tbody></table></div>';
@@ -1151,7 +1151,7 @@ function renderCompanyDetails(d) {
       r += '<td class="col-right" data-sort-value="' + a.withActivities + '">' + fmtNum(a.withActivities) + '<span style="color:#999;font-size:.75rem;margin-left:4px">' + pctAct + P + '</span></td>';
       r += '<td class="col-right" data-sort-value="' + a.withEmail + '">' + fmtNum(a.withEmail) + '<span style="color:#999;font-size:.75rem;margin-left:4px">' + pctEm + P + '</span></td>';
       r += '<td class="col-right" data-sort-value="' + stale + '">' + fmtNum(stale) + '<span style="color:#999;font-size:.75rem;margin-left:4px">' + pctStale + P + '</span></td>';
-      r += '<td class="col-right" data-sort-value="' + compP + '">' + fillBar(compP, 8, '') + '<span style="color:#999;font-size:.75rem;margin-left:6px">' + compP + P + '</span></td>';
+      r += '<td class="col-right" data-sort-value="' + compP + '">' + barCell(compP, '') + '</td>';
       r += '</tr>';
       return r;
     }
@@ -1169,7 +1169,7 @@ function renderCompanyDetails(d) {
         h += '<td class="col-right" data-sort-value="' + g.withActivities + '">' + fmtNum(g.withActivities) + '</td>';
         h += '<td class="col-right" data-sort-value="' + g.withEmail + '">' + fmtNum(g.withEmail) + '</td>';
         h += '<td class="col-right" data-sort-value="' + g.stale + '">' + fmtNum(g.stale) + '<span style="color:#999;font-size:.75rem;margin-left:4px">' + gPctStale + P + '</span></td>';
-        h += '<td class="col-right" data-sort-value="' + gCompP + '">' + fillBar(gCompP, 8, '') + '<span style="color:#999;font-size:.75rem;margin-left:6px">' + gCompP + P + '</span></td>';
+        h += '<td class="col-right" data-sort-value="' + gCompP + '">' + barCell(gCompP, '') + '</td>';
         h += '</tr>';
         for (var mi = 0; mi < g.members.length; mi++) {
           h += assocRow(g.members[mi]);
