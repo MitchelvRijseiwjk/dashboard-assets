@@ -291,7 +291,7 @@ function startFullEntity(key) {
   // Adoption tab placeholders
   if (hasDetails) {
     var crossEl = document.getElementById('companyCrossContent');
-    if (crossEl) crossEl.innerHTML = loadingPlaceholder('Loading cross-entity analysis...');
+    if (crossEl) crossEl.innerHTML = loadingPlaceholder('Loading engagement funnel...');
     var detailEl = document.getElementById('companyDetailContent');
     if (detailEl) detailEl.innerHTML = loadingPlaceholder('Loading adoption analysis...');
   }
@@ -311,7 +311,7 @@ function startFullEntity(key) {
   var totalSteps = 2; // overview + extra (always)
   if (ec && ec.udefId > 0) totalSteps++;
   if (ec && ec.hasTicketFields) totalSteps++;
-  if (hasDetails) totalSteps += 2; // details + cross-entity
+  if (hasDetails) totalSteps++; // details (includes funnel now)
   var completedSteps = 0;
   var dfParam = getDateFilterParam();
 
@@ -392,20 +392,14 @@ function startFullEntity(key) {
       }
       var detailEl2 = document.getElementById('companyDetailContent');
       if (detailEl2) detailEl2.style.animation = 'fadeIn .3s ease';
+      // Render funnel from detail data (included in same response)
+      if (d && d.funnel) {
+        companyCrossData = d;
+        renderCrossEntityFunnel(d);
+        var crossEl2 = document.getElementById('companyCrossContent');
+        if (crossEl2) crossEl2.style.animation = 'fadeIn .3s ease';
+      }
       stepDone('Details loaded');
-    });
-
-    // === PARALLEL LOAD 3b: Cross-entity analysis ===
-    var crossCatParam = '';
-    if (companyDetailCatValue) {
-      crossCatParam = String.fromCharCode(38) + 'categoryName=' + encodeURIComponent(companyDetailCatValue);
-    }
-    ajax(crossUrl + dfParam + crossCatParam, function(d) {
-      companyCrossData = d;
-      if (d) renderCrossEntityFunnel(d);
-      var crossEl2 = document.getElementById('companyCrossContent');
-      if (crossEl2) crossEl2.style.animation = 'fadeIn .3s ease';
-      stepDone('Cross-entity loaded');
     });
   }
 
@@ -693,8 +687,10 @@ function reloadCompanyDetails() {
   if (el) el.innerHTML = '<div style="text-align:center;padding:40px;color:#999">Loading...</div>';
   var crossEl = document.getElementById('companyCrossContent');
   if (crossEl) crossEl.innerHTML = '<div style="text-align:center;padding:40px;color:#999">Loading...</div>';
-  fetchCompanyDetails(function() { renderDQScore('company'); });
-  loadCompanyCross(null);
+  fetchCompanyDetails(function() {
+    renderDQScore('company');
+    loadCompanyCross(null);
+  });
 }
 
 function togDetailFilter(key) {
@@ -728,23 +724,22 @@ document.addEventListener('click', function(e) {
 var companyCrossData = null;
 
 function loadCompanyCross(cb) {
-  var catParam = '';
-  if (companyDetailCatValue) {
-    catParam = String.fromCharCode(38) + 'categoryName=' + encodeURIComponent(companyDetailCatValue);
+  // Funnel data is now included in CompanyDetailFetch response
+  // No separate AJAX call needed — just render from companyDetailData
+  if (companyDetailData && companyDetailData.funnel) {
+    companyCrossData = companyDetailData;
+    renderCrossEntityFunnel(companyDetailData);
   }
-  ajax(crossUrl + getDateFilterParam() + catParam, function(d) {
-    companyCrossData = d;
-    if (d) renderCrossEntityFunnel(d);
-    if (cb) cb();
-  });
+  if (cb) cb();
 }
 
 function renderCrossEntityFunnel(d) {
   var el = document.getElementById('companyCrossContent');
   if (!el) return;
   var f = d.funnel;
-  var segs = d.segments;
-  var m = d.metrics;
+  if (!f) { el.innerHTML = ''; return; }
+  var segs = f.segments;
+  var m = f.metrics;
   var h = '';
   h += dateFilterNotice();
 
