@@ -831,7 +831,6 @@ function renderDQScore(key) {
 
   var scores = [];
   var h = '';
-  h += dateFilterNotice();
 
   // Company-specific quality issues
   if (key === 'company' && companyDetailData && companyDetailData.quality) {
@@ -889,6 +888,8 @@ function renderDQScore(key) {
     scoreHtml += '</div></div>';
     h = scoreHtml + h; // prepend score to top
   }
+
+  h = dateFilterNotice() + h; // filter notice always at very top
 
   el.innerHTML = h;
 }
@@ -982,43 +983,82 @@ function renderCompanyDetails(d) {
       h += ovCard(ahItems[i].label, ahItems[i].val, total, ahItems[i].col);
     }
     h += '</div>';
-    // Stacked bar for activity health
-    h += '<div class="stacked-bar-container">';
+    // Stacked bar with inline labels + legend
+    h += '<div style="padding:4px 0 8px">';
     var ahParts = [
-      { pct: ah.active6m / total * 100, col: 'var(--so-meadow)', label: 'Active' },
-      { pct: ah.dormant12m / total * 100, col: 'var(--so-mango)', label: 'Cooling' },
-      { pct: ah.dormantOlder / total * 100, col: 'var(--so-coral)', label: 'Dormant' },
-      { pct: ah.noActivity / total * 100, col: '#ccc', label: 'None' }
+      { pct: ah.active6m / total * 100, col: 'var(--so-meadow)', label: 'Active (6m)' },
+      { pct: ah.dormant12m / total * 100, col: 'var(--so-mango)', label: 'Cooling (6-12m)' },
+      { pct: ah.dormantOlder / total * 100, col: 'var(--so-coral)', label: 'Dormant (>12m)' },
+      { pct: ah.noActivity / total * 100, col: '#ccc', label: 'No Activity' }
     ];
     h += '<div class="stacked-bar">';
     for (var i = 0; i < ahParts.length; i++) {
-      if (ahParts[i].pct > 0) {
-        h += '<div class="stacked-segment" style="width:' + ahParts[i].pct + P + ';background:' + ahParts[i].col + '" title="' + ahParts[i].label + ': ' + Math.round(ahParts[i].pct) + P + '"></div>';
+      var rp = Math.round(ahParts[i].pct);
+      if (rp > 0) {
+        var segLabel = rp >= 10 ? '<span style="font-size:.7rem;color:#fff;font-weight:600;padding:0 6px">' + rp + P + '</span>' : '';
+        h += '<div class="stacked-segment" style="width:' + ahParts[i].pct + P + ';background:' + ahParts[i].col + ';display:flex;align-items:center;justify-content:center;overflow:hidden">' + segLabel + '</div>';
       }
+    }
+    h += '</div>';
+    // Legend
+    h += '<div style="display:flex;gap:16px;margin-top:6px;flex-wrap:wrap">';
+    for (var i = 0; i < ahParts.length; i++) {
+      var rp = Math.round(ahParts[i].pct * 10) / 10;
+      h += '<span style="font-size:.75rem;color:#666;display:flex;align-items:center;gap:4px">';
+      h += '<span style="width:8px;height:8px;border-radius:50%;background:' + ahParts[i].col + ';flex-shrink:0"></span>';
+      h += ahParts[i].label + ' (' + rp + P + ')';
+      h += '</span>';
     }
     h += '</div></div>';
     h += '</div>';
   }
 
-  // 1b. REGISTRATION TREND
+  // 1b. REGISTRATION TREND (with active overlay)
   var trend = d.trend;
+  var trendMonthly = d.trendMonthly;
   if (trend && trend.length > 0) {
+    // Decide: monthly vs yearly based on filter span
+    var useMonthly = false;
+    var chartData = [];
     var firstIdx = 0;
-    for (var i = 0; i < trend.length; i++) { if (trend[i].count > 0) { firstIdx = i; break; } }
-    var visibleTrend = trend.slice(firstIdx);
+
+    // Check if filter is ≤24 months (yearly data has ≤2 non-zero years)
+    var nonZeroYears = 0;
+    for (var i = 0; i < trend.length; i++) { if (trend[i].count > 0) nonZeroYears++; }
+    if (nonZeroYears <= 2 && trendMonthly && trendMonthly.length > 0) {
+      useMonthly = true;
+      for (var i = 0; i < trendMonthly.length; i++) {
+        chartData.push({ label: trendMonthly[i].month.substring(2), count: trendMonthly[i].count, active: trendMonthly[i].active || 0 });
+      }
+    } else {
+      for (var i = 0; i < trend.length; i++) {
+        chartData.push({ label: '' + trend[i].year, count: trend[i].count, active: trend[i].active || 0 });
+      }
+    }
+
+    // Trim leading zeros
+    firstIdx = 0;
+    for (var i = 0; i < chartData.length; i++) { if (chartData[i].count > 0 || chartData[i].active > 0) { firstIdx = i; break; } }
+    var visibleData = chartData.slice(firstIdx);
     var maxCount = 0;
-    for (var i = 0; i < visibleTrend.length; i++) { if (visibleTrend[i].count > maxCount) maxCount = visibleTrend[i].count; }
-    if (maxCount > 0 && visibleTrend.length > 1) {
+    for (var i = 0; i < visibleData.length; i++) {
+      if (visibleData[i].count > maxCount) maxCount = visibleData[i].count;
+      if (visibleData[i].active > maxCount) maxCount = visibleData[i].active;
+    }
+
+    if (maxCount > 0 && visibleData.length > 1) {
       var beforeTotal = d.trendBefore || 0;
-      for (var i = 0; i < firstIdx; i++) { beforeTotal += trend[i].count; }
+      if (!useMonthly) {
+        for (var i = 0; i < firstIdx; i++) { beforeTotal += chartData[i].count; }
+      }
       h += '<div class="detail-section">';
       h += '<div class="detail-section-head">';
-      h += secHead('New Registrations Per Year');
-      if (beforeTotal > 0) {
-        h += '<span class="record-badge">' + fmtNum(beforeTotal) + ' before ' + visibleTrend[0].year + '</span>';
+      h += secHead(useMonthly ? 'New Registrations Per Month' : 'New Registrations Per Year');
+      if (beforeTotal > 0 && !useMonthly) {
+        h += '<span class="record-badge">' + fmtNum(beforeTotal) + ' before ' + visibleData[0].label + '</span>';
       }
       h += '</div>';
-      var cW = 960, cH = 200, padL = 40, padR = 10, padT = 15, padB = 40;
+      var cW = 960, cH = 220, padL = 40, padR = 10, padT = 15, padB = 40;
       var plotW = cW - padL - padR, plotH = cH - padT - padB;
       var dataInset = 15;
       var niceMax = maxCount;
@@ -1027,30 +1067,68 @@ function renderCompanyDetails(d) {
       for (var oi = 0; oi < options.length; oi++) { if (options[oi] * mag >= maxCount) { niceMax = options[oi] * mag; break; } }
       var ySteps = 4;
       var yStep = niceMax / ySteps;
-      var step = (plotW - 2 * dataInset) / (visibleTrend.length - 1);
+      var step = (plotW - 2 * dataInset) / (visibleData.length - 1);
+
+      // Compute registration line points
       var pts = [];
-      for (var i = 0; i < visibleTrend.length; i++) {
+      for (var i = 0; i < visibleData.length; i++) {
         var px = padL + dataInset + i * step;
-        var py = padT + plotH - (visibleTrend[i].count / niceMax) * plotH;
+        var py = padT + plotH - (visibleData[i].count / niceMax) * plotH;
         pts.push(px.toFixed(1) + ',' + py.toFixed(1));
       }
-      var areaPath = 'M' + (padL + dataInset) + ',' + (padT + plotH) + ' L' + pts.join(' L') + ' L' + (padL + dataInset + (visibleTrend.length - 1) * step).toFixed(1) + ',' + (padT + plotH) + ' Z';
-      h += '<svg viewBox="0 0 ' + cW + ' ' + cH + '" style="width:100%;height:auto;display:block;max-height:220px">';
+      // Compute active overlay points
+      var hasActiveData = false;
+      var aPts = [];
+      for (var i = 0; i < visibleData.length; i++) {
+        if (visibleData[i].active > 0) hasActiveData = true;
+        var px = padL + dataInset + i * step;
+        var py = padT + plotH - (visibleData[i].active / niceMax) * plotH;
+        aPts.push(px.toFixed(1) + ',' + py.toFixed(1));
+      }
+
+      var areaPath = 'M' + (padL + dataInset) + ',' + (padT + plotH) + ' L' + pts.join(' L') + ' L' + (padL + dataInset + (visibleData.length - 1) * step).toFixed(1) + ',' + (padT + plotH) + ' Z';
+      h += '<svg viewBox="0 0 ' + cW + ' ' + cH + '" style="width:100%;height:auto;display:block;max-height:240px">';
+      // Y grid
       for (var gi = 0; gi <= ySteps; gi++) {
         var gy = padT + plotH - (gi / ySteps) * plotH;
         var yVal = Math.round(gi * yStep);
         h += '<line x1="' + padL + '" y1="' + gy.toFixed(1) + '" x2="' + (cW - padR) + '" y2="' + gy.toFixed(1) + '" stroke="#e0dfdc" stroke-width="1"/>';
         h += '<text x="' + (padL - 8) + '" y="' + (gy + 4).toFixed(1) + '" text-anchor="end" fill="#999" font-size="11" font-family="DM Sans,sans-serif">' + fmtNum(yVal) + '</text>';
       }
+      // Registration area + line
       h += '<path d="' + areaPath + '" fill="rgba(22,91,112,0.06)"/>';
       h += '<polyline points="' + pts.join(' ') + '" fill="none" stroke="var(--so-green)" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>';
-      for (var i = 0; i < visibleTrend.length; i++) {
+      // Active overlay line (dashed)
+      if (hasActiveData) {
+        h += '<polyline points="' + aPts.join(' ') + '" fill="none" stroke="var(--so-meadow-dark1)" stroke-width="2" stroke-dasharray="6,4" stroke-linejoin="round" stroke-linecap="round"/>';
+      }
+      // Data points + labels
+      for (var i = 0; i < visibleData.length; i++) {
         var xy = pts[i].split(',');
-        h += '<circle cx="' + xy[0] + '" cy="' + xy[1] + '" r="5" fill="var(--so-green)" stroke="#fff" stroke-width="2"/>';
-        h += '<text x="' + xy[0] + '" y="' + (parseFloat(xy[1]) - 12).toFixed(1) + '" text-anchor="middle" fill="var(--so-charcoal)" font-size="11" font-weight="600" font-family="DM Sans,sans-serif">' + fmtNum(visibleTrend[i].count) + '</text>';
-        h += '<text x="' + xy[0] + '" y="' + (padT + plotH + 22) + '" text-anchor="middle" fill="#999" font-size="11" font-family="DM Sans,sans-serif">' + visibleTrend[i].year + '</text>';
+        h += '<circle cx="' + xy[0] + '" cy="' + xy[1] + '" r="4" fill="var(--so-green)" stroke="#fff" stroke-width="2"/>';
+        if (visibleData[i].count > 0) {
+          h += '<text x="' + xy[0] + '" y="' + (parseFloat(xy[1]) - 10).toFixed(1) + '" text-anchor="middle" fill="var(--so-charcoal)" font-size="10" font-weight="600" font-family="DM Sans,sans-serif">' + fmtNum(visibleData[i].count) + '</text>';
+        }
+        // Active dot
+        if (hasActiveData) {
+          var axy = aPts[i].split(',');
+          h += '<circle cx="' + axy[0] + '" cy="' + axy[1] + '" r="3" fill="var(--so-meadow-dark1)" stroke="#fff" stroke-width="1.5"/>';
+        }
+        // X labels (skip some for monthly to avoid overlap)
+        var showLabel = !useMonthly || (i === 0 || i === visibleData.length - 1 || i % 3 === 0);
+        if (showLabel) {
+          var displayLabel = useMonthly ? visibleData[i].label.replace('-', '/') : visibleData[i].label;
+          h += '<text x="' + xy[0] + '" y="' + (padT + plotH + 22) + '" text-anchor="middle" fill="#999" font-size="10" font-family="DM Sans,sans-serif">' + displayLabel + '</text>';
+        }
       }
       h += '</svg>';
+      // Legend
+      h += '<div style="display:flex;gap:16px;margin-top:4px;padding-left:' + padL + 'px">';
+      h += '<span style="font-size:.75rem;color:#666;display:flex;align-items:center;gap:4px"><span style="width:12px;height:3px;background:var(--so-green);border-radius:2px"></span> Registered</span>';
+      if (hasActiveData) {
+        h += '<span style="font-size:.75rem;color:#666;display:flex;align-items:center;gap:4px"><span style="width:12px;height:0;border-top:2px dashed var(--so-meadow-dark1)"></span> Still active (12m)</span>';
+      }
+      h += '</div>';
       h += '</div>';
     }
   }
