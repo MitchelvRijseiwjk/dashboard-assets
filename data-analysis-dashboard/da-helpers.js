@@ -33,9 +33,9 @@ function resolveDate(val) {
   if (val === 'custom') return '';
   var now = new Date();
   if (val === 'thisyear') { return now.getFullYear() + '-01-01'; }
-  if (val === 'last6m') { now.setMonth(now.getMonth() - 6); return now.toISOString().split('T')[0]; }
-  if (val === 'last12m') { now.setMonth(now.getMonth() - 12); return now.toISOString().split('T')[0]; }
-  if (val === 'last24m') { now.setMonth(now.getMonth() - 24); return now.toISOString().split('T')[0]; }
+  if (val === 'last6m') { now.setMonth(now.getMonth() - 6); now.setDate(1); return now.toISOString().split('T')[0]; }
+  if (val === 'last12m') { now.setMonth(now.getMonth() - 12); now.setDate(1); return now.toISOString().split('T')[0]; }
+  if (val === 'last24m') { now.setMonth(now.getMonth() - 24); now.setDate(1); return now.toISOString().split('T')[0]; }
   return val;
 }
 
