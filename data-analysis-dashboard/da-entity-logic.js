@@ -692,10 +692,10 @@ function populateDetailCatFilter() {
     }
   }
   if (companyDetailCatValue) sel.value = companyDetailCatValue;
-  var badge = document.getElementById('companyFilterBadge');
   var resetBtn = document.getElementById('companyFilterReset');
-  if (badge) badge.style.display = companyDetailCatValue ? '' : 'none';
   if (resetBtn) resetBtn.style.display = companyDetailCatValue ? '' : 'none';
+  var bar = document.getElementById('companyCatFilterBar');
+  if (bar) bar.classList.toggle('active', !!companyDetailCatValue);
 }
 
 function reloadCompanyDetails() {
@@ -709,14 +709,6 @@ function reloadCompanyDetails() {
   });
 }
 
-function togDetailFilter(key) {
-  var pop = document.getElementById(key + 'FilterPopover');
-  if (!pop) return;
-  var isOpen = pop.classList.contains('show');
-  document.querySelectorAll('.detail-filter-popover.show').forEach(function(p) { p.classList.remove('show'); });
-  if (!isOpen) pop.classList.add('show');
-}
-
 function onDetailFilterChange(key) {
   var sel = document.getElementById(key + 'DetailCatFilter');
   companyDetailCatValue = sel ? sel.value : '';
@@ -727,12 +719,6 @@ function resetDetailFilter(key) {
   companyDetailCatValue = '';
   reloadCompanyDetails();
 }
-
-document.addEventListener('click', function(e) {
-  if (!e.target.closest('.detail-filter-wrap')) {
-    document.querySelectorAll('.detail-filter-popover.show').forEach(function(p) { p.classList.remove('show'); });
-  }
-});
 
 // ===========================================================
 // CROSS-ENTITY ANALYSIS (Company)
@@ -759,6 +745,16 @@ function renderCrossEntityFunnel(d) {
   var h = '';
   h += dateFilterNotice();
 
+  // -- Inline category filter bar (always visible) --
+  h += '<div class="cat-filter-bar" id="companyCatFilterBar">';
+  h += '<span style="font-weight:500;font-size:.85rem;color:var(--so-charcoal)">Category filter:</span>';
+  h += '<select id="companyDetailCatFilter" class="cat-filter-select" onchange="onDetailFilterChange(\'company\')">';
+  h += '<option value="">All categories</option>';
+  h += '</select>';
+  h += '<span class="filter-count" id="companyDetailFilterCount" style="font-size:.82rem;color:#666"></span>';
+  h += '<span class="filter-reset-link" id="companyFilterReset" style="display:none" onclick="resetDetailFilter(\'company\')">Reset</span>';
+  h += '</div>';
+
   // -- CRM Health metrics with context descriptions --
   h += '<div class="detail-section">';
   h += '<div class="detail-section-head">' + secHead('CRM Health Pipeline') + '</div>';
@@ -769,47 +765,35 @@ function renderCrossEntityFunnel(d) {
   h += pctCard('Overall Health', m.overallHealth, 'Person + activity + sale (fully engaged)', slColor(m.overallHealth), f.withPersonActivitySale, f.total);
   h += '</div></div>';
 
-  // -- Engagement Funnel (compact: bar in companies column) --
+  // -- Engagement Funnel (compact: stage + count with %) --
   var funnelSteps = [
-    { label: 'Total Companies', count: f.total, pct: 100, drop: null },
+    { label: 'Total Companies', count: f.total, pct: 100 },
     { label: 'With Contact Person', count: f.withPerson, pct: f.total > 0 ? Math.round(f.withPerson / f.total * 1000) / 10 : 0 },
     { label: 'With Activity (12m)', count: f.withPersonActivity, pct: f.total > 0 ? Math.round(f.withPersonActivity / f.total * 1000) / 10 : 0 },
     { label: 'With Open Sale', count: f.withPersonActivitySale, pct: f.total > 0 ? Math.round(f.withPersonActivitySale / f.total * 1000) / 10 : 0 }
   ];
-  for (var i = 1; i < funnelSteps.length; i++) {
-    var prev = funnelSteps[i-1].count;
-    var cur = funnelSteps[i].count;
-    funnelSteps[i].drop = prev > 0 ? Math.round((prev - cur) / prev * 100) : 0;
-  }
 
   h += '<div class="entity-card">';
   h += '<div class="entity-header"><div class="entity-info"><h3>Company Engagement Funnel</h3></div>';
   h += '<span class="record-badge">' + fmtNum(f.total) + ' companies</span></div>';
   h += '<table class="data-table"><thead><tr>';
-  h += '<th>Stage</th><th class="col-right">Companies</th><th class="col-right">vs. previous</th>';
+  h += '<th>Stage</th><th class="col-right">Companies</th>';
   h += '</tr></thead><tbody>';
   for (var i = 0; i < funnelSteps.length; i++) {
     var step = funnelSteps[i];
     h += '<tr>';
     h += '<td><span style="font-weight:500">' + step.label + '</span></td>';
     h += '<td class="col-right">' + fmtNum(step.count) + ' <span style="color:#999;font-size:.78rem">' + step.pct + P + '</span></td>';
-    if (step.drop === null) {
-      h += '<td class="col-right" style="color:#ccc">\u2014</td>';
-    } else if (step.drop === 0) {
-      h += '<td class="col-right" style="color:var(--sl-good)">0' + P + '</td>';
-    } else {
-      h += '<td class="col-right" style="color:var(--sl-bad)">\u2212' + step.drop + P + '</td>';
-    }
     h += '</tr>';
   }
   h += '</tbody></table></div>';
 
-  // -- Segments (bar next to description) --
+  // -- Segments (description middle, bar+% right) --
   h += '<div class="entity-card">';
   h += '<div class="entity-header"><div class="entity-info"><h3>Company Segments</h3></div>';
   h += '<span class="record-badge">4 segments</span></div>';
   h += '<table class="data-table"><thead><tr>';
-  h += '<th>Segment</th><th class="col-right">Companies</th><th>Description</th>';
+  h += '<th>Segment</th><th class="col-right">Companies</th><th>Description</th><th class="col-right">' + P + '</th>';
   h += '</tr></thead><tbody>';
   for (var si = 0; si < segs.length; si++) {
     var seg = segs[si];
@@ -817,8 +801,9 @@ function renderCrossEntityFunnel(d) {
     h += '<tr>';
     h += '<td><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:' + seg.color + ';margin-right:8px;vertical-align:middle"></span>';
     h += '<span style="font-weight:500">' + seg.name + '</span></td>';
-    h += '<td class="col-right">' + fmtNum(seg.count) + ' <span style="color:#999;font-size:.78rem">' + segPct + P + '</span></td>';
+    h += '<td class="col-right">' + fmtNum(seg.count) + '</td>';
     h += '<td style="color:var(--so-text-muted);font-size:.82rem">' + seg.description + '</td>';
+    h += '<td class="col-right">' + barCell(segPct, seg.color) + '</td>';
     h += '</tr>';
   }
   h += '</tbody></table></div>';
@@ -967,26 +952,6 @@ function renderCompanyDetails(d) {
   var ah = d.activityHealth;
   var total = ah ? ah.total : 0;
 
-  var subRight = document.getElementById('companySubTabsRight');
-  if (subRight) {
-    var sr = '';
-    sr += '<span class="record-badge">' + fmtNum(total) + ' companies</span>';
-    sr += '<div class="detail-filter-wrap">';
-    sr += '<div class="detail-filter-btn" onclick="togDetailFilter(\'company\')">';
-    sr += '<svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M14.4 3.1A1 1 0 0 0 13.5 2.5h-11a1 1 0 0 0-.74 1.67l4.24 4.52v3.47a1 1 0 0 0 .55.9l2 1a1 1 0 0 0 1.45-.9v-4.47l4.23-4.52a1 1 0 0 0 .17-1.07z" fill="#06423e"/></svg>';
-    sr += ' Filters <span class="filter-badge" id="companyFilterBadge" style="display:none">1</span>';
-    sr += '</div>';
-    sr += '<div class="detail-filter-popover" id="companyFilterPopover">';
-    sr += '<label>Category</label>';
-    sr += '<select id="companyDetailCatFilter" onchange="onDetailFilterChange(\'company\')">';
-    sr += '<option value="">All categories</option>';
-    sr += '</select>';
-    sr += '<span class="filter-count" id="companyDetailFilterCount"></span>';
-    sr += '<span class="filter-reset" id="companyFilterReset" style="display:none" onclick="resetDetailFilter(\'company\')">Reset</span>';
-    sr += '</div></div>';
-    subRight.innerHTML = sr;
-  }
-
   // 1. ACTIVITY RECENCY — compact stacked bar (replaces standalone Activity Health)
   var ah = d.activityHealth;
   if (ah && total > 0) {
@@ -1064,7 +1029,8 @@ function renderCompanyDetails(d) {
         h += '<span class="record-badge">' + fmtNum(beforeTotal) + ' before ' + visibleData[0].label + '</span>';
       }
       h += '</div>';
-      var cW = 960, cH = 250, padL = 40, padR = 10, padT = 20, padB = 40;
+      h += '<div style="font-size:.78rem;color:#999;margin:-4px 0 8px">Dashed line = retention: how many registered companies still have activity within the last 12 months</div>';
+      var cW = 960, cH = 270, padL = 40, padR = 10, padT = 20, padB = 60;
       var plotW = cW - padL - padR, plotH = cH - padT - padB;
       var dataInset = 15;
       var niceMax = maxCount;
@@ -1093,7 +1059,7 @@ function renderCompanyDetails(d) {
       }
 
       var areaPath = 'M' + (padL + dataInset) + ',' + (padT + plotH) + ' L' + pts.join(' L') + ' L' + (padL + dataInset + (visibleData.length - 1) * step).toFixed(1) + ',' + (padT + plotH) + ' Z';
-      h += '<svg viewBox="0 0 ' + cW + ' ' + cH + '" style="width:100%;height:auto;display:block;max-height:260px">';
+      h += '<svg viewBox="0 0 ' + cW + ' ' + cH + '" style="width:100%;height:auto;display:block;max-height:280px">';
       // Y grid
       for (var gi = 0; gi <= ySteps; gi++) {
         var gy = padT + plotH - (gi / ySteps) * plotH;
@@ -1123,10 +1089,11 @@ function renderCompanyDetails(d) {
             h += '<text x="' + axy[0] + '" y="' + (parseFloat(axy[1]) + 14).toFixed(1) + '" text-anchor="middle" fill="var(--sl-good)" font-size="9" font-weight="600" font-family="DM Sans,sans-serif">' + visibleData[i].active + '</text>';
           }
         }
-        // X labels (skip some for monthly to avoid overlap)
-        var showLabel = !useMonthly || (i === 0 || i === visibleData.length - 1 || i % 3 === 0);
-        if (showLabel) {
-          var displayLabel = useMonthly ? visibleData[i].label.replace('-', '/') : visibleData[i].label;
+        // X labels (show all, rotate monthly for readability)
+        var displayLabel = useMonthly ? visibleData[i].label.replace('-', '/') : visibleData[i].label;
+        if (useMonthly) {
+          h += '<text x="' + xy[0] + '" y="' + (padT + plotH + 14) + '" text-anchor="end" fill="#999" font-size="9" font-family="DM Sans,sans-serif" transform="rotate(-45,' + xy[0] + ',' + (padT + plotH + 14) + ')">' + displayLabel + '</text>';
+        } else {
           h += '<text x="' + xy[0] + '" y="' + (padT + plotH + 22) + '" text-anchor="middle" fill="#999" font-size="10" font-family="DM Sans,sans-serif">' + displayLabel + '</text>';
         }
       }
