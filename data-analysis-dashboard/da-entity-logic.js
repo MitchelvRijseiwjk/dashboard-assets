@@ -376,6 +376,13 @@ function startFullEntity(key) {
     }
     ajax(detailUrl + dfParam + catParam, function(d) {
       companyDetailData = d;
+      // Render funnel first (creates category filter select element)
+      if (d && d.funnel) {
+        companyCrossData = d;
+        renderCrossEntityFunnel(d);
+        var crossEl2 = document.getElementById('companyCrossContent');
+        if (crossEl2) crossEl2.style.animation = 'fadeIn .3s ease';
+      }
       if (d) renderCompanyDetails(d);
       populateDetailCatFilter();
       var countEl = document.getElementById('companyDetailFilterCount');
@@ -384,13 +391,6 @@ function startFullEntity(key) {
       }
       var detailEl2 = document.getElementById('companyDetailContent');
       if (detailEl2) detailEl2.style.animation = 'fadeIn .3s ease';
-      // Render funnel from detail data (included in same response)
-      if (d && d.funnel) {
-        companyCrossData = d;
-        renderCrossEntityFunnel(d);
-        var crossEl2 = document.getElementById('companyCrossContent');
-        if (crossEl2) crossEl2.style.animation = 'fadeIn .3s ease';
-      }
       stepDone('Details loaded');
     });
   }
