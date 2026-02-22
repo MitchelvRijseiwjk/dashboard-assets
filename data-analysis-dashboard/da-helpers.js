@@ -254,16 +254,82 @@ function startAnalyzeAll() {
   }
   document.getElementById('aaEntityList').innerHTML = listHtml;
 
+  // Initialize progress bar
+  var aaBar = document.getElementById('aaProgressBar');
+  if (aaBar) { aaBar.style.width = '0'; aaBar.classList.add('loading'); }
+  var aaPctEl = document.getElementById('aaProgressPercent');
+  if (aaPctEl) aaPctEl.textContent = '0' + P;
+  _aaCurrentPct = 0;
+
   aaIdx = 0;
   runNextAA();
 }
 
+// Estimated relative weights per entity (based on actual timings)
+var aaWeights = {
+  company: 35, contact: 24, activities: 28, sale: 10,
+  project: 2, requests: 3, selection: 2, marketing: 2
+};
+
+var _aaFakeTimer = null;
+var _aaCurrentPct = 0;
+
+function _aaSetProgress(pct, status) {
+  _aaCurrentPct = pct;
+  var bar = document.getElementById('aaProgressBar');
+  var pctEl = document.getElementById('aaProgressPercent');
+  var statusEl = document.getElementById('aaProgressStatus');
+  if (bar) bar.style.width = pct + P;
+  if (pctEl) pctEl.textContent = Math.round(pct) + P;
+  if (statusEl) statusEl.innerHTML = status;
+  setupProgressUpdate(Math.round(pct), status);
+}
+
+function _aaStartSmooth(targetPct, status) {
+  _aaStopSmooth();
+  _aaSetProgress(_aaCurrentPct, status);
+  var maxPct = targetPct - 0.5;
+  _aaFakeTimer = setInterval(function() {
+    if (_aaCurrentPct < maxPct) {
+      var remaining = maxPct - _aaCurrentPct;
+      var increment = Math.max(0.15, remaining * 0.04);
+      _aaCurrentPct = Math.min(_aaCurrentPct + increment, maxPct);
+      var bar = document.getElementById('aaProgressBar');
+      var pctEl = document.getElementById('aaProgressPercent');
+      if (bar) bar.style.width = _aaCurrentPct + P;
+      if (pctEl) pctEl.textContent = Math.round(_aaCurrentPct) + P;
+      setupProgressUpdate(Math.round(_aaCurrentPct), '');
+    }
+  }, 120);
+}
+
+function _aaStopSmooth() {
+  if (_aaFakeTimer) { clearInterval(_aaFakeTimer); _aaFakeTimer = null; }
+}
+
+// Calculate cumulative percentage ranges per entity
+function _aaCalcRanges() {
+  var totalWeight = 0;
+  for (var i = 0; i < aaQueue.length; i++) totalWeight += (aaWeights[aaQueue[i]] || 5);
+  var ranges = {};
+  var cumulative = 0;
+  for (var i = 0; i < aaQueue.length; i++) {
+    var w = aaWeights[aaQueue[i]] || 5;
+    var startPct = (cumulative / totalWeight) * 100;
+    cumulative += w;
+    var endPct = (cumulative / totalWeight) * 100;
+    ranges[aaQueue[i]] = { start: startPct, end: endPct };
+  }
+  return ranges;
+}
+
+var _aaRanges = {};
+
 function runNextAA() {
   if (aaIdx >= aaQueue.length) {
+    _aaStopSmooth();
     document.getElementById('aaProgressBar').classList.remove('loading');
-    document.getElementById('aaProgressBar').style.width = '100' + P;
-    document.getElementById('aaProgressPercent').textContent = '100' + P;
-    document.getElementById('aaProgressStatus').textContent = 'All analyses complete!';
+    _aaSetProgress(100, 'All analyses complete!');
     setTimeout(function() {
       // Auto-populate standalone Extra Tables tab from cache
       if (typeof _extraCache !== 'undefined' && _extraCache && _extraCache.ready) {
@@ -306,30 +372,46 @@ function runNextAA() {
     }, 800);
     return;
   }
+
+  // Calculate ranges on first call
+  if (aaIdx === 0) {
+    _aaRanges = _aaCalcRanges();
+    _aaCurrentPct = 0;
+  }
+
   var key = aaQueue[aaIdx];
-  var pct = Math.round((aaIdx / aaQueue.length) * 100);
-  document.getElementById('aaProgressBar').style.width = pct + P;
-  setupProgressUpdate(pct, 'Analyzing ' + key + '...');
-  document.getElementById('aaProgressPercent').textContent = pct + P;
-  document.getElementById('aaProgressStatus').textContent = 'Analyzing ' + aaEntityNames[key] + '...';
+  var range = _aaRanges[key];
+  var entityName = aaEntityNames[key];
 
   var stEl = document.getElementById('aaSt_' + key);
   if (stEl) { stEl.className = 'aa-status aa-status-loading'; stEl.textContent = 'Loading...'; }
 
+  // Start smooth animation toward end of this entity's range
+  _aaStartSmooth(range.end, entityName + ': loading...');
+
   captureEntityFilter(key);
 
+  // Progress callback for sub-steps within entity
+  function onSubStep(label) {
+    // Bump progress forward within range
+    var subPct = range.start + ((range.end - range.start) * 0.3); // jump 30% into range
+    if (_aaCurrentPct < subPct) {
+      _aaSetProgress(subPct, entityName + ': ' + label);
+    }
+  }
+
+  function onEntityDone() {
+    _aaStopSmooth();
+    _aaSetProgress(range.end, entityName + ' complete');
+    if (stEl) { stEl.className = 'aa-status aa-status-done'; stEl.textContent = 'Done'; }
+    aaIdx++;
+    runNextAA();
+  }
+
   if (entityConfig[key]) {
-    aaRunFullEntity(key, function() {
-      if (stEl) { stEl.className = 'aa-status aa-status-done'; stEl.textContent = 'Done'; }
-      aaIdx++;
-      runNextAA();
-    });
+    aaRunFullEntity(key, onEntityDone, onSubStep);
   } else {
-    aaRunSimpleEntity(key, function() {
-      if (stEl) { stEl.className = 'aa-status aa-status-done'; stEl.textContent = 'Done'; }
-      aaIdx++;
-      runNextAA();
-    });
+    aaRunSimpleEntity(key, onEntityDone);
   }
 }
 
@@ -346,18 +428,14 @@ function aaRunSimpleEntity(key, cb) {
   });
 }
 
-// v2: PARALLEL sub-loads within each entity
-// Previously: overview → udef → details → extras (sequential, ~44s for company)
-// Now: overview + udef + details + extras fire simultaneously (~17s for company)
-function aaRunFullEntity(key, cb) {
+// v3: PARALLEL sub-loads with sub-step progress reporting
+function aaRunFullEntity(key, cb, onSubStep) {
   var ec = entityConfig[key];
   var tabKey = ec.tabKey;
   var hasDetails = (key === 'company');
 
-  // Build date filter param NOW (while currentAnalysisEntity is correct)
   var dfParam = getDateFilterParam();
 
-  // Count how many parallel loads we need
   var totalSteps = 1; // overview always
   if (ec.udefId > 0) totalSteps++;
   if (ec.hasTicketFields) totalSteps++;
@@ -365,10 +443,12 @@ function aaRunFullEntity(key, cb) {
   totalSteps++; // extra tables always
 
   var completed = 0;
-  function stepDone() {
+  var stepLabels = [];
+  function stepDone(label) {
     completed++;
+    stepLabels.push(label);
+    if (onSubStep) onSubStep(stepLabels.join(', '));
     if (completed >= totalSteps) {
-      // All sub-loads done — show entity results
       var rs = document.getElementById(tabKey + 'Results');
       var st2 = document.getElementById(tabKey + 'SubTabs');
       var ab = document.getElementById(tabKey + 'AnalyzeBtn');
@@ -384,30 +464,30 @@ function aaRunFullEntity(key, cb) {
   // === PARALLEL 1: Overview ===
   ajax(overviewUrl + String.fromCharCode(38) + 'entity=' + key + dfParam, function(d) {
     if (d) renderEntityOverview(key, d);
-    stepDone();
+    stepDone('overview');
   });
 
   // === PARALLEL 2: UDEF or Ticket Fields ===
   if (ec.udefId > 0) {
     loadEntityUdefQuiet(ec.udefId, tabKey, ec.udefIdx, function() {
-      stepDone();
+      stepDone('fields');
     });
   } else if (ec.hasTicketFields) {
     loadTicketFieldsQuiet(function() {
-      stepDone();
+      stepDone('ticket fields');
     });
   }
 
   // === PARALLEL 3: Company Details (company only) ===
   if (hasDetails) {
     loadCompanyDetails(function() {
-      stepDone();
+      stepDone('details');
     });
   }
 
   // === PARALLEL 4: Extra Tables (from cache) ===
   aaLoadExtra(key, ec, tabKey, function() {
-    stepDone();
+    stepDone('tables');
   });
 }
 
@@ -522,7 +602,7 @@ function setupProgressUpdate(pct, status) {
   var statusEl = document.getElementById('setupProgressStatus');
   if (bar) bar.style.width = pct + '%';
   if (pctEl) pctEl.textContent = pct + '%';
-  if (statusEl) statusEl.textContent = status;
+  if (statusEl && status) statusEl.textContent = status;
 }
 
 function setupAnalysisComplete() {
