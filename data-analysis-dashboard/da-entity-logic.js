@@ -769,7 +769,7 @@ function renderCrossEntityFunnel(d) {
   h += pctCard('Overall Health', m.overallHealth, 'Person + activity + sale (fully engaged)', slColor(m.overallHealth), f.withPersonActivitySale, f.total);
   h += '</div></div>';
 
-  // -- Engagement Funnel --
+  // -- Engagement Funnel (compact: bar in companies column) --
   var funnelSteps = [
     { label: 'Total Companies', count: f.total, pct: 100, drop: null },
     { label: 'With Contact Person', count: f.withPerson, pct: f.total > 0 ? Math.round(f.withPerson / f.total * 1000) / 10 : 0 },
@@ -786,14 +786,13 @@ function renderCrossEntityFunnel(d) {
   h += '<div class="entity-header"><div class="entity-info"><h3>Company Engagement Funnel</h3></div>';
   h += '<span class="record-badge">' + fmtNum(f.total) + ' companies</span></div>';
   h += '<table class="data-table"><thead><tr>';
-  h += '<th>Stage</th><th class="col-right">Companies</th><th class="col-right">' + P + ' of total</th><th class="col-right">vs. previous</th>';
+  h += '<th>Stage</th><th class="col-right">Companies</th><th class="col-right">vs. previous</th>';
   h += '</tr></thead><tbody>';
   for (var i = 0; i < funnelSteps.length; i++) {
     var step = funnelSteps[i];
     h += '<tr>';
     h += '<td><span style="font-weight:500">' + step.label + '</span></td>';
-    h += '<td class="col-right">' + fmtNum(step.count) + '</td>';
-    h += '<td class="col-right">' + barCell(step.pct, '') + '</td>';
+    h += '<td class="col-right">' + fmtNum(step.count) + ' <span style="color:#999;font-size:.78rem">' + step.pct + P + '</span></td>';
     if (step.drop === null) {
       h += '<td class="col-right" style="color:#ccc">\u2014</td>';
     } else if (step.drop === 0) {
@@ -805,12 +804,12 @@ function renderCrossEntityFunnel(d) {
   }
   h += '</tbody></table></div>';
 
-  // -- Segments as data-table (same pattern as Category/Business tables) --
+  // -- Segments (bar next to description) --
   h += '<div class="entity-card">';
   h += '<div class="entity-header"><div class="entity-info"><h3>Company Segments</h3></div>';
   h += '<span class="record-badge">4 segments</span></div>';
   h += '<table class="data-table"><thead><tr>';
-  h += '<th>Segment</th><th class="col-right">Companies</th><th class="col-right">' + P + '</th><th>Description</th>';
+  h += '<th>Segment</th><th class="col-right">Companies</th><th>Description</th>';
   h += '</tr></thead><tbody>';
   for (var si = 0; si < segs.length; si++) {
     var seg = segs[si];
@@ -818,8 +817,7 @@ function renderCrossEntityFunnel(d) {
     h += '<tr>';
     h += '<td><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:' + seg.color + ';margin-right:8px;vertical-align:middle"></span>';
     h += '<span style="font-weight:500">' + seg.name + '</span></td>';
-    h += '<td class="col-right">' + fmtNum(seg.count) + '</td>';
-    h += '<td class="col-right">' + barCell(segPct, seg.color) + '</td>';
+    h += '<td class="col-right">' + fmtNum(seg.count) + ' <span style="color:#999;font-size:.78rem">' + segPct + P + '</span></td>';
     h += '<td style="color:var(--so-text-muted);font-size:.82rem">' + seg.description + '</td>';
     h += '</tr>';
   }
@@ -989,47 +987,36 @@ function renderCompanyDetails(d) {
     subRight.innerHTML = sr;
   }
 
-  // 1. ACTIVITY HEALTH — single stacked bar with detailed legend
+  // 1. ACTIVITY RECENCY — compact stacked bar (replaces standalone Activity Health)
   var ah = d.activityHealth;
   if (ah && total > 0) {
-    h += '<div class="entity-card">';
-    h += '<div class="entity-header"><div class="entity-info"><h3>Activity Health</h3></div>';
-    h += '<span class="record-badge">' + fmtNum(total) + ' companies</span></div>';
-
+    h += '<div class="detail-section">';
+    h += '<div class="detail-section-head">' + secHead('Activity Recency') + '<span class="record-badge">' + fmtNum(total) + ' companies</span></div>';
     var ahParts = [
-      { val: ah.active6m, col: 'var(--sl-good)', label: 'Active', desc: 'Activity within last 6 months' },
-      { val: ah.dormant12m, col: 'var(--sl-ok)', label: 'Cooling', desc: 'Last activity 6\u201312 months ago' },
-      { val: ah.dormantOlder, col: 'var(--sl-warn)', label: 'Dormant', desc: 'No activity for over 12 months' },
-      { val: ah.noActivity, col: 'var(--sl-bad)', label: 'No Activity', desc: 'Never had any registered activity' }
+      { val: ah.active6m, col: 'var(--sl-good)', label: 'Active (6m)' },
+      { val: ah.dormant12m, col: 'var(--sl-ok)', label: 'Cooling (6\u201312m)' },
+      { val: ah.dormantOlder, col: 'var(--sl-warn)', label: 'Dormant (>12m)' },
+      { val: ah.noActivity, col: 'var(--sl-bad)', label: 'No Activity' }
     ];
-
-    // Taller stacked bar with inline labels
-    h += '<div style="padding:14px 18px 14px">';
-    h += '<div class="stacked-bar" style="height:32px;border-radius:6px">';
+    h += '<div class="stacked-bar" style="height:28px;border-radius:6px">';
     for (var i = 0; i < ahParts.length; i++) {
       var pct = ahParts[i].val / total * 100;
       if (pct > 0) {
-        var segLabel = pct >= 8 ? '<span style="font-size:.75rem;color:#fff;font-weight:600">' + fmtNum(ahParts[i].val) + ' (' + Math.round(pct) + P + ')</span>' : '';
+        var segLabel = pct >= 10 ? '<span style="font-size:.72rem;color:#fff;font-weight:600">' + fmtNum(ahParts[i].val) + ' (' + Math.round(pct) + P + ')</span>' : '';
         h += '<div class="stacked-segment" style="width:' + pct + P + ';background:' + ahParts[i].col + ';display:flex;align-items:center;justify-content:center;overflow:hidden;border-radius:0">' + segLabel + '</div>';
       }
     }
-    h += '</div></div>';
-
-    // Legend as mini data-table
-    h += '<table class="data-table"><thead><tr>';
-    h += '<th>Status</th><th class="col-right">Companies</th><th class="col-right">' + P + '</th><th>Description</th>';
-    h += '</tr></thead><tbody>';
+    h += '</div>';
+    h += '<div style="display:flex;gap:16px;margin-top:6px;flex-wrap:wrap">';
     for (var i = 0; i < ahParts.length; i++) {
       var pct = Math.round(ahParts[i].val / total * 1000) / 10;
-      h += '<tr>';
-      h += '<td><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:' + ahParts[i].col + ';margin-right:8px;vertical-align:middle"></span>';
-      h += '<span style="font-weight:500">' + ahParts[i].label + '</span></td>';
-      h += '<td class="col-right">' + fmtNum(ahParts[i].val) + '</td>';
-      h += '<td class="col-right">' + pct + P + '</td>';
-      h += '<td style="color:var(--so-text-muted);font-size:.82rem">' + ahParts[i].desc + '</td>';
-      h += '</tr>';
+      h += '<span style="font-size:.75rem;color:#666;display:flex;align-items:center;gap:4px">';
+      h += '<span style="width:8px;height:8px;border-radius:50%;background:' + ahParts[i].col + ';flex-shrink:0"></span>';
+      h += ahParts[i].label + ': ' + fmtNum(ahParts[i].val) + ' (' + pct + P + ')';
+      h += '</span>';
     }
-    h += '</tbody></table></div>';
+    h += '</div>';
+    h += '</div>';
   }
 
   // 1b. REGISTRATION TREND (with active overlay)
@@ -1148,7 +1135,7 @@ function renderCompanyDetails(d) {
       h += '<div style="display:flex;gap:16px;margin-top:4px;padding-left:' + padL + 'px">';
       h += '<span style="font-size:.75rem;color:#666;display:flex;align-items:center;gap:4px"><span style="width:12px;height:3px;background:var(--so-green);border-radius:2px"></span> Registered</span>';
       if (hasActiveData) {
-        h += '<span style="font-size:.75rem;color:#666;display:flex;align-items:center;gap:4px"><span style="width:12px;height:0;border-top:2px dashed var(--sl-good)"></span> Retention \u2014 of which still active today</span>';
+        h += '<span style="font-size:.75rem;color:#666;display:flex;align-items:center;gap:4px"><span style="width:12px;height:0;border-top:2px dashed var(--sl-good)"></span> Retention (of which still active today)</span>';
       }
       h += '</div>';
       h += '</div>';
