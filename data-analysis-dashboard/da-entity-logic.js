@@ -758,10 +758,10 @@ function renderCrossEntityFunnel(d) {
   h += '<div class="detail-section">';
   h += '<div class="detail-section-head">' + secHead('CRM Health Pipeline') + '</div>';
   h += '<div class="stat-row">';
-  h += pctCard('Person Coverage', m.personCoverage, 'Companies with a contact person', m.personCoverage >= 60 ? 'var(--so-meadow-dark1)' : m.personCoverage >= 40 ? 'var(--so-mango)' : 'var(--so-coral)');
-  h += pctCard('Activity Rate', m.activityRate, 'With person + activity in 12 months', m.activityRate >= 50 ? 'var(--so-meadow-dark1)' : m.activityRate >= 30 ? 'var(--so-mango)' : 'var(--so-coral)');
-  h += pctCard('Pipeline Rate', m.pipelineRate, 'Active companies with an open sale', m.pipelineRate >= 30 ? 'var(--so-meadow-dark1)' : m.pipelineRate >= 15 ? 'var(--so-mango)' : 'var(--so-coral)');
-  h += pctCard('Overall Health', m.overallHealth, 'Person + activity + sale (fully engaged)', m.overallHealth >= 20 ? 'var(--so-meadow-dark1)' : m.overallHealth >= 10 ? 'var(--so-mango)' : 'var(--so-coral)');
+  h += pctCard('Person Coverage', m.personCoverage, 'Companies with a contact person', slColor(m.personCoverage));
+  h += pctCard('Activity Rate', m.activityRate, 'With person + activity in 12 months', slColor(m.activityRate));
+  h += pctCard('Pipeline Rate', m.pipelineRate, 'Active companies with an open sale', slColor(m.pipelineRate));
+  h += pctCard('Overall Health', m.overallHealth, 'Person + activity + sale (fully engaged)', slColor(m.overallHealth));
   h += '</div></div>';
 
   // -- Engagement Funnel --
@@ -792,9 +792,9 @@ function renderCrossEntityFunnel(d) {
     if (step.drop === null) {
       h += '<td class="col-right" style="color:#ccc">\u2014</td>';
     } else if (step.drop === 0) {
-      h += '<td class="col-right" style="color:var(--so-meadow-dark1)">0' + P + '</td>';
+      h += '<td class="col-right" style="color:var(--sl-good)">0' + P + '</td>';
     } else {
-      h += '<td class="col-right" style="color:var(--so-coral-dark)">\u2212' + step.drop + P + '</td>';
+      h += '<td class="col-right" style="color:var(--sl-bad)">\u2212' + step.drop + P + '</td>';
     }
     h += '</tr>';
   }
@@ -857,7 +857,7 @@ function renderDQScore(key) {
         h += '<table class="data-table"><thead><tr><th>Issue</th><th class="col-right">Count</th><th class="col-right">' + P + '</th></tr></thead><tbody>';
         for (var i = 0; i < issues.length; i++) {
           var pct = Math.round((issues[i].val / total) * 1000) / 10;
-          var col = pct < 10 ? 'var(--so-meadow-dark1)' : pct < 30 ? 'var(--so-mango)' : 'var(--so-coral)';
+          var col = slColorInv(pct);
           h += '<tr><td>' + issues[i].label + '</td>';
           h += '<td class="col-right">' + fmtNum(issues[i].val) + '</td>';
           h += '<td class="col-right">' + barCell(pct, col) + '</td></tr>';
@@ -894,7 +894,7 @@ function renderDQScore(key) {
   // DQ Score summary card
   var dqScore = computeDQScore(key);
   if (dqScore !== null) {
-    var scoreColor = dqScore >= 70 ? 'var(--so-meadow)' : dqScore >= 40 ? 'var(--so-mango)' : 'var(--so-coral)';
+    var scoreColor = slColor(dqScore);
     var scoreHtml = '<div class="dq-score-banner">';
     scoreHtml += '<div class="dq-score-ring" style="--score:' + dqScore + ';--color:' + scoreColor + '">';
     scoreHtml += '<span class="dq-score-value">' + dqScore + '</span>';
@@ -992,14 +992,14 @@ function renderCompanyDetails(d) {
     h += '<span class="record-badge">' + fmtNum(total) + ' companies</span></div>';
 
     var ahParts = [
-      { val: ah.active6m, col: 'var(--so-meadow)', label: 'Active', desc: 'Activity within last 6 months' },
-      { val: ah.dormant12m, col: 'var(--so-mango)', label: 'Cooling', desc: 'Last activity 6\u201312 months ago' },
-      { val: ah.dormantOlder, col: 'var(--so-coral)', label: 'Dormant', desc: 'No activity for over 12 months' },
-      { val: ah.noActivity, col: '#ccc', label: 'No Activity', desc: 'Never had any registered activity' }
+      { val: ah.active6m, col: 'var(--sl-good)', label: 'Active', desc: 'Activity within last 6 months' },
+      { val: ah.dormant12m, col: 'var(--sl-ok)', label: 'Cooling', desc: 'Last activity 6\u201312 months ago' },
+      { val: ah.dormantOlder, col: 'var(--sl-warn)', label: 'Dormant', desc: 'No activity for over 12 months' },
+      { val: ah.noActivity, col: 'var(--sl-bad)', label: 'No Activity', desc: 'Never had any registered activity' }
     ];
 
     // Taller stacked bar with inline labels
-    h += '<div style="padding:14px 18px 0">';
+    h += '<div style="padding:14px 18px 14px">';
     h += '<div class="stacked-bar" style="height:32px;border-radius:6px">';
     for (var i = 0; i < ahParts.length; i++) {
       var pct = ahParts[i].val / total * 100;
@@ -1114,7 +1114,7 @@ function renderCompanyDetails(d) {
       h += '<polyline points="' + pts.join(' ') + '" fill="none" stroke="var(--so-green)" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>';
       // Active overlay line (dashed)
       if (hasActiveData) {
-        h += '<polyline points="' + aPts.join(' ') + '" fill="none" stroke="var(--so-meadow-dark1)" stroke-width="2" stroke-dasharray="6,4" stroke-linejoin="round" stroke-linecap="round"/>';
+        h += '<polyline points="' + aPts.join(' ') + '" fill="none" stroke="var(--sl-good)" stroke-width="2" stroke-dasharray="6,4" stroke-linejoin="round" stroke-linecap="round"/>';
       }
       // Data points + labels
       for (var i = 0; i < visibleData.length; i++) {
@@ -1126,9 +1126,9 @@ function renderCompanyDetails(d) {
         // Active dot + label (below the dot, skip when same as count)
         if (hasActiveData) {
           var axy = aPts[i].split(',');
-          h += '<circle cx="' + axy[0] + '" cy="' + axy[1] + '" r="3" fill="var(--so-meadow-dark1)" stroke="#fff" stroke-width="1.5"/>';
+          h += '<circle cx="' + axy[0] + '" cy="' + axy[1] + '" r="3" fill="var(--sl-good)" stroke="#fff" stroke-width="1.5"/>';
           if (visibleData[i].active !== visibleData[i].count) {
-            h += '<text x="' + axy[0] + '" y="' + (parseFloat(axy[1]) + 14).toFixed(1) + '" text-anchor="middle" fill="var(--so-meadow-dark1)" font-size="9" font-weight="600" font-family="DM Sans,sans-serif">' + visibleData[i].active + '</text>';
+            h += '<text x="' + axy[0] + '" y="' + (parseFloat(axy[1]) + 14).toFixed(1) + '" text-anchor="middle" fill="var(--sl-good)" font-size="9" font-weight="600" font-family="DM Sans,sans-serif">' + visibleData[i].active + '</text>';
           }
         }
         // X labels (skip some for monthly to avoid overlap)
@@ -1143,7 +1143,7 @@ function renderCompanyDetails(d) {
       h += '<div style="display:flex;gap:16px;margin-top:4px;padding-left:' + padL + 'px">';
       h += '<span style="font-size:.75rem;color:#666;display:flex;align-items:center;gap:4px"><span style="width:12px;height:3px;background:var(--so-green);border-radius:2px"></span> Registered</span>';
       if (hasActiveData) {
-        h += '<span style="font-size:.75rem;color:#666;display:flex;align-items:center;gap:4px"><span style="width:12px;height:0;border-top:2px dashed var(--so-meadow-dark1)"></span> Still active (12m)</span>';
+        h += '<span style="font-size:.75rem;color:#666;display:flex;align-items:center;gap:4px"><span style="width:12px;height:0;border-top:2px dashed var(--sl-good)"></span> Still active (had activity in last 12m)</span>';
       }
       h += '</div>';
       h += '</div>';
@@ -1174,7 +1174,7 @@ function renderCompanyDetails(d) {
       var pctAct = c.total > 0 ? Math.round((c.withActivity / c.total) * 1000) / 10 : 0;
       var pctSale = c.total > 0 ? Math.round((c.withSale / c.total) * 1000) / 10 : 0;
       var engagement = c.total > 0 ? Math.round((c.withActivity * 0.5 + c.withPerson * 0.3 + c.withSale * 0.2) / c.total * 100) : 0;
-      var engCol = engagement >= 50 ? 'var(--so-meadow)' : engagement >= 25 ? 'var(--so-mango)' : 'var(--so-coral)';
+      var engCol = slColor(engagement);
       h += '<tr>';
       h += '<td data-sort-value="' + c.name + '">' + c.name + '</td>';
       h += '<td class="col-right" data-sort-value="' + c.total + '">' + fmtNum(c.total) + '</td>';
