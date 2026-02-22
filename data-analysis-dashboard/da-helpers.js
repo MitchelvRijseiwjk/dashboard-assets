@@ -750,9 +750,9 @@ function st(ent, sub, el) {
 
 // === HELPERS ===
 function barCls(p) {
-  if (p >= 80) return 'bar-high';
-  if (p >= 50) return 'bar-mid';
-  if (p >= 25) return 'bar-low';
+  if (p >= 70) return 'bar-high';
+  if (p >= 40) return 'bar-mid';
+  if (p >= 15) return 'bar-low';
   return 'bar-none';
 }
 function fillBar(p, h, c) {
@@ -764,6 +764,18 @@ function fillBar(p, h, c) {
 }
 function barCell(pct, color) {
   return '<span class="bar-cell">' + fillBar(pct, null, color) + '<span class="pct-text">' + pct + P + '</span></span>';
+}
+function slColor(pct) {
+  if (pct >= 70) return 'var(--sl-good)';
+  if (pct >= 40) return 'var(--sl-ok)';
+  if (pct >= 15) return 'var(--sl-warn)';
+  return 'var(--sl-bad)';
+}
+function slColorInv(pct) {
+  if (pct < 10) return 'var(--sl-good)';
+  if (pct < 30) return 'var(--sl-ok)';
+  if (pct < 60) return 'var(--sl-warn)';
+  return 'var(--sl-bad)';
 }
 function sortT(tid, col) {
   var t = document.getElementById(tid);
