@@ -7,6 +7,7 @@
       --so-plum:#712f4a; --so-coral:#f48a6d; --so-coral-dark:#da6849; --so-mango:#f5a623;
       --so-charcoal:#1c1c1e; --so-white:#ffffff; --so-bg:#f2efea;
       --so-border:#eeecea; --so-text-muted:#888; --radius:8px;
+      --sl-good:#2e7d32; --sl-ok:#f9a825; --sl-warn:#ef6c00; --sl-bad:#c62828;
     }
 
     /* === SETTINGS TABS === */
@@ -154,8 +155,8 @@
     .data-table .fill-bar{display:inline-block;vertical-align:middle;width:60px;max-width:60px;min-width:60px;height:8px}
     .fill-bar .bar{height:100%;min-width:1px;border-radius:0}
     .stat-card .fill-bar{max-width:none}
-    .bar-high{background:var(--so-meadow-dark1)} .bar-mid{background:var(--so-coast-dark1)} .bar-low{background:var(--so-coral)} .bar-none{background:var(--so-plum)}
-    .bar-cell{display:inline-flex;align-items:center;gap:6px;justify-content:flex-end}
+    .bar-high{background:var(--sl-good)} .bar-mid{background:var(--sl-ok)} .bar-low{background:var(--sl-warn)} .bar-none{background:var(--sl-bad)}
+    .bar-cell{display:flex;align-items:center;gap:6px;justify-content:flex-end}
     .bar-cell .pct-text{min-width:42px;text-align:right;font-size:.82rem;color:#666}
 
     /* === TYPE BADGE === */
