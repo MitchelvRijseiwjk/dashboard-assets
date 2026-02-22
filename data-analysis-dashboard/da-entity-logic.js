@@ -272,6 +272,10 @@ function startFullEntity(key) {
   var overviewEl = document.getElementById(tabKey + 'OverviewContent');
   if (overviewEl) overviewEl.innerHTML = loadingPlaceholder('Loading overview data...');
 
+  // Data Quality tab placeholders
+  var dqScoreEl = document.getElementById(tabKey + 'DQScoreContent');
+  if (dqScoreEl) dqScoreEl.innerHTML = '';
+
   if (ec && ec.udefId > 0) {
     var udefCards = document.getElementById(tabKey + 'UdefCards');
     var udefSummary = document.getElementById(tabKey + 'UdefSummary');
@@ -279,15 +283,18 @@ function startFullEntity(key) {
     if (udefSummary) udefSummary.textContent = '';
   }
 
-  if (hasDetails) {
-    var detailEl = document.getElementById('companyDetailContent');
-    if (detailEl) detailEl.innerHTML = loadingPlaceholder('Loading detail analysis...');
-  }
-
   var extraCards = document.getElementById(tabKey + 'ExtraCards');
   var extraSummary = document.getElementById(tabKey + 'ExtraSummary');
   if (extraCards) extraCards.innerHTML = loadingPlaceholder('Loading extra tables...');
   if (extraSummary) extraSummary.textContent = '';
+
+  // Adoption tab placeholders
+  if (hasDetails) {
+    var crossEl = document.getElementById('companyCrossContent');
+    if (crossEl) crossEl.innerHTML = loadingPlaceholder('Loading cross-entity analysis...');
+    var detailEl = document.getElementById('companyDetailContent');
+    if (detailEl) detailEl.innerHTML = loadingPlaceholder('Loading adoption analysis...');
+  }
 
   // Show inline progress bar
   var inlineProgress = document.createElement('div');
@@ -304,7 +311,7 @@ function startFullEntity(key) {
   var totalSteps = 2; // overview + extra (always)
   if (ec && ec.udefId > 0) totalSteps++;
   if (ec && ec.hasTicketFields) totalSteps++;
-  if (hasDetails) totalSteps++;
+  if (hasDetails) totalSteps += 2; // details + cross-entity
   var completedSteps = 0;
   var dfParam = getDateFilterParam();
 
@@ -318,12 +325,17 @@ function startFullEntity(key) {
     if (pctEl) pctEl.textContent = pct + P;
     if (labelEl) labelEl.textContent = label;
 
+    // Progressively update DQ score as data becomes available
+    renderDQScore(key);
+
     if (completedSteps >= totalSteps) {
       // All done
       if (labelEl) labelEl.innerHTML = '<span class="pi-check">\u2713 Analysis complete</span>';
       var expBtn = document.getElementById(tabKey + 'ExportBtn') || document.getElementById('ticketExportBtn');
       if (expBtn) expBtn.style.display = '';
       if (headerBtn) { headerBtn.disabled = false; headerBtn.onclick = function(){ reAnalyze(key); }; }
+      // Final DQ score render with all data available
+      renderDQScore(key);
       // Auto-hide progress bar after 3 seconds
       setTimeout(function() {
         var ip = document.getElementById(tabKey + 'InlineProgress');
@@ -352,10 +364,7 @@ function startFullEntity(key) {
         if (summaryEl) summaryEl.textContent = 'No extra fields found.';
         if (cardsEl) cardsEl.innerHTML = '';
       }
-      // Make UDEF sub-panel visible
-      var udefStart = document.getElementById(tabKey + 'UdefStart');
       var udefResults = document.getElementById(tabKey + 'UdefResults');
-      if (udefStart) udefStart.style.display = 'none';
       if (udefResults) udefResults.style.display = 'block';
       stepDone('Extra fields loaded');
     });
@@ -385,6 +394,19 @@ function startFullEntity(key) {
       if (detailEl2) detailEl2.style.animation = 'fadeIn .3s ease';
       stepDone('Details loaded');
     });
+
+    // === PARALLEL LOAD 3b: Cross-entity analysis ===
+    var crossCatParam = '';
+    if (companyDetailCatValue) {
+      crossCatParam = String.fromCharCode(38) + 'categoryName=' + encodeURIComponent(companyDetailCatValue);
+    }
+    ajax(crossUrl + dfParam + crossCatParam, function(d) {
+      companyCrossData = d;
+      if (d) renderCrossEntityFunnel(d);
+      var crossEl2 = document.getElementById('companyCrossContent');
+      if (crossEl2) crossEl2.style.animation = 'fadeIn .3s ease';
+      stepDone('Cross-entity loaded');
+    });
   }
 
   // === PARALLEL LOAD 4: Extra Tables (from cache) ===
@@ -393,7 +415,6 @@ function startFullEntity(key) {
       if (!entExtra[tabKey]) entExtra[tabKey] = { tables: [], cur: 0, data: {} };
       entExtra[tabKey].tables = cache.tables;
       entExtra[tabKey].entityType = ec.extraType;
-      // Copy cached data
       for (var i = 0; i < cache.tables.length; i++) {
         var tbl = cache.tables[i];
         entExtra[tabKey].data[tbl.id] = cache.data[tbl.id];
@@ -404,7 +425,6 @@ function startFullEntity(key) {
       stepDone('Extra tables loaded');
     });
   } else {
-    // No extra tables for this entity type
     if (extraCards) extraCards.innerHTML = '';
     stepDone('Complete');
   }
@@ -504,17 +524,8 @@ function renderEntityOverview(key, d) {
     }
   }
 
-  if (cfg.completeness && d.completeness) {
-    var c = d.completeness;
-    h += '<div class="detail-section">';
-    h += '<div class="detail-section-head">' + secHead('Data Completeness') + '</div>';
-    h += '<div class="stat-row">';
-    for (var j = 0; j < cfg.completeness.length; j++) {
-      var cm = cfg.completeness[j];
-      h += ovCard(cm[1], c[cm[0]], total, '');
-    }
-    h += '</div></div>';
-  }
+  // Completeness is now shown in the Data Quality tab — skip here
+  // (renderDQScore handles completeness display)
 
   if (d.distributions && d.distributions.length > 0) {
     var cols = d.distributions.length >= 2 ? 2 : 1;
@@ -680,7 +691,10 @@ function populateDetailCatFilter() {
 function reloadCompanyDetails() {
   var el = document.getElementById('companyDetailContent');
   if (el) el.innerHTML = '<div style="text-align:center;padding:40px;color:#999">Loading...</div>';
-  fetchCompanyDetails(null);
+  var crossEl = document.getElementById('companyCrossContent');
+  if (crossEl) crossEl.innerHTML = '<div style="text-align:center;padding:40px;color:#999">Loading...</div>';
+  fetchCompanyDetails(function() { renderDQScore('company'); });
+  loadCompanyCross(null);
 }
 
 function togDetailFilter(key) {
@@ -707,6 +721,225 @@ document.addEventListener('click', function(e) {
     document.querySelectorAll('.detail-filter-popover.show').forEach(function(p) { p.classList.remove('show'); });
   }
 });
+
+// ===========================================================
+// CROSS-ENTITY ANALYSIS (Company)
+// ===========================================================
+var companyCrossData = null;
+
+function loadCompanyCross(cb) {
+  var catParam = '';
+  if (companyDetailCatValue) {
+    catParam = String.fromCharCode(38) + 'categoryName=' + encodeURIComponent(companyDetailCatValue);
+  }
+  ajax(crossUrl + getDateFilterParam() + catParam, function(d) {
+    companyCrossData = d;
+    if (d) renderCrossEntityFunnel(d);
+    if (cb) cb();
+  });
+}
+
+function renderCrossEntityFunnel(d) {
+  var el = document.getElementById('companyCrossContent');
+  if (!el) return;
+  var f = d.funnel;
+  var segs = d.segments;
+  var m = d.metrics;
+  var h = '';
+  h += dateFilterNotice();
+
+  // -- Conversion Metrics row --
+  h += '<div class="detail-section">';
+  h += '<div class="detail-section-head">' + secHead('CRM Health Pipeline') + '</div>';
+  h += '<div class="stat-row">';
+  h += metricCard('Person Coverage', m.personCoverage, 'of companies have a contact person', m.personCoverage >= 60 ? 'var(--so-meadow)' : m.personCoverage >= 40 ? 'var(--so-mango)' : 'var(--so-coral)');
+  h += metricCard('Activity Rate', m.activityRate, 'of contacts are actively engaged (12m)', m.activityRate >= 50 ? 'var(--so-meadow)' : m.activityRate >= 30 ? 'var(--so-mango)' : 'var(--so-coral)');
+  h += metricCard('Pipeline Rate', m.pipelineRate, 'of active companies have open sales', m.pipelineRate >= 30 ? 'var(--so-meadow)' : m.pipelineRate >= 15 ? 'var(--so-mango)' : 'var(--so-coral)');
+  h += metricCard('Overall Health', m.overallHealth, 'of companies are fully engaged', m.overallHealth >= 20 ? 'var(--so-meadow)' : m.overallHealth >= 10 ? 'var(--so-mango)' : 'var(--so-coral)');
+  h += '</div></div>';
+
+  // -- Funnel visualization --
+  h += '<div class="entity-card">';
+  h += '<div class="entity-header"><div class="entity-info"><h3>Company Engagement Funnel</h3>';
+  h += '<span class="field-count">\u2014 From registration to active pipeline</span></div></div>';
+  h += '<div class="funnel-container">';
+
+  var funnelSteps = [
+    { label: 'Total Companies', count: f.total, pct: 100 },
+    { label: 'With Contact Person', count: f.withPerson, pct: f.total > 0 ? Math.round(f.withPerson / f.total * 1000) / 10 : 0 },
+    { label: 'With Activity (12m)', count: f.withPersonActivity, pct: f.total > 0 ? Math.round(f.withPersonActivity / f.total * 1000) / 10 : 0 },
+    { label: 'With Open Sale', count: f.withPersonActivitySale, pct: f.total > 0 ? Math.round(f.withPersonActivitySale / f.total * 1000) / 10 : 0 }
+  ];
+  var funnelColors = ['var(--so-charcoal)', '#2e7d32', '#1565c0', '#6a1b9a'];
+
+  for (var i = 0; i < funnelSteps.length; i++) {
+    var step = funnelSteps[i];
+    var barWidth = step.pct;
+    if (barWidth < 2 && step.count > 0) barWidth = 2; // minimum visible width
+    var dropoff = '';
+    if (i > 0 && funnelSteps[i-1].count > 0) {
+      var lost = funnelSteps[i-1].count - step.count;
+      var lostPct = Math.round(lost / funnelSteps[i-1].count * 100);
+      if (lost > 0) dropoff = '<span class="funnel-dropoff">\u2192 ' + fmtNum(lost) + ' dropped (' + lostPct + P + ')</span>';
+    }
+    h += '<div class="funnel-step">';
+    h += '<div class="funnel-label">' + step.label + '</div>';
+    h += '<div class="funnel-bar-wrap">';
+    h += '<div class="funnel-bar" style="width:' + barWidth + P + ';background:' + funnelColors[i] + '"></div>';
+    h += '</div>';
+    h += '<div class="funnel-value">' + fmtNum(step.count) + ' <span class="funnel-pct">' + step.pct + P + '</span></div>';
+    h += dropoff;
+    h += '</div>';
+  }
+  h += '</div></div>';
+
+  // -- Segment breakdown --
+  h += '<div class="detail-section">';
+  h += '<div class="detail-section-head">' + secHead('Company Segments') + '</div>';
+  h += '<div class="segment-grid">';
+  for (var si = 0; si < segs.length; si++) {
+    var seg = segs[si];
+    var pct = Math.round(seg.percent * 10) / 10;
+    h += '<div class="segment-card" style="border-left:4px solid ' + seg.color + '">';
+    h += '<div class="segment-header">';
+    h += '<span class="segment-name">' + seg.name + '</span>';
+    h += '<span class="segment-count">' + fmtNum(seg.count) + '</span>';
+    h += '</div>';
+    h += '<div class="segment-bar-wrap"><div class="segment-bar" style="width:' + pct + P + ';background:' + seg.color + '"></div></div>';
+    h += '<div class="segment-desc">' + seg.description + ' <span class="segment-pct">' + pct + P + '</span></div>';
+    h += '</div>';
+  }
+  h += '</div></div>';
+
+  el.innerHTML = h;
+}
+
+function metricCard(title, value, desc, color) {
+  var v = (typeof value === 'number') ? Math.round(value * 10) / 10 : 0;
+  var h = '<div class="stat-card metric-card">';
+  h += '<div class="stat-value" style="color:' + color + '">' + v + '<span style="font-size:.6em">' + P + '</span></div>';
+  h += '<div class="stat-label" style="font-weight:600">' + title + '</div>';
+  h += '<div style="margin-top:6px">' + fillBar(v, 8, color) + '</div>';
+  h += '<div class="stat-label" style="margin-top:4px;font-size:.7rem;color:#999">' + desc + '</div>';
+  h += '</div>';
+  return h;
+}
+
+// ===========================================================
+// DATA QUALITY SCORE (computed frontend from available data)
+// ===========================================================
+function renderDQScore(key) {
+  var el = document.getElementById(key + 'DQScoreContent');
+  if (!el) return;
+
+  var scores = [];
+  var h = '';
+  h += dateFilterNotice();
+
+  // Company-specific quality issues
+  if (key === 'company' && companyDetailData && companyDetailData.quality) {
+    var q = companyDetailData.quality;
+    var total = companyDetailData.activityHealth ? companyDetailData.activityHealth.total : 0;
+    if (total > 0) {
+      h += '<div class="detail-section">';
+      h += '<div class="detail-section-head">' + secHead('Data Quality Issues') + '</div>';
+      h += '<div class="stat-row">';
+      var issues = [
+        { label: 'No contact person', val: q.noPerson },
+        { label: 'No category', val: q.noCategory },
+        { label: 'No business type', val: q.noBusiness },
+        { label: 'No org. number', val: q.noOrgNr },
+        { label: 'Unreachable', val: q.unreachable }
+      ];
+      for (var i = 0; i < issues.length; i++) {
+        var pct = Math.round((issues[i].val / total) * 1000) / 10;
+        var col = pct < 10 ? 'var(--so-meadow)' : pct < 30 ? 'var(--so-mango)' : 'var(--so-coral)';
+        h += ovCard(issues[i].label, issues[i].val, total, col);
+      }
+      h += '</div></div>';
+    }
+  }
+
+  // Overview completeness (company)
+  if (key === 'company' && overviewData['company'] && overviewData['company'].completeness) {
+    var ov = overviewData['company'];
+    var c = ov.completeness;
+    var total = ov.overview.total || 0;
+    var ovLabCfg = ovLabels['company'];
+    if (ovLabCfg && ovLabCfg.completeness && total > 0) {
+      h += '<div class="detail-section">';
+      h += '<div class="detail-section-head">' + secHead('Standard Field Completeness') + '</div>';
+      h += '<div class="stat-row">';
+      for (var j = 0; j < ovLabCfg.completeness.length; j++) {
+        var cm = ovLabCfg.completeness[j];
+        h += ovCard(cm[1], c[cm[0]], total, '');
+      }
+      h += '</div></div>';
+    }
+  }
+
+  // DQ Score summary card
+  var dqScore = computeDQScore(key);
+  if (dqScore !== null) {
+    var scoreColor = dqScore >= 70 ? 'var(--so-meadow)' : dqScore >= 40 ? 'var(--so-mango)' : 'var(--so-coral)';
+    var scoreHtml = '<div class="dq-score-banner">';
+    scoreHtml += '<div class="dq-score-ring" style="--score:' + dqScore + ';--color:' + scoreColor + '">';
+    scoreHtml += '<span class="dq-score-value">' + dqScore + '</span>';
+    scoreHtml += '</div>';
+    scoreHtml += '<div class="dq-score-info">';
+    scoreHtml += '<div class="dq-score-label">Data Quality Score</div>';
+    scoreHtml += '<div class="dq-score-desc">Based on field completeness, extra field usage and data quality issues</div>';
+    scoreHtml += '</div></div>';
+    h = scoreHtml + h; // prepend score to top
+  }
+
+  el.innerHTML = h;
+}
+
+function computeDQScore(key) {
+  var scores = [];
+
+  // Completeness score (company only for now)
+  if (key === 'company' && overviewData['company'] && overviewData['company'].completeness) {
+    var c = overviewData['company'].completeness;
+    var total = overviewData['company'].overview.total || 1;
+    var fields = ['orgNr', 'email', 'phone', 'address', 'webpage'];
+    var sum = 0;
+    for (var i = 0; i < fields.length; i++) {
+      sum += (c[fields[i]] || 0) / total * 100;
+    }
+    scores.push(sum / fields.length);
+  }
+
+  // UDEF fill rate score
+  var ec = entityConfig[key];
+  if (ec && ec.udefId > 0 && udefData[ec.udefId]) {
+    var ud = udefData[ec.udefId];
+    if (ud.fields && ud.fields.length > 0) {
+      var udefSum = 0;
+      for (var i = 0; i < ud.fields.length; i++) {
+        udefSum += ud.fields[i].percent;
+      }
+      scores.push(udefSum / ud.fields.length);
+    }
+  }
+
+  // Quality issues score (company only)
+  if (key === 'company' && companyDetailData && companyDetailData.quality && companyDetailData.activityHealth) {
+    var q = companyDetailData.quality;
+    var total = companyDetailData.activityHealth.total || 1;
+    // Invert: lower issues = higher score
+    var issuePct = ((q.noPerson + q.noCategory + q.unreachable) / (total * 3)) * 100;
+    scores.push(100 - issuePct);
+  }
+
+  if (scores.length === 0) return null;
+  var avg = 0;
+  for (var i = 0; i < scores.length; i++) avg += scores[i];
+  return Math.round(avg / scores.length);
+}
+
+// end of DQ score functions
 
 function renderCompanyDetails(d) {
   var el = document.getElementById('companyDetailContent');
@@ -736,25 +969,38 @@ function renderCompanyDetails(d) {
     subRight.innerHTML = sr;
   }
 
-  // 1. DATA QUALITY ISSUES
-  var q = d.quality;
-  if (q && total > 0) {
+  // 1. ACTIVITY HEALTH — visualize engagement status
+  var ah = d.activityHealth;
+  if (ah && total > 0) {
     h += '<div class="detail-section">';
-    h += '<div class="detail-section-head">' + secHead('Data Quality Issues') + '</div>';
+    h += '<div class="detail-section-head">' + secHead('Activity Health') + '</div>';
     h += '<div class="stat-row">';
-    var issues = [
-      { label: 'No contact person', val: q.noPerson },
-      { label: 'No category', val: q.noCategory },
-      { label: 'No business type', val: q.noBusiness },
-      { label: 'No org. number', val: q.noOrgNr },
-      { label: 'Unreachable', val: q.unreachable }
+    var ahItems = [
+      { label: 'Active (6m)', val: ah.active6m, col: 'var(--so-meadow)' },
+      { label: 'Cooling (6-12m)', val: ah.dormant12m, col: 'var(--so-mango)' },
+      { label: 'Dormant (>12m)', val: ah.dormantOlder, col: 'var(--so-coral)' },
+      { label: 'No Activity', val: ah.noActivity, col: '#999' }
     ];
-    for (var i = 0; i < issues.length; i++) {
-      var pct = Math.round((issues[i].val / total) * 1000) / 10;
-      var col = pct < 10 ? 'var(--so-meadow)' : pct < 30 ? 'var(--so-mango)' : 'var(--so-coral)';
-      h += ovCard(issues[i].label, issues[i].val, total, col);
+    for (var i = 0; i < ahItems.length; i++) {
+      h += ovCard(ahItems[i].label, ahItems[i].val, total, ahItems[i].col);
+    }
+    h += '</div>';
+    // Stacked bar for activity health
+    h += '<div class="stacked-bar-container">';
+    var ahParts = [
+      { pct: ah.active6m / total * 100, col: 'var(--so-meadow)', label: 'Active' },
+      { pct: ah.dormant12m / total * 100, col: 'var(--so-mango)', label: 'Cooling' },
+      { pct: ah.dormantOlder / total * 100, col: 'var(--so-coral)', label: 'Dormant' },
+      { pct: ah.noActivity / total * 100, col: '#ccc', label: 'None' }
+    ];
+    h += '<div class="stacked-bar">';
+    for (var i = 0; i < ahParts.length; i++) {
+      if (ahParts[i].pct > 0) {
+        h += '<div class="stacked-segment" style="width:' + ahParts[i].pct + P + ';background:' + ahParts[i].col + '" title="' + ahParts[i].label + ': ' + Math.round(ahParts[i].pct) + P + '"></div>';
+      }
     }
     h += '</div></div>';
+    h += '</div>';
   }
 
   // 1b. REGISTRATION TREND
