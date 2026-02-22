@@ -386,30 +386,61 @@ function runNextAA() {
   var stEl = document.getElementById('aaSt_' + key);
   if (stEl) { stEl.className = 'aa-status aa-status-loading'; stEl.textContent = 'Loading...'; }
 
-  // Start smooth animation toward end of this entity's range
-  _aaStartSmooth(range.end, entityName + ': loading...');
-
   captureEntityFilter(key);
 
-  // Progress callback for sub-steps within entity
-  function onSubStep(label) {
-    // Bump progress forward within range
-    var subPct = range.start + ((range.end - range.start) * 0.3); // jump 30% into range
-    if (_aaCurrentPct < subPct) {
-      _aaSetProgress(subPct, entityName + ': ' + label);
+  // Build sub-step tracker for this entity
+  var steps = [];
+  steps.push({ id: 'overview', label: 'Overview', done: false });
+  var ec = entityConfig[key];
+  if (ec) {
+    if (ec.udefId > 0) steps.push({ id: 'fields', label: 'Extra Fields', done: false });
+    if (ec.hasTicketFields) steps.push({ id: 'tfields', label: 'Ticket Fields', done: false });
+    if (key === 'company') steps.push({ id: 'details', label: 'Details', done: false });
+    steps.push({ id: 'tables', label: 'Tables', done: false });
+  }
+
+  function renderStepStatus() {
+    var parts = [];
+    for (var si = 0; si < steps.length; si++) {
+      var s = steps[si];
+      if (s.done) {
+        parts.push('<span style="color:var(--so-green,#2a6e50)">&#10003; ' + s.label + '</span>');
+      } else {
+        parts.push('<span style="color:#999">&#8987; ' + s.label + '</span>');
+      }
+    }
+    return entityName + ':&ensp;' + parts.join(' &ensp; ');
+  }
+
+  function markStepDone(stepId) {
+    for (var si = 0; si < steps.length; si++) {
+      if (steps[si].id === stepId) steps[si].done = true;
+    }
+    // Calculate sub-progress: proportional within entity range
+    var doneCount = 0;
+    for (var si = 0; si < steps.length; si++) { if (steps[si].done) doneCount++; }
+    var subPct = range.start + ((doneCount / steps.length) * (range.end - range.start));
+    _aaStopSmooth();
+    _aaSetProgress(subPct, renderStepStatus());
+    // Resume smooth animation toward next milestone
+    if (doneCount < steps.length) {
+      _aaStartSmooth(range.end, renderStepStatus());
     }
   }
 
+  // Start smooth animation with initial status
+  _aaStartSmooth(range.end, renderStepStatus());
+
   function onEntityDone() {
     _aaStopSmooth();
-    _aaSetProgress(range.end, entityName + ' complete');
+    _aaSetProgress(range.end, entityName + ' &#10003;');
     if (stEl) { stEl.className = 'aa-status aa-status-done'; stEl.textContent = 'Done'; }
     aaIdx++;
     runNextAA();
   }
 
   if (entityConfig[key]) {
-    aaRunFullEntity(key, onEntityDone, onSubStep);
+    aaRunFullEntity(key, onEntityDone, markStepDone);
   } else {
     aaRunSimpleEntity(key, onEntityDone);
   }
@@ -428,8 +459,8 @@ function aaRunSimpleEntity(key, cb) {
   });
 }
 
-// v3: PARALLEL sub-loads with sub-step progress reporting
-function aaRunFullEntity(key, cb, onSubStep) {
+// v4: PARALLEL sub-loads with checklist progress reporting
+function aaRunFullEntity(key, cb, markStepDone) {
   var ec = entityConfig[key];
   var tabKey = ec.tabKey;
   var hasDetails = (key === 'company');
@@ -443,11 +474,9 @@ function aaRunFullEntity(key, cb, onSubStep) {
   totalSteps++; // extra tables always
 
   var completed = 0;
-  var stepLabels = [];
-  function stepDone(label) {
+  function stepDone(stepId) {
     completed++;
-    stepLabels.push(label);
-    if (onSubStep) onSubStep(stepLabels.join(', '));
+    if (markStepDone) markStepDone(stepId);
     if (completed >= totalSteps) {
       var rs = document.getElementById(tabKey + 'Results');
       var st2 = document.getElementById(tabKey + 'SubTabs');
@@ -474,7 +503,7 @@ function aaRunFullEntity(key, cb, onSubStep) {
     });
   } else if (ec.hasTicketFields) {
     loadTicketFieldsQuiet(function() {
-      stepDone('ticket fields');
+      stepDone('tfields');
     });
   }
 
@@ -602,7 +631,7 @@ function setupProgressUpdate(pct, status) {
   var statusEl = document.getElementById('setupProgressStatus');
   if (bar) bar.style.width = pct + '%';
   if (pctEl) pctEl.textContent = pct + '%';
-  if (statusEl && status) statusEl.textContent = status;
+  if (statusEl && status) statusEl.innerHTML = status;
 }
 
 function setupAnalysisComplete() {
