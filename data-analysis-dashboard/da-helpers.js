@@ -756,14 +756,14 @@ function barCls(p) {
   return 'bar-none';
 }
 function fillBar(p, h, c) {
-  if (!h) h = 14;
+  if (!h) h = 13;
   var cls = c ? '' : barCls(p);
   var style = 'width:' + p + P;
   if (c) style += ';background:' + c;
   return '<div class="fill-bar" style="height:' + h + 'px"><div class="bar ' + cls + '" style="' + style + '"></div></div>';
 }
 function barCell(pct, color) {
-  return '<span class="bar-cell">' + fillBar(pct, 10, color) + '<span class="pct-text">' + pct + P + '</span></span>';
+  return '<span class="bar-cell">' + fillBar(pct, null, color) + '<span class="pct-text">' + pct + P + '</span></span>';
 }
 function sortT(tid, col) {
   var t = document.getElementById(tid);
