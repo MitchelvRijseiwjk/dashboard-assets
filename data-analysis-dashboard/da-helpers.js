@@ -135,6 +135,7 @@ function resetEntity(key) {
   if (key === 'company') {
     companyDetailData = null;
     companyDetailCatValue = '';
+    companyCrossData = null;
   }
   delete entExtra[key];
   if (typeof invalidateExtraCache === 'function') invalidateExtraCache();
@@ -341,7 +342,7 @@ function _aaCalcRanges() {
 }
 
 var _aaRanges = {};
-var _aaConcurrency = 2; // run 2 entities at once
+var _aaConcurrency = 3; // run 3 entities at once
 var _aaCompleted = 0;
 var _aaRunning = 0;
 var _aaStatusTexts = {}; // track status per running entity
@@ -459,7 +460,7 @@ function _aaLaunchEntity(key) {
     pending['overview'] = 'overview';
     if (ec.udefId > 0) pending['fields'] = 'extra fields';
     if (ec.hasTicketFields) pending['tfields'] = 'ticket fields';
-    if (key === 'company') pending['details'] = 'details';
+    if (key === 'company') { pending['details'] = 'details'; pending['cross'] = 'cross-entity'; }
     pending['tables'] = 'tables';
   } else {
     pending['overview'] = 'overview';
@@ -543,7 +544,7 @@ function aaRunFullEntity(key, cb, markStepDone) {
   var totalSteps = 1; // overview always
   if (ec.udefId > 0) totalSteps++;
   if (ec.hasTicketFields) totalSteps++;
-  if (hasDetails) totalSteps++;
+  if (hasDetails) totalSteps += 2; // details + cross-entity
   totalSteps++; // extra tables always
 
   var completed = 0;
@@ -584,6 +585,10 @@ function aaRunFullEntity(key, cb, markStepDone) {
   if (hasDetails) {
     loadCompanyDetails(function() {
       stepDone('details');
+    });
+    // === PARALLEL 3b: Cross-entity analysis (company only) ===
+    loadCompanyCross(function() {
+      stepDone('cross');
     });
   }
 
@@ -742,7 +747,7 @@ function st(ent, sub, el) {
   p.querySelectorAll('.sub-tab').forEach(function(t) { t.classList.remove('active'); });
   if (el) el.classList.add('active');
   var sr = document.getElementById(ent + 'SubTabsRight');
-  if (sr) sr.style.display = (sub === 'details') ? '' : 'none';
+  if (sr) sr.style.display = (sub === 'adoption') ? '' : 'none';
 }
 
 // === HELPERS ===
