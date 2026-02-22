@@ -234,13 +234,8 @@ function loadingPlaceholder(label) {
   if (document.getElementById('progressiveLoadStyles')) return;
   var style = document.createElement('style');
   style.id = 'progressiveLoadStyles';
-  style.textContent = '@keyframes spin{to{transform:rotate(360deg)}}' +
-    '.section-loaded{animation:fadeIn .3s ease}' +
-    '@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}' +
-    '.progress-inline{display:flex;align-items:center;gap:8px;padding:8px 16px;margin:0 0 12px;border-radius:8px;background:var(--so-cream,#faf9f7);font-size:.8rem;color:#666}' +
-    '.progress-inline .pi-bar{flex:1;height:4px;background:#e0dfdc;border-radius:2px;overflow:hidden}' +
-    '.progress-inline .pi-fill{height:100%;background:var(--so-green);border-radius:2px;transition:width .3s}' +
-    '.progress-inline .pi-check{color:var(--so-green);font-weight:600}';
+  style.textContent = '.section-loaded{animation:fadeIn .3s ease}' +
+    '@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}';
   document.head.appendChild(style);
 })();
 
@@ -263,48 +258,48 @@ function startFullEntity(key) {
 
   if (headerBtn) headerBtn.disabled = true;
 
-  // === PROGRESSIVE: Show results immediately with loading placeholders ===
+  // === Show results container but with loading overlay ===
   if (progressScreen) progressScreen.style.display = 'none';
   if (subTabs) subTabs.style.display = '';
   if (resultsContainer) resultsContainer.style.display = '';
 
-  // Set loading placeholders in each section
+  // Clear all section content
   var overviewEl = document.getElementById(tabKey + 'OverviewContent');
-  if (overviewEl) overviewEl.innerHTML = loadingPlaceholder('Loading overview data...');
-
-  // Data Quality tab placeholders
+  if (overviewEl) overviewEl.innerHTML = '';
   var dqScoreEl = document.getElementById(tabKey + 'DQScoreContent');
   if (dqScoreEl) dqScoreEl.innerHTML = '';
-
   if (ec && ec.udefId > 0) {
     var udefCards = document.getElementById(tabKey + 'UdefCards');
     var udefSummary = document.getElementById(tabKey + 'UdefSummary');
-    if (udefCards) udefCards.innerHTML = loadingPlaceholder('Loading extra fields...');
+    if (udefCards) udefCards.innerHTML = '';
     if (udefSummary) udefSummary.textContent = '';
   }
-
   var extraCards = document.getElementById(tabKey + 'ExtraCards');
   var extraSummary = document.getElementById(tabKey + 'ExtraSummary');
-  if (extraCards) extraCards.innerHTML = loadingPlaceholder('Loading extra tables...');
+  if (extraCards) extraCards.innerHTML = '';
   if (extraSummary) extraSummary.textContent = '';
-
-  // Adoption tab placeholders
   if (hasDetails) {
     var crossEl = document.getElementById('companyCrossContent');
-    if (crossEl) crossEl.innerHTML = loadingPlaceholder('Loading engagement funnel...');
+    if (crossEl) crossEl.innerHTML = '';
     var detailEl = document.getElementById('companyDetailContent');
-    if (detailEl) detailEl.innerHTML = loadingPlaceholder('Loading adoption analysis...');
+    if (detailEl) detailEl.innerHTML = '';
   }
 
-  // Show inline progress bar
-  var inlineProgress = document.createElement('div');
-  inlineProgress.className = 'progress-inline';
-  inlineProgress.id = tabKey + 'InlineProgress';
-  inlineProgress.innerHTML = '<span id="' + tabKey + 'IPLabel">Loading...</span>' +
-    '<div class="pi-bar"><div class="pi-fill" id="' + tabKey + 'IPBar" style="width:0"></div></div>' +
-    '<span id="' + tabKey + 'IPPct">0' + P + '</span>';
-  if (overviewEl && overviewEl.parentNode) {
-    overviewEl.parentNode.insertBefore(inlineProgress, overviewEl);
+  // === Create unified loading overlay ===
+  var existingOverlay = document.getElementById(tabKey + 'LoadingOverlay');
+  if (existingOverlay) existingOverlay.parentNode.removeChild(existingOverlay);
+  var overlay = document.createElement('div');
+  overlay.id = tabKey + 'LoadingOverlay';
+  overlay.className = 'loading-overlay';
+  overlay.innerHTML = '<div class="loading-overlay-inner">' +
+    '<div class="loading-spinner"></div>' +
+    '<div class="loading-title" id="' + tabKey + 'LoadTitle">Analyzing...</div>' +
+    '<div class="loading-progress-wrap"><div class="loading-progress-bar" id="' + tabKey + 'LoadBar"></div></div>' +
+    '<div class="loading-status" id="' + tabKey + 'LoadStatus">Starting analysis</div>' +
+    '</div>';
+  if (resultsContainer) {
+    resultsContainer.style.position = 'relative';
+    resultsContainer.appendChild(overlay);
   }
 
   // === Track completion of parallel loads ===
@@ -318,29 +313,26 @@ function startFullEntity(key) {
   function stepDone(label) {
     completedSteps++;
     var pct = Math.round((completedSteps / totalSteps) * 100);
-    var barEl = document.getElementById(tabKey + 'IPBar');
-    var pctEl = document.getElementById(tabKey + 'IPPct');
-    var labelEl = document.getElementById(tabKey + 'IPLabel');
+    var barEl = document.getElementById(tabKey + 'LoadBar');
+    var statusEl = document.getElementById(tabKey + 'LoadStatus');
     if (barEl) barEl.style.width = pct + P;
-    if (pctEl) pctEl.textContent = pct + P;
-    if (labelEl) labelEl.textContent = label;
+    if (statusEl) statusEl.textContent = label + ' (' + pct + P + ')';
 
     // Progressively update DQ score as data becomes available
     renderDQScore(key);
 
     if (completedSteps >= totalSteps) {
-      // All done
-      if (labelEl) labelEl.innerHTML = '<span class="pi-check">\u2713 Analysis complete</span>';
+      // All done — remove overlay with fade
       var expBtn = document.getElementById(tabKey + 'ExportBtn') || document.getElementById('ticketExportBtn');
       if (expBtn) expBtn.style.display = '';
       if (headerBtn) { headerBtn.disabled = false; headerBtn.onclick = function(){ reAnalyze(key); }; }
-      // Final DQ score render with all data available
       renderDQScore(key);
-      // Auto-hide progress bar after 3 seconds
-      setTimeout(function() {
-        var ip = document.getElementById(tabKey + 'InlineProgress');
-        if (ip) { ip.style.opacity = '0'; ip.style.transition = 'opacity .5s'; setTimeout(function() { if (ip.parentNode) ip.parentNode.removeChild(ip); }, 500); }
-      }, 3000);
+      var ov = document.getElementById(tabKey + 'LoadingOverlay');
+      if (ov) {
+        ov.style.opacity = '0';
+        ov.style.transition = 'opacity .4s ease';
+        setTimeout(function() { if (ov.parentNode) ov.parentNode.removeChild(ov); }, 400);
+      }
     }
   }
 
