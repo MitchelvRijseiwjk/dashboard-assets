@@ -460,7 +460,7 @@ function _aaLaunchEntity(key) {
     pending['overview'] = 'overview';
     if (ec.udefId > 0) pending['fields'] = 'extra fields';
     if (ec.hasTicketFields) pending['tfields'] = 'ticket fields';
-    if (key === 'company') { pending['details'] = 'details'; pending['cross'] = 'cross-entity'; }
+    if (key === 'company') { pending['details'] = 'details'; }
     pending['tables'] = 'tables';
   } else {
     pending['overview'] = 'overview';
@@ -544,7 +544,7 @@ function aaRunFullEntity(key, cb, markStepDone) {
   var totalSteps = 1; // overview always
   if (ec.udefId > 0) totalSteps++;
   if (ec.hasTicketFields) totalSteps++;
-  if (hasDetails) totalSteps += 2; // details + cross-entity
+  if (hasDetails) totalSteps++; // details (includes funnel now)
   totalSteps++; // extra tables always
 
   var completed = 0;
@@ -581,14 +581,12 @@ function aaRunFullEntity(key, cb, markStepDone) {
     });
   }
 
-  // === PARALLEL 3: Company Details (company only) ===
+  // === PARALLEL 3: Company Details + funnel (company only) ===
   if (hasDetails) {
     loadCompanyDetails(function() {
+      // Funnel is now included in detail response — render it
+      if (typeof loadCompanyCross === 'function') loadCompanyCross(null);
       stepDone('details');
-    });
-    // === PARALLEL 3b: Cross-entity analysis (company only) ===
-    loadCompanyCross(function() {
-      stepDone('cross');
     });
   }
 
