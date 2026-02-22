@@ -762,6 +762,9 @@ function fillBar(p, h, c) {
   if (c) style += ';background:' + c;
   return '<div class="fill-bar" style="height:' + h + 'px"><div class="bar ' + cls + '" style="' + style + '"></div></div>';
 }
+function barCell(pct, color) {
+  return '<span class="bar-cell">' + fillBar(pct, 10, color) + '<span class="pct-text">' + pct + P + '</span></span>';
+}
 function sortT(tid, col) {
   var t = document.getElementById(tid);
   if (!t) return;
