@@ -1,4 +1,4 @@
-    @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap');
     :root {
       --so-green:#06423e; --so-green-light:#0f5c57; --so-green-dark:#002420;
       --so-coast:#b2c7eb; --so-coast-dark1:#6a8cb9; --so-coast-dark2:#395d9c;
@@ -108,7 +108,7 @@
     .progress-container{max-width:450px;width:100%;margin:16px auto;display:none}
     .progress-percent{font-size:2.5rem;font-weight:700;color:var(--so-green);text-align:center;margin-bottom:12px}
     .progress-track{height:14px;background:var(--so-dune-dark1);border-radius:200px;overflow:hidden;position:relative}
-    .progress-bar{height:100%;background:linear-gradient(90deg,var(--so-coral),var(--so-coral-dark));transition:width .15s ease-out;position:relative}
+    .progress-bar{height:100%;background:linear-gradient(90deg,var(--so-coral),var(--so-coral-dark));transition:width .4s ease-out;position:relative}
     .progress-bar.loading::after{content:'';position:absolute;top:0;left:0;right:0;bottom:0;background:linear-gradient(90deg,transparent,rgba(255,255,255,0.3),transparent);animation:shimmer 1.2s infinite}
     @keyframes shimmer{0%{transform:translateX(-100%)}100%{transform:translateX(100%)}}
     .progress-status{color:var(--so-text-muted);margin-top:12px;font-size:.85rem;text-align:center;min-height:20px}
@@ -220,8 +220,8 @@
     .setup-overlay{position:fixed;top:0;left:0;right:0;bottom:0;z-index:1000;background:var(--so-bg);display:flex;align-items:flex-start;justify-content:center;transition:opacity .5s ease;overflow-y:auto}
     .setup-overlay.hiding{opacity:0;pointer-events:none}
     .setup-overlay.hidden{display:none}
-    .setup-inner{width:100%;max-width:1000px;padding:20px 32px 32px;margin:0 auto}
-    .setup-brand{margin-bottom:20px}
+    .setup-inner{width:100%;max-width:1000px;padding:60px 32px 32px;margin:0 auto}
+    .setup-brand{position:fixed;top:20px;left:32px;margin-bottom:0;z-index:1001}
     .setup-brand .hugo-logo{width:170px;height:auto}
     .setup-tabs{display:flex;align-items:center;gap:0;margin-bottom:16px;border-bottom:1px solid var(--so-border)}
     .setup-tab{padding:8px 18px;font-size:.84rem;font-weight:500;color:var(--so-text-muted);cursor:pointer;border-bottom:2px solid transparent;transition:all .15s;margin-bottom:-1px}
