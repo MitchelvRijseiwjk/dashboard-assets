@@ -564,6 +564,16 @@ function ovCard(label, value, total, color) {
   return h;
 }
 
+function pctCard(label, pct, color) {
+  var v = (typeof pct === 'number' && !isNaN(pct)) ? pct : 0;
+  var h = '<div class="stat-card">';
+  h += '<div class="stat-value">' + v + P + '</div>';
+  h += '<div class="stat-label">' + label + '</div>';
+  h += '<div style="margin-top:6px">' + fillBar(v, 8, color) + '</div>';
+  h += '</div>';
+  return h;
+}
+
 function fmtNum(n) {
   if (typeof n !== 'number') return n;
   return n.toLocaleString();
@@ -741,83 +751,71 @@ function renderCrossEntityFunnel(d) {
   var segs = f.segments;
   var m = f.metrics;
   var h = '';
-  h += dateFilterNotice();
 
-  // -- Conversion Metrics row --
+  // -- CRM Health metrics (same stat-card pattern as overview) --
   h += '<div class="detail-section">';
   h += '<div class="detail-section-head">' + secHead('CRM Health Pipeline') + '</div>';
   h += '<div class="stat-row">';
-  h += metricCard('Person Coverage', m.personCoverage, 'of companies have a contact person', m.personCoverage >= 60 ? 'var(--so-meadow)' : m.personCoverage >= 40 ? 'var(--so-mango)' : 'var(--so-coral)');
-  h += metricCard('Activity Rate', m.activityRate, 'of contacts are actively engaged (12m)', m.activityRate >= 50 ? 'var(--so-meadow)' : m.activityRate >= 30 ? 'var(--so-mango)' : 'var(--so-coral)');
-  h += metricCard('Pipeline Rate', m.pipelineRate, 'of active companies have open sales', m.pipelineRate >= 30 ? 'var(--so-meadow)' : m.pipelineRate >= 15 ? 'var(--so-mango)' : 'var(--so-coral)');
-  h += metricCard('Overall Health', m.overallHealth, 'of companies are fully engaged', m.overallHealth >= 20 ? 'var(--so-meadow)' : m.overallHealth >= 10 ? 'var(--so-mango)' : 'var(--so-coral)');
+  h += pctCard('Person Coverage', m.personCoverage, m.personCoverage >= 60 ? 'var(--so-meadow-dark1)' : m.personCoverage >= 40 ? 'var(--so-mango)' : 'var(--so-coral)');
+  h += pctCard('Activity Rate', m.activityRate, m.activityRate >= 50 ? 'var(--so-meadow-dark1)' : m.activityRate >= 30 ? 'var(--so-mango)' : 'var(--so-coral)');
+  h += pctCard('Pipeline Rate', m.pipelineRate, m.pipelineRate >= 30 ? 'var(--so-meadow-dark1)' : m.pipelineRate >= 15 ? 'var(--so-mango)' : 'var(--so-coral)');
+  h += pctCard('Overall Health', m.overallHealth, m.overallHealth >= 20 ? 'var(--so-meadow-dark1)' : m.overallHealth >= 10 ? 'var(--so-mango)' : 'var(--so-coral)');
   h += '</div></div>';
 
-  // -- Funnel visualization --
-  h += '<div class="entity-card">';
-  h += '<div class="entity-header"><div class="entity-info"><h3>Company Engagement Funnel</h3>';
-  h += '<span class="field-count">\u2014 From registration to active pipeline</span></div></div>';
-  h += '<div class="funnel-container">';
-
+  // -- Engagement Funnel (entity-card + data-table pattern, same as Category/Business) --
   var funnelSteps = [
-    { label: 'Total Companies', count: f.total, pct: 100 },
+    { label: 'Total Companies', count: f.total, pct: 100, drop: null },
     { label: 'With Contact Person', count: f.withPerson, pct: f.total > 0 ? Math.round(f.withPerson / f.total * 1000) / 10 : 0 },
     { label: 'With Activity (12m)', count: f.withPersonActivity, pct: f.total > 0 ? Math.round(f.withPersonActivity / f.total * 1000) / 10 : 0 },
     { label: 'With Open Sale', count: f.withPersonActivitySale, pct: f.total > 0 ? Math.round(f.withPersonActivitySale / f.total * 1000) / 10 : 0 }
   ];
-  var funnelColors = ['var(--so-charcoal)', '#2e7d32', '#1565c0', '#6a1b9a'];
+  // Compute dropoff
+  for (var i = 1; i < funnelSteps.length; i++) {
+    var prev = funnelSteps[i-1].count;
+    var cur = funnelSteps[i].count;
+    funnelSteps[i].drop = prev > 0 ? Math.round((prev - cur) / prev * 100) : 0;
+  }
 
+  h += '<div class="entity-card">';
+  h += '<div class="entity-header"><div class="entity-info"><h3>Company Engagement Funnel</h3></div></div>';
+  h += '<table class="data-table"><thead><tr>';
+  h += '<th>Stage</th><th class="col-right">Count</th><th class="col-right">' + P + ' of total</th><th class="col-right">Dropoff</th>';
+  h += '</tr></thead><tbody>';
   for (var i = 0; i < funnelSteps.length; i++) {
     var step = funnelSteps[i];
-    var barWidth = step.pct;
-    if (barWidth < 2 && step.count > 0) barWidth = 2; // minimum visible width
-    var dropoff = '';
-    if (i > 0 && funnelSteps[i-1].count > 0) {
-      var lost = funnelSteps[i-1].count - step.count;
-      var lostPct = Math.round(lost / funnelSteps[i-1].count * 100);
-      if (lost > 0) dropoff = '<span class="funnel-dropoff">\u2192 ' + fmtNum(lost) + ' dropped (' + lostPct + P + ')</span>';
+    var barW = step.pct;
+    h += '<tr>';
+    h += '<td><span style="font-weight:500">' + step.label + '</span></td>';
+    h += '<td class="col-right"><strong>' + fmtNum(step.count) + '</strong></td>';
+    h += '<td class="col-right"><span class="fill-bar" style="width:80px;display:inline-block;vertical-align:middle;margin-right:6px"><span class="bar bar-high" style="width:' + barW + P + '"></span></span>' + step.pct + P + '</td>';
+    if (step.drop === null) {
+      h += '<td class="col-right" style="color:#999">\u2014</td>';
+    } else {
+      h += '<td class="col-right" style="color:var(--so-coral-dark)">-' + step.drop + P + '</td>';
     }
-    h += '<div class="funnel-step">';
-    h += '<div class="funnel-label">' + step.label + '</div>';
-    h += '<div class="funnel-bar-wrap">';
-    h += '<div class="funnel-bar" style="width:' + barWidth + P + ';background:' + funnelColors[i] + '"></div>';
-    h += '</div>';
-    h += '<div class="funnel-value">' + fmtNum(step.count) + ' <span class="funnel-pct">' + step.pct + P + '</span></div>';
-    h += dropoff;
-    h += '</div>';
+    h += '</tr>';
   }
-  h += '</div></div>';
+  h += '</tbody></table></div>';
 
-  // -- Segment breakdown --
+  // -- Segments (stat-row + stat-card pattern with colored left border) --
   h += '<div class="detail-section">';
   h += '<div class="detail-section-head">' + secHead('Company Segments') + '</div>';
-  h += '<div class="segment-grid">';
+  h += '<div class="stat-row">';
   for (var si = 0; si < segs.length; si++) {
     var seg = segs[si];
-    var pct = Math.round(seg.percent * 10) / 10;
-    h += '<div class="segment-card" style="border-left:4px solid ' + seg.color + '">';
-    h += '<div class="segment-header">';
-    h += '<span class="segment-name">' + seg.name + '</span>';
-    h += '<span class="segment-count">' + fmtNum(seg.count) + '</span>';
+    var segPct = f.total > 0 ? Math.round(seg.count / f.total * 1000) / 10 : 0;
+    h += '<div class="stat-card" style="border-left:4px solid ' + seg.color + ';text-align:left">';
+    h += '<div style="display:flex;justify-content:space-between;align-items:baseline">';
+    h += '<div class="stat-label" style="font-weight:600;color:var(--so-charcoal);font-size:.82rem">' + seg.name + '</div>';
+    h += '<div class="stat-value" style="font-size:1.1rem">' + fmtNum(seg.count) + '</div>';
     h += '</div>';
-    h += '<div class="segment-bar-wrap"><div class="segment-bar" style="width:' + pct + P + ';background:' + seg.color + '"></div></div>';
-    h += '<div class="segment-desc">' + seg.description + ' <span class="segment-pct">' + pct + P + '</span></div>';
+    h += '<div style="margin-top:6px">' + fillBar(segPct, 6, seg.color) + '</div>';
+    h += '<div class="stat-label" style="margin-top:4px;font-size:.72rem">' + seg.description + ' (' + segPct + P + ')</div>';
     h += '</div>';
   }
   h += '</div></div>';
 
   el.innerHTML = h;
-}
-
-function metricCard(title, value, desc, color) {
-  var v = (typeof value === 'number') ? Math.round(value * 10) / 10 : 0;
-  var h = '<div class="stat-card metric-card">';
-  h += '<div class="stat-value" style="color:' + color + '">' + v + '<span style="font-size:.6em">' + P + '</span></div>';
-  h += '<div class="stat-label" style="font-weight:600">' + title + '</div>';
-  h += '<div style="margin-top:6px">' + fillBar(v, 8, color) + '</div>';
-  h += '<div class="stat-label" style="margin-top:4px;font-size:.7rem;color:#999">' + desc + '</div>';
-  h += '</div>';
-  return h;
 }
 
 // ===========================================================
