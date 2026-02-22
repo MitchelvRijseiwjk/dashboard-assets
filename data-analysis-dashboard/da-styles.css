@@ -289,42 +289,16 @@
     .aa-status-done{background:var(--so-meadow);color:#fff}
     .aa-status-skip{background:#eeecea;color:#aaa}
 
-    /* === FUNNEL VISUALIZATION === */
-    .funnel-container{padding:20px 24px 24px}
-    .funnel-step{display:grid;grid-template-columns:170px 1fr 140px;align-items:center;gap:12px;margin-bottom:10px;position:relative}
-    .funnel-label{font-size:.82rem;font-weight:500;color:var(--so-charcoal);text-align:right}
-    .funnel-bar-wrap{height:32px;background:rgba(0,0,0,.04);border-radius:4px;overflow:hidden;position:relative}
-    .funnel-bar{height:100%;border-radius:4px;transition:width .6s ease;min-width:2px}
-    .funnel-value{font-size:.88rem;font-weight:600;color:var(--so-charcoal);white-space:nowrap}
-    .funnel-pct{font-size:.75rem;font-weight:400;color:var(--so-text-muted)}
-    .funnel-dropoff{position:absolute;right:-4px;top:50%;transform:translateY(-50%);font-size:.7rem;color:var(--so-coral-dark);white-space:nowrap;display:none}
-    @media(min-width:1100px){.funnel-dropoff{display:block}}
-
-    /* === SEGMENT CARDS === */
-    .segment-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px}
-    .segment-card{background:var(--so-white);border:1px solid var(--so-border);border-radius:8px;padding:16px 18px;transition:box-shadow .15s}
-    .segment-card:hover{box-shadow:0 2px 12px rgba(0,0,0,.06)}
-    .segment-header{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px}
-    .segment-name{font-size:.88rem;font-weight:600;color:var(--so-charcoal)}
-    .segment-count{font-size:1.1rem;font-weight:700;color:var(--so-charcoal)}
-    .segment-bar-wrap{height:6px;background:rgba(0,0,0,.06);border-radius:3px;overflow:hidden;margin-bottom:8px}
-    .segment-bar{height:100%;border-radius:3px;transition:width .5s ease}
-    .segment-desc{font-size:.75rem;color:var(--so-text-muted);line-height:1.4}
-    .segment-pct{font-weight:600}
-
     /* === DQ SCORE BANNER === */
     .dq-score-banner{display:flex;align-items:center;gap:24px;padding:24px 28px;margin-bottom:20px;background:var(--so-white);border:1px solid var(--so-border);border-radius:12px}
+
+    /* === STACKED BAR (Activity Health) === */
+    .stacked-bar-container{padding:4px 0 12px}
+    .stacked-bar{display:flex;height:18px;border-radius:9px;overflow:hidden;background:rgba(0,0,0,.04)}
+    .stacked-segment{transition:width .5s ease;min-width:1px}
     .dq-score-ring{width:72px;height:72px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:conic-gradient(var(--color) calc(var(--score) * 1%),#eee calc(var(--score) * 1%));position:relative;flex-shrink:0}
     .dq-score-ring::before{content:'';width:54px;height:54px;border-radius:50%;background:#fff;position:absolute}
     .dq-score-value{position:relative;z-index:1;font-size:1.3rem;font-weight:700;color:var(--so-charcoal)}
     .dq-score-info{flex:1}
     .dq-score-label{font-size:1rem;font-weight:600;color:var(--so-charcoal);margin-bottom:4px}
     .dq-score-desc{font-size:.78rem;color:var(--so-text-muted);line-height:1.4}
-
-    /* === STACKED BAR === */
-    .stacked-bar-container{padding:4px 0 12px}
-    .stacked-bar{display:flex;height:18px;border-radius:9px;overflow:hidden;background:rgba(0,0,0,.04)}
-    .stacked-segment{transition:width .5s ease;min-width:1px}
-
-    /* === METRIC CARDS (in CRM Health Pipeline) === */
-    .metric-card .stat-value{font-size:1.6rem}
