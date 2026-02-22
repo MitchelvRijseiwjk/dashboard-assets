@@ -265,6 +265,38 @@ function runNextAA() {
     document.getElementById('aaProgressPercent').textContent = '100' + P;
     document.getElementById('aaProgressStatus').textContent = 'All analyses complete!';
     setTimeout(function() {
+      // Auto-populate standalone Extra Tables tab from cache
+      if (typeof _extraCache !== 'undefined' && _extraCache && _extraCache.ready) {
+        extraTables = _extraCache.tables;
+        extraData = {};
+        for (var ei = 0; ei < _extraCache.tables.length; ei++) {
+          extraData[_extraCache.tables[ei].id] = _extraCache.data[_extraCache.tables[ei].id];
+        }
+        var extraStartEl = document.getElementById('extraStart');
+        var extraResultsEl = document.getElementById('extraResults');
+        var extraExportEl = document.getElementById('extraExportBtn');
+        var extraBtn = document.getElementById('extraAnalyzeBtn');
+        if (extraStartEl) extraStartEl.style.display = 'none';
+        if (extraResultsEl) extraResultsEl.style.display = 'block';
+        if (extraExportEl) extraExportEl.style.display = '';
+        if (extraBtn) { extraBtn.disabled = false; extraBtn.onclick = function(){ document.getElementById('extraResults').style.display = 'none'; document.getElementById('extraCards').innerHTML = ''; extraData = {}; invalidateExtraCache(); startExtra(); }; }
+        var wr = 0;
+        for (var ei = 0; ei < extraTables.length; ei++) {
+          var ed = extraData[extraTables[ei].id];
+          if (ed && ed.relationFields && ed.relationFields.length > 0) wr++;
+        }
+        var extraSumEl = document.getElementById('extraSummary');
+        if (extraSumEl) extraSumEl.textContent = extraTables.length + ' extra tables, ' + wr + ' with relation fields.';
+        var extraCardsEl = document.getElementById('extraCards');
+        if (extraCardsEl) {
+          extraCardsEl.innerHTML = '';
+          for (var ei = 0; ei < extraTables.length; ei++) {
+            var ed = extraData[extraTables[ei].id];
+            if (ed) extraCardsEl.innerHTML += renderExtra(ed, ei);
+          }
+        }
+      }
+
       document.getElementById('aaProgressScreen').style.display = 'none';
       document.getElementById('aaStartScreen').style.display = '';
       document.getElementById('aaDoneBanner').style.display = '';
