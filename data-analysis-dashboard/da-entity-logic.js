@@ -340,6 +340,7 @@ function startFullEntity(key) {
   ajax(overviewUrl + String.fromCharCode(38) + 'entity=' + key + dfParam, function(d) {
     if (d) renderEntityOverview(key, d);
     if (overviewEl) overviewEl.style.animation = 'fadeIn .3s ease';
+    if (key === 'company') populateDetailCatFilter();
     stepDone('Overview loaded');
   });
 
