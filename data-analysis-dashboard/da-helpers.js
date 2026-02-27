@@ -1,4 +1,4 @@
-// === SETTINGS SUB-TABS ====
+// === SETTINGS SUB-TABS ===
 function swSetupTab(panel, el) {
   var panels = document.querySelectorAll('.setup-tab-panel');
   for (var i = 0; i < panels.length; i++) { panels[i].classList.remove('active'); }
@@ -21,6 +21,10 @@ function swSettings(panel, el) {
     tabs[j].classList.remove('active');
   }
   if (el) el.classList.add('active');
+  // Init settings panel when quality tab is shown
+  if (panel === 'quality' && typeof daSettings !== 'undefined') {
+    daSettings.init();
+  }
 }
 
 // === DATE FILTER (per-entity) ===
