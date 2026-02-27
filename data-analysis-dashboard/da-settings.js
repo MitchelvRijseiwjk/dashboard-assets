@@ -1,5 +1,5 @@
-// da-settings.js — Dashboard Settings Manager
-// Manages configurable scoring, completeness, engagement, and pipeline definitions
+// da-settings.js — Dashboard Settings Manager v2
+// Manages configurable scoring, completeness (incl. UDEF), engagement, and pipeline
 // Persisted to localStorage per installation
 
 (function() {
@@ -10,21 +10,15 @@
   // ============================================================
   var DEFAULTS = {
     company: {
-      // --- DATA QUALITY ---
       completenessFields: ['email', 'phone', 'person', 'category', 'orgNr'],
       dqWeights: { completeness: 40, udef: 30, quality: 30 },
       qualityIssueFields: ['noPerson', 'noCategory', 'noBusiness', 'unreachable'],
-      // UDEF field importance: { progId: 'required' | 'normal' | 'excluded' }
-      // Empty = all fields treated as 'normal' (auto-discovered)
       udefFieldConfig: {},
-
-      // --- ADOPTION ---
       engagementWeights: { withActivity: 50, withPerson: 30, withPipeline: 20 },
-      pipelineType: 'sale'  // 'sale' | 'project' | 'both' | 'none'
+      pipelineType: 'sale'
     }
   };
 
-  // All available completeness fields with labels + data source
   var COMPLETENESS_OPTIONS = [
     { key: 'email',    label: 'Email address',    source: 'completeness' },
     { key: 'phone',    label: 'Phone number',     source: 'completeness' },
@@ -45,112 +39,72 @@
   ];
 
   var PIPELINE_OPTIONS = [
-    { key: 'sale',    label: 'Open Sale',           desc: 'Companies with an open sale opportunity' },
-    { key: 'project', label: 'Active Project',      desc: 'Companies with an active project', needsBackend: true },
-    { key: 'both',    label: 'Sale or Project',     desc: 'Companies with either sale or project', needsBackend: true },
-    { key: 'none',    label: 'None (activity only)', desc: 'Funnel stops at activity — for relationship-only CRM' }
+    { key: 'sale',    label: 'Open Sale',            desc: 'Companies with an open sale opportunity' },
+    { key: 'project', label: 'Active Project',       desc: 'Companies with an active project', soon: true },
+    { key: 'both',    label: 'Sale or Project',      desc: 'Companies with either sale or project', soon: true },
+    { key: 'none',    label: 'None (activity only)',  desc: 'Funnel stops at activity — for relationship-only CRM' }
   ];
 
   var PRESETS = {
     standard: {
       label: 'Standard',
       desc: 'Balanced scoring for general CRM usage',
-      settings: {
-        completenessFields: ['email', 'phone', 'person', 'category', 'orgNr'],
-        dqWeights: { completeness: 40, udef: 30, quality: 30 },
-        qualityIssueFields: ['noPerson', 'noCategory', 'noBusiness', 'unreachable'],
-        engagementWeights: { withActivity: 50, withPerson: 30, withPipeline: 20 },
-        pipelineType: 'sale'
-      }
+      s: { completenessFields: ['email', 'phone', 'person', 'category', 'orgNr'], dqWeights: { completeness: 40, udef: 30, quality: 30 }, qualityIssueFields: ['noPerson', 'noCategory', 'noBusiness', 'unreachable'], engagementWeights: { withActivity: 50, withPerson: 30, withPipeline: 20 }, pipelineType: 'sale' }
     },
     salesFocus: {
       label: 'Sales Focus',
       desc: 'Emphasizes pipeline and commercial data quality',
-      settings: {
-        completenessFields: ['email', 'phone', 'person', 'category', 'orgNr', 'business'],
-        dqWeights: { completeness: 30, udef: 20, quality: 50 },
-        qualityIssueFields: ['noPerson', 'noCategory', 'unreachable'],
-        engagementWeights: { withActivity: 35, withPerson: 25, withPipeline: 40 },
-        pipelineType: 'sale'
-      }
+      s: { completenessFields: ['email', 'phone', 'person', 'category', 'orgNr', 'business'], dqWeights: { completeness: 30, udef: 20, quality: 50 }, qualityIssueFields: ['noPerson', 'noCategory', 'unreachable'], engagementWeights: { withActivity: 35, withPerson: 25, withPipeline: 40 }, pipelineType: 'sale' }
     },
     serviceFocus: {
       label: 'Service Focus',
       desc: 'Emphasizes reachability and contact data for service teams',
-      settings: {
-        completenessFields: ['email', 'phone', 'person', 'address'],
-        dqWeights: { completeness: 50, udef: 20, quality: 30 },
-        qualityIssueFields: ['noPerson', 'unreachable'],
-        engagementWeights: { withActivity: 60, withPerson: 30, withPipeline: 10 },
-        pipelineType: 'none'
-      }
+      s: { completenessFields: ['email', 'phone', 'person', 'address'], dqWeights: { completeness: 50, udef: 20, quality: 30 }, qualityIssueFields: ['noPerson', 'unreachable'], engagementWeights: { withActivity: 60, withPerson: 30, withPipeline: 10 }, pipelineType: 'none' }
     },
     projectBased: {
       label: 'Project Based',
       desc: 'For organizations that use projects instead of sales',
-      settings: {
-        completenessFields: ['email', 'phone', 'person', 'category', 'orgNr'],
-        dqWeights: { completeness: 40, udef: 30, quality: 30 },
-        qualityIssueFields: ['noPerson', 'noCategory', 'noBusiness'],
-        engagementWeights: { withActivity: 50, withPerson: 30, withPipeline: 20 },
-        pipelineType: 'project'
-      }
+      s: { completenessFields: ['email', 'phone', 'person', 'category', 'orgNr'], dqWeights: { completeness: 40, udef: 30, quality: 30 }, qualityIssueFields: ['noPerson', 'noCategory', 'noBusiness'], engagementWeights: { withActivity: 50, withPerson: 30, withPipeline: 20 }, pipelineType: 'project' }
     }
   };
 
   // ============================================================
-  // STORAGE KEY
+  // STATE
   // ============================================================
   var STORAGE_KEY = 'da_settings_v1';
-
-  // ============================================================
-  // SETTINGS STATE
-  // ============================================================
   var _settings = null;
+  var _discoveredUdefFields = [];
+  var _activeContainer = null;
 
-  function deepClone(obj) {
-    return JSON.parse(JSON.stringify(obj));
-  }
+  function deepClone(obj) { return JSON.parse(JSON.stringify(obj)); }
 
   function loadSettings() {
     try {
       var raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) {
-        var parsed = JSON.parse(raw);
-        // Merge with defaults to handle new fields added in updates
-        _settings = mergeDefaults(parsed, DEFAULTS);
-        return;
-      }
-    } catch(e) { /* ignore parse errors */ }
+      if (raw) { _settings = mergeDefaults(JSON.parse(raw), DEFAULTS); return; }
+    } catch(e) {}
     _settings = deepClone(DEFAULTS);
   }
 
   function mergeDefaults(saved, defaults) {
     var result = deepClone(defaults);
     if (!saved) return result;
-    // For each entity in defaults, overlay saved values
     for (var entity in defaults) {
       if (!saved[entity]) continue;
       var s = saved[entity];
       var r = result[entity];
       if (s.completenessFields) r.completenessFields = s.completenessFields.slice();
-      if (s.dqWeights) {
-        for (var w in s.dqWeights) { r.dqWeights[w] = s.dqWeights[w]; }
-      }
+      if (s.dqWeights) { for (var w in s.dqWeights) r.dqWeights[w] = s.dqWeights[w]; }
       if (s.qualityIssueFields) r.qualityIssueFields = s.qualityIssueFields.slice();
       if (s.udefFieldConfig) r.udefFieldConfig = deepClone(s.udefFieldConfig);
-      if (s.engagementWeights) {
-        for (var w in s.engagementWeights) { r.engagementWeights[w] = s.engagementWeights[w]; }
-      }
+      if (s.engagementWeights) { for (var w in s.engagementWeights) r.engagementWeights[w] = s.engagementWeights[w]; }
       if (s.pipelineType) r.pipelineType = s.pipelineType;
     }
     return result;
   }
 
   function saveSettings() {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(_settings));
-    } catch(e) { /* storage full? ignore */ }
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(_settings)); } catch(e) {}
   }
 
   function getSettings(entity) {
@@ -159,120 +113,93 @@
   }
 
   // ============================================================
-  // COMPUTED HELPERS — used by da-entity-logic.js
+  // UDEF FIELD DISCOVERY
   // ============================================================
+  function notifyUdefLoaded(entityId, udefResult) {
+    if (entityId !== 7) return;
+    if (!udefResult || !udefResult.fields) return;
+    _discoveredUdefFields = [];
+    for (var i = 0; i < udefResult.fields.length; i++) {
+      var f = udefResult.fields[i];
+      _discoveredUdefFields.push({
+        progId: f.progId || f.label || ('field_' + i),
+        label: f.label, type: f.type, percent: f.percent
+      });
+    }
+    if (_activeContainer) {
+      var el = document.getElementById(_activeContainer);
+      if (el && el.offsetParent !== null) {
+        renderPanel(el, el.getAttribute('data-settings-mode') || 'full');
+      }
+    }
+  }
 
-  // Get completeness value for a field, combining overview.completeness + quality data
+  // ============================================================
+  // COMPUTED HELPERS
+  // ============================================================
   function getCompletenessValue(fieldKey, overviewData, qualityData, total) {
     if (!total || total <= 0) return 0;
-    // Direct completeness fields
-    if (overviewData && overviewData[fieldKey] !== undefined) {
-      return overviewData[fieldKey];
-    }
-    // Derived from quality (inverted: noPerson → hasPerson = total - noPerson)
+    if (overviewData && overviewData[fieldKey] !== undefined) return overviewData[fieldKey];
     var qMap = { person: 'noPerson', category: 'noCategory', business: 'noBusiness' };
     if (qMap[fieldKey] && qualityData) {
-      var issueCount = qualityData[qMap[fieldKey]];
-      if (issueCount !== undefined) return total - issueCount;
+      var v = qualityData[qMap[fieldKey]];
+      if (v !== undefined) return total - v;
     }
     return 0;
   }
 
-  // Compute DQ score with configurable weights
-  function computeConfiguredDQScore(entity, overviewCompleteness, qualityData, udefData, total) {
+  function computeConfiguredDQScore(entity, overviewCpl, qualityData, udefData, total) {
     var s = getSettings(entity);
     var scores = {};
 
-    // 1. Completeness score
-    if (overviewCompleteness && s.completenessFields.length > 0 && total > 0) {
+    if (overviewCpl && s.completenessFields.length > 0 && total > 0) {
       var sum = 0;
       for (var i = 0; i < s.completenessFields.length; i++) {
-        var val = getCompletenessValue(s.completenessFields[i], overviewCompleteness, qualityData, total);
-        sum += (val / total) * 100;
+        sum += (getCompletenessValue(s.completenessFields[i], overviewCpl, qualityData, total) / total) * 100;
       }
       scores.completeness = sum / s.completenessFields.length;
     }
 
-    // 2. UDEF fill rate (with field importance weighting)
     if (udefData && udefData.fields && udefData.fields.length > 0) {
-      var s_udef = s.udefFieldConfig || {};
-      var udefSum = 0;
-      var udefWeight = 0;
+      var cfg = s.udefFieldConfig || {};
+      var uSum = 0; var uW = 0;
       for (var i = 0; i < udefData.fields.length; i++) {
         var f = udefData.fields[i];
-        var progId = f.progId || f.label || ('field_' + i);
-        var importance = s_udef[progId] || 'normal';
-        if (importance === 'excluded') continue;
-        var w = (importance === 'required') ? 2 : 1;
-        udefSum += f.percent * w;
-        udefWeight += w;
+        var pid = f.progId || f.label || ('field_' + i);
+        var imp = cfg[pid] || 'normal';
+        if (imp === 'excluded') continue;
+        var w = (imp === 'required') ? 2 : 1;
+        uSum += f.percent * w;
+        uW += w;
       }
-      if (udefWeight > 0) {
-        scores.udef = udefSum / udefWeight;
-      }
+      if (uW > 0) scores.udef = uSum / uW;
     }
 
-    // 3. Quality issues (inverted: fewer issues = higher score)
     if (qualityData && s.qualityIssueFields.length > 0 && total > 0) {
-      var issueSum = 0;
-      for (var i = 0; i < s.qualityIssueFields.length; i++) {
-        var issueVal = qualityData[s.qualityIssueFields[i]] || 0;
-        issueSum += issueVal;
-      }
-      var issuePct = (issueSum / (total * s.qualityIssueFields.length)) * 100;
-      scores.quality = 100 - issuePct;
+      var issSum = 0;
+      for (var i = 0; i < s.qualityIssueFields.length; i++) issSum += (qualityData[s.qualityIssueFields[i]] || 0);
+      scores.quality = 100 - ((issSum / (total * s.qualityIssueFields.length)) * 100);
     }
 
-    // Weighted average using configured weights
-    var w = s.dqWeights;
-    var totalWeight = 0;
-    var weightedSum = 0;
-
-    if (scores.completeness !== undefined) {
-      weightedSum += scores.completeness * w.completeness;
-      totalWeight += w.completeness;
-    }
-    if (scores.udef !== undefined) {
-      weightedSum += scores.udef * w.udef;
-      totalWeight += w.udef;
-    }
-    if (scores.quality !== undefined) {
-      weightedSum += scores.quality * w.quality;
-      totalWeight += w.quality;
-    }
-
-    if (totalWeight <= 0) return null;
-    return {
-      total: Math.round(weightedSum / totalWeight),
-      components: scores,
-      weights: w
-    };
+    var wt = s.dqWeights; var totalW = 0; var wSum = 0;
+    if (scores.completeness !== undefined) { wSum += scores.completeness * wt.completeness; totalW += wt.completeness; }
+    if (scores.udef !== undefined) { wSum += scores.udef * wt.udef; totalW += wt.udef; }
+    if (scores.quality !== undefined) { wSum += scores.quality * wt.quality; totalW += wt.quality; }
+    if (totalW <= 0) return null;
+    return { total: Math.round(wSum / totalW), components: scores, weights: wt };
   }
 
-  // Compute engagement score for a category row
   function computeEngagement(catRow, total, entity) {
     if (!total || total <= 0) return 0;
     var s = getSettings(entity);
     var w = s.engagementWeights;
-
-    var actPart = (catRow.withActivity || 0) * (w.withActivity / 100);
-    var persPart = (catRow.withPerson || 0) * (w.withPerson / 100);
-
-    var pipelineVal = 0;
-    if (s.pipelineType === 'sale') {
-      pipelineVal = catRow.withSale || 0;
-    } else if (s.pipelineType === 'project') {
-      pipelineVal = catRow.withProject || 0;
-    } else if (s.pipelineType === 'both') {
-      pipelineVal = catRow.withSaleOrProject || 0;
-    }
-    // pipelineType === 'none' → pipelineVal stays 0
-
-    var pipePart = pipelineVal * (w.withPipeline / 100);
-    return Math.round((actPart + persPart + pipePart) / total * 100);
+    var pVal = 0;
+    if (s.pipelineType === 'sale') pVal = catRow.withSale || 0;
+    else if (s.pipelineType === 'project') pVal = catRow.withProject || 0;
+    else if (s.pipelineType === 'both') pVal = catRow.withSaleOrProject || 0;
+    return Math.round(((catRow.withActivity || 0) * (w.withActivity / 100) + (catRow.withPerson || 0) * (w.withPerson / 100) + pVal * (w.withPipeline / 100)) / total * 100);
   }
 
-  // Get pipeline label for funnel display
   function getPipelineLabel(entity) {
     var s = getSettings(entity);
     for (var i = 0; i < PIPELINE_OPTIONS.length; i++) {
@@ -281,115 +208,76 @@
     return 'Open Sale';
   }
 
-  function getPipelineType(entity) {
-    return getSettings(entity).pipelineType;
-  }
+  function getPipelineType(entity) { return getSettings(entity).pipelineType; }
 
   // ============================================================
-  // UDEF FIELD DISCOVERY — populated when UDEF data loads
+  // RENDER PANEL — mode: 'full' or 'dq'
   // ============================================================
-  var _discoveredUdefFields = []; // [{ progId, label, type, percent }]
-
-  function notifyUdefLoaded(entityId, udefResult) {
-    if (entityId !== 7) return; // Only company for now
-    if (!udefResult || !udefResult.fields) return;
-    _discoveredUdefFields = [];
-    for (var i = 0; i < udefResult.fields.length; i++) {
-      var f = udefResult.fields[i];
-      _discoveredUdefFields.push({
-        progId: f.progId || f.label || ('field_' + i),
-        label: f.label,
-        type: f.type,
-        percent: f.percent
-      });
-    }
-    // Re-render if settings panel is visible
-    var panel = document.getElementById('settings-quality');
-    if (panel && panel.classList.contains('active')) {
-      renderSettingsPanel();
-    }
-  }
-
-  // ============================================================
-  // SETTINGS PANEL — render into existing DA_Main structure
-  // ============================================================
-
-  function renderSettingsPanel() {
-    var panel = document.getElementById('settings-quality');
-    if (!panel) return;
-
+  function renderPanel(container, mode) {
+    if (!container) return;
     var s = getSettings('company');
     var h = '';
 
-    // Preset selector
+    // Preset bar
     h += '<div class="settings-preset-bar">';
     h += '<label class="settings-preset-label">Preset:</label>';
-    h += '<select id="settingsPreset" class="settings-preset-select" onchange="daSettings.applyPreset(this.value)">';
+    h += '<select class="settings-preset-select ds-preset" onchange="daSettings.applyPreset(this.value)">';
     h += '<option value="">Custom</option>';
     for (var pk in PRESETS) {
-      var p = PRESETS[pk];
-      var sel = isPresetActive(pk) ? ' selected' : '';
-      h += '<option value="' + pk + '"' + sel + '>' + p.label + '</option>';
+      h += '<option value="' + pk + '"' + (isPresetMatch(pk) ? ' selected' : '') + '>' + PRESETS[pk].label + '</option>';
     }
     h += '</select>';
-    h += '<span class="settings-preset-desc" id="presetDesc"></span>';
+    h += '<span class="settings-preset-desc ds-preset-desc"></span>';
     h += '</div>';
 
-    // ---- DATA QUALITY SECTION ----
+    // ==== DATA QUALITY ====
     h += '<div class="settings-section">';
     h += '<div class="settings-section-head">Data Quality</div>';
-
     h += '<div class="settings-grid">';
 
     // DQ Score Weights
     h += '<div class="settings-card">';
     h += '<h3>DQ Score Weights</h3>';
-    h += '<div class="settings-desc">How much each component contributes to the overall Data Quality Score.</div>';
-    h += renderWeightSliders('dq', [
+    h += '<div class="settings-desc">How much each component contributes to the overall DQ Score.</div>';
+    h += renderSliders('dq', [
       { key: 'completeness', label: 'Field Completeness', val: s.dqWeights.completeness },
       { key: 'udef',         label: 'Custom Fields (UDEF)', val: s.dqWeights.udef },
       { key: 'quality',      label: 'Quality Issues', val: s.dqWeights.quality }
     ]);
     h += '</div>';
 
-    // Completeness Definition
+    // Quality Issue Checks
     h += '<div class="settings-card">';
-    h += '<h3>Completeness Definition</h3>';
-    h += '<div class="settings-desc">Which standard fields count towards the completeness score.</div>';
-    h += '<div class="settings-field-grid">';
-    for (var i = 0; i < COMPLETENESS_OPTIONS.length; i++) {
-      var opt = COMPLETENESS_OPTIONS[i];
-      var checked = s.completenessFields.indexOf(opt.key) >= 0 ? ' checked' : '';
-      h += '<label class="settings-checkbox"><input type="checkbox" data-group="cpl" data-key="' + opt.key + '"' + checked + ' onchange="daSettings.onFieldToggle()"> ' + opt.label + '</label>';
-    }
-    h += '</div>';
-    h += '</div>';
-
-    // Quality Issues
-    h += '<div class="settings-card full-width">';
     h += '<h3>Quality Issue Checks</h3>';
-    h += '<div class="settings-desc">Which data quality issues are included in the DQ score calculation.</div>';
+    h += '<div class="settings-desc">Which issues are included in the DQ score.</div>';
     h += '<div class="settings-field-grid">';
     for (var i = 0; i < QUALITY_ISSUE_OPTIONS.length; i++) {
       var opt = QUALITY_ISSUE_OPTIONS[i];
-      var checked = s.qualityIssueFields.indexOf(opt.key) >= 0 ? ' checked' : '';
-      h += '<label class="settings-checkbox"><input type="checkbox" data-group="qi" data-key="' + opt.key + '"' + checked + ' onchange="daSettings.onFieldToggle()"> ' + opt.label + '</label>';
+      h += '<label class="settings-checkbox"><input type="checkbox" data-group="qi" data-key="' + opt.key + '"' + (s.qualityIssueFields.indexOf(opt.key) >= 0 ? ' checked' : '') + ' onchange="daSettings.markCustom()"> ' + opt.label + '</label>';
     }
-    h += '</div>';
-    h += '</div>';
+    h += '</div></div>';
 
     h += '</div>'; // end grid
 
-    // UDEF Field Importance (outside grid, full width)
-    h += '<div style="max-width:820px;margin:0 auto;padding:0 20px 0 20px">';
-    h += '<div class="settings-card" style="margin-top:0">';
-    h += '<h3>Custom Field Importance (UDEF)</h3>';
-    h += '<div class="settings-desc">Set importance per custom field. <strong>Required</strong> fields count double in the DQ score. <strong>Excluded</strong> fields are ignored.</div>';
+    // Completeness Definition — full width, two subsections
+    h += '<div class="settings-completeness-wrap">';
+    h += '<div class="settings-card">';
+    h += '<h3>Completeness Definition</h3>';
+    h += '<div class="settings-desc">Which fields count towards the completeness score. Custom fields marked <strong>Required</strong> count double, <strong>Excluded</strong> fields are ignored.</div>';
 
+    // Sub 1: Standard Fields
+    h += '<div class="cpl-sub"><div class="cpl-sub-head">Standard Fields</div>';
+    h += '<div class="settings-field-grid">';
+    for (var i = 0; i < COMPLETENESS_OPTIONS.length; i++) {
+      var opt = COMPLETENESS_OPTIONS[i];
+      h += '<label class="settings-checkbox"><input type="checkbox" data-group="cpl" data-key="' + opt.key + '"' + (s.completenessFields.indexOf(opt.key) >= 0 ? ' checked' : '') + ' onchange="daSettings.markCustom()"> ' + opt.label + '</label>';
+    }
+    h += '</div></div>';
+
+    // Sub 2: Custom Fields (UDEF)
+    h += '<div class="cpl-sub"><div class="cpl-sub-head">Custom Fields (UDEF)</div>';
     if (_discoveredUdefFields.length === 0) {
-      h += '<div class="udef-config-empty">';
-      h += '<span style="color:var(--so-text-muted);font-size:.82rem">Run the analysis first to discover custom fields, or navigate to Company to load UDEF data.</span>';
-      h += '</div>';
+      h += '<div class="udef-config-empty">Custom fields will appear here after running the Company analysis.</div>';
     } else {
       h += '<table class="data-table udef-config-table"><thead><tr>';
       h += '<th>Field</th><th>Type</th><th class="col-right">Fill %</th><th style="width:160px">Importance</th>';
@@ -399,431 +287,274 @@
         var curImp = s.udefFieldConfig[uf.progId] || 'normal';
         var fillCol = uf.percent >= 70 ? 'var(--sl-good)' : (uf.percent >= 30 ? 'var(--sl-ok)' : 'var(--sl-bad)');
         var escId = uf.progId.replace(/'/g, "\\'");
-        h += '<tr class="udef-row' + (curImp === 'excluded' ? ' udef-excluded' : '') + '" data-udef-progid="' + uf.progId + '">';
+        h += '<tr class="udef-row' + (curImp === 'excluded' ? ' udef-excluded' : '') + '">';
         h += '<td><span style="font-weight:500">' + uf.label + '</span>';
-        h += '<span style="display:block;font-size:.7rem;color:var(--so-text-muted)">' + uf.progId + '</span></td>';
+        h += '<span class="udef-progid">' + uf.progId + '</span></td>';
         h += '<td style="font-size:.78rem;color:var(--so-text-muted)">' + (uf.type || '') + '</td>';
         h += '<td class="col-right"><span style="font-weight:600;color:' + fillCol + '">' + uf.percent + '%</span></td>';
-        h += '<td>';
-        h += '<div class="udef-imp-toggle">';
-        h += '<button class="udef-imp-btn' + (curImp === 'required' ? ' active req' : '') + '" onclick="daSettings.setUdefImportance(\'' + escId + '\',\'required\',this)">Required</button>';
-        h += '<button class="udef-imp-btn' + (curImp === 'normal' ? ' active norm' : '') + '" onclick="daSettings.setUdefImportance(\'' + escId + '\',\'normal\',this)">Normal</button>';
-        h += '<button class="udef-imp-btn' + (curImp === 'excluded' ? ' active excl' : '') + '" onclick="daSettings.setUdefImportance(\'' + escId + '\',\'excluded\',this)">Excluded</button>';
-        h += '</div>';
-        h += '</td>';
-        h += '</tr>';
+        h += '<td><div class="udef-imp-toggle">';
+        h += '<button class="udef-imp-btn' + (curImp === 'required' ? ' active req' : '') + '" onclick="daSettings.setUdefImp(\'' + escId + '\',\'required\',this)">Required</button>';
+        h += '<button class="udef-imp-btn' + (curImp === 'normal' ? ' active norm' : '') + '" onclick="daSettings.setUdefImp(\'' + escId + '\',\'normal\',this)">Normal</button>';
+        h += '<button class="udef-imp-btn' + (curImp === 'excluded' ? ' active excl' : '') + '" onclick="daSettings.setUdefImp(\'' + escId + '\',\'excluded\',this)">Excluded</button>';
+        h += '</div></td></tr>';
       }
       h += '</tbody></table>';
     }
-    h += '</div>';
-    h += '</div>';
+    h += '</div>'; // end sub
+    h += '</div></div>'; // end card + wrap
 
-    h += '</div>'; // end section
-    h += '<div class="settings-section">';
-    h += '<div class="settings-section-head">Adoption</div>';
+    h += '</div>'; // end DQ section
 
-    h += '<div class="settings-grid">';
+    // ==== ADOPTION (full mode only) ====
+    if (mode === 'full') {
+      h += '<div class="settings-section">';
+      h += '<div class="settings-section-head">Adoption</div>';
+      h += '<div class="settings-grid">';
 
-    // Engagement Weights
-    h += '<div class="settings-card">';
-    h += '<h3>Engagement Score Weights</h3>';
-    h += '<div class="settings-desc">How metrics contribute to the engagement score in Category Effectiveness.</div>';
-    h += renderWeightSliders('eng', [
-      { key: 'withActivity', label: 'Activity', val: s.engagementWeights.withActivity },
-      { key: 'withPerson',   label: 'Contact Person', val: s.engagementWeights.withPerson },
-      { key: 'withPipeline', label: 'Pipeline', val: s.engagementWeights.withPipeline }
-    ]);
-    h += '</div>';
+      h += '<div class="settings-card">';
+      h += '<h3>Engagement Score Weights</h3>';
+      h += '<div class="settings-desc">How metrics contribute to the engagement score in Category Effectiveness.</div>';
+      h += renderSliders('eng', [
+        { key: 'withActivity', label: 'Activity', val: s.engagementWeights.withActivity },
+        { key: 'withPerson',   label: 'Contact Person', val: s.engagementWeights.withPerson },
+        { key: 'withPipeline', label: 'Pipeline', val: s.engagementWeights.withPipeline }
+      ]);
+      h += '</div>';
 
-    // Pipeline Definition
-    h += '<div class="settings-card">';
-    h += '<h3>Pipeline Definition</h3>';
-    h += '<div class="settings-desc">What counts as "pipeline" in the engagement funnel and health metrics.</div>';
-    for (var i = 0; i < PIPELINE_OPTIONS.length; i++) {
-      var opt = PIPELINE_OPTIONS[i];
-      var checked = s.pipelineType === opt.key ? ' checked' : '';
-      var disabled = opt.needsBackend ? ' disabled' : '';
-      var dimClass = opt.needsBackend ? ' style="opacity:0.5"' : '';
-      h += '<label class="settings-radio"' + dimClass + '>';
-      h += '<input type="radio" name="pipelineType" value="' + opt.key + '"' + checked + disabled + ' onchange="daSettings.onPipelineChange(this.value)">';
-      h += '<span><strong>' + opt.label + '</strong>';
-      h += '<span class="settings-radio-desc">' + opt.desc + '</span>';
-      if (opt.needsBackend) h += '<span class="settings-badge-soon">requires re-analysis</span>';
-      h += '</span>';
-      h += '</label>';
+      h += '<div class="settings-card">';
+      h += '<h3>Pipeline Definition</h3>';
+      h += '<div class="settings-desc">What counts as "pipeline" in the engagement funnel and health metrics.</div>';
+      for (var i = 0; i < PIPELINE_OPTIONS.length; i++) {
+        var opt = PIPELINE_OPTIONS[i];
+        var checked = s.pipelineType === opt.key ? ' checked' : '';
+        var disabled = opt.soon ? ' disabled' : '';
+        var cls = opt.soon ? ' settings-radio-soon' : '';
+        h += '<label class="settings-radio' + cls + '">';
+        h += '<input type="radio" name="pipelineType" value="' + opt.key + '"' + checked + disabled + ' onchange="daSettings.markCustom()">';
+        h += '<span><strong>' + opt.label + '</strong>';
+        h += '<span class="settings-radio-desc">' + opt.desc + '</span>';
+        if (opt.soon) h += '<span class="settings-badge-soon">Coming soon</span>';
+        h += '</span></label>';
+      }
+      h += '</div>';
+
+      h += '</div></div>'; // end grid + section
     }
-    h += '</div>';
 
-    h += '</div>'; // end grid
-    h += '</div>'; // end section
-
-    // Save/Reset buttons
+    // Save/Reset
     h += '<div class="settings-actions">';
     h += '<button class="btn-settings-save" onclick="daSettings.save()">Apply &amp; Recalculate</button>';
-    h += '<button class="btn-settings-reset" onclick="daSettings.resetToDefaults()">Reset to Defaults</button>';
+    h += '<button class="btn-settings-reset" onclick="daSettings.resetDefaults()">Reset to Defaults</button>';
     h += '</div>';
 
-    panel.innerHTML = h;
+    container.innerHTML = h;
+    container.setAttribute('data-settings-mode', mode);
+    _activeContainer = container.id;
     updatePresetDesc();
-    initSliders();
   }
 
   // ============================================================
-  // WEIGHT SLIDERS — linked group that sums to 100
+  // SLIDERS
   // ============================================================
-
-  function renderWeightSliders(groupId, items) {
-    var h = '<div class="weight-slider-group" data-group="' + groupId + '">';
+  function renderSliders(gid, items) {
+    var h = '<div class="weight-slider-group">';
     for (var i = 0; i < items.length; i++) {
       var it = items[i];
       h += '<div class="weight-slider-row">';
       h += '<label class="weight-slider-label">' + it.label + '</label>';
-      h += '<input type="range" class="weight-slider" id="ws_' + groupId + '_' + it.key + '" ';
-      h += 'data-group="' + groupId + '" data-key="' + it.key + '" ';
-      h += 'min="0" max="100" step="5" value="' + it.val + '" ';
-      h += 'oninput="daSettings.onSliderChange(this)">';
-      h += '<span class="weight-slider-value" id="wsv_' + groupId + '_' + it.key + '">' + it.val + '%</span>';
+      h += '<input type="range" class="weight-slider" id="ws_' + gid + '_' + it.key + '" data-group="' + gid + '" data-key="' + it.key + '" min="0" max="100" step="5" value="' + it.val + '" oninput="daSettings.onSlider(this)">';
+      h += '<span class="weight-slider-value" id="wsv_' + gid + '_' + it.key + '">' + it.val + '%</span>';
       h += '</div>';
     }
-    h += '<div class="weight-slider-total" id="wst_' + groupId + '">Total: 100%</div>';
-    h += '</div>';
+    h += '<div class="weight-slider-total" id="wst_' + gid + '">Total: 100%</div></div>';
     return h;
   }
 
-  function initSliders() {
-    // Set accent colors on range inputs
-    var sliders = document.querySelectorAll('.weight-slider');
-    for (var i = 0; i < sliders.length; i++) {
-      updateSliderTrack(sliders[i]);
-    }
+  function onSlider(slider) {
+    var g = slider.getAttribute('data-group');
+    var k = slider.getAttribute('data-key');
+    var v = parseInt(slider.value);
+    var ve = document.getElementById('wsv_' + g + '_' + k);
+    if (ve) ve.textContent = v + '%';
+    updateSlTotal(g);
+    markCustom();
   }
 
-  function updateSliderTrack(slider) {
-    var val = parseInt(slider.value);
-    var pct = val + '%';
-    slider.style.setProperty('--val', pct);
+  function setSl(g, k, v) {
+    var s = document.getElementById('ws_' + g + '_' + k);
+    if (s) s.value = v;
+    var ve = document.getElementById('wsv_' + g + '_' + k);
+    if (ve) ve.textContent = v + '%';
   }
 
-  function onSliderChange(slider) {
-    var group = slider.getAttribute('data-group');
-    var key = slider.getAttribute('data-key');
-    var val = parseInt(slider.value);
-
-    // Update display
-    var valEl = document.getElementById('wsv_' + group + '_' + key);
-    if (valEl) valEl.textContent = val + '%';
-    updateSliderTrack(slider);
-
-    // Get all sliders in this group
-    var allSliders = document.querySelectorAll('.weight-slider[data-group="' + group + '"]');
-    var total = 0;
-    for (var i = 0; i < allSliders.length; i++) {
-      total += parseInt(allSliders[i].value);
+  function updateSlTotal(g) {
+    var all = document.querySelectorAll('.weight-slider[data-group="' + g + '"]');
+    var t = 0;
+    for (var i = 0; i < all.length; i++) t += parseInt(all[i].value);
+    var te = document.getElementById('wst_' + g);
+    if (te) {
+      te.textContent = 'Total: ' + t + '%';
+      te.className = t === 100 ? 'weight-slider-total' : 'weight-slider-total weight-slider-total-warn';
     }
-
-    // Show total (highlight if not 100)
-    var totalEl = document.getElementById('wst_' + group);
-    if (totalEl) {
-      totalEl.textContent = 'Total: ' + total + '%';
-      if (total === 100) {
-        totalEl.className = 'weight-slider-total';
-      } else {
-        totalEl.className = 'weight-slider-total weight-slider-total-warn';
-      }
-    }
-
-    // Update preset to "Custom"
-    var presetSel = document.getElementById('settingsPreset');
-    if (presetSel) presetSel.value = '';
-    updatePresetDesc();
   }
 
   // ============================================================
-  // EVENT HANDLERS
+  // PRESETS & HELPERS
   // ============================================================
-
-  function onFieldToggle() {
-    var presetSel = document.getElementById('settingsPreset');
-    if (presetSel) presetSel.value = '';
+  function markCustom() {
+    var sel = document.querySelector('.ds-preset');
+    if (sel) sel.value = '';
     updatePresetDesc();
   }
 
-  function onPipelineChange(val) {
-    var presetSel = document.getElementById('settingsPreset');
-    if (presetSel) presetSel.value = '';
-    updatePresetDesc();
-  }
-
-  function setUdefImportance(progId, importance, btn) {
-    // Update visual state
-    var toggle = btn.parentElement;
-    var btns = toggle.querySelectorAll('.udef-imp-btn');
-    for (var i = 0; i < btns.length; i++) {
-      btns[i].className = 'udef-imp-btn';
-    }
-    btn.className = 'udef-imp-btn active ' + (importance === 'required' ? 'req' : (importance === 'normal' ? 'norm' : 'excl'));
-
-    // Dim/undim the row
+  function setUdefImp(progId, imp, btn) {
+    var btns = btn.parentElement.querySelectorAll('.udef-imp-btn');
+    for (var i = 0; i < btns.length; i++) btns[i].className = 'udef-imp-btn';
+    btn.className = 'udef-imp-btn active ' + (imp === 'required' ? 'req' : (imp === 'normal' ? 'norm' : 'excl'));
     var row = btn.closest('tr');
-    if (row) {
-      if (importance === 'excluded') {
-        row.classList.add('udef-excluded');
-      } else {
-        row.classList.remove('udef-excluded');
-      }
-    }
-
-    // Mark preset as custom
-    var presetSel = document.getElementById('settingsPreset');
-    if (presetSel) presetSel.value = '';
-    updatePresetDesc();
+    if (row) { if (imp === 'excluded') row.classList.add('udef-excluded'); else row.classList.remove('udef-excluded'); }
+    markCustom();
   }
 
-  function applyPreset(presetKey) {
-    if (!presetKey || !PRESETS[presetKey]) return;
-    var ps = PRESETS[presetKey].settings;
-
-    // Update checkboxes — completeness
+  function applyPreset(pk) {
+    if (!pk || !PRESETS[pk]) return;
+    var ps = PRESETS[pk].s;
+    // Checkboxes
     var cplBoxes = document.querySelectorAll('input[data-group="cpl"]');
-    for (var i = 0; i < cplBoxes.length; i++) {
-      cplBoxes[i].checked = ps.completenessFields.indexOf(cplBoxes[i].getAttribute('data-key')) >= 0;
-    }
-
-    // Update checkboxes — quality issues
+    for (var i = 0; i < cplBoxes.length; i++) cplBoxes[i].checked = ps.completenessFields.indexOf(cplBoxes[i].getAttribute('data-key')) >= 0;
     var qiBoxes = document.querySelectorAll('input[data-group="qi"]');
-    for (var i = 0; i < qiBoxes.length; i++) {
-      qiBoxes[i].checked = ps.qualityIssueFields.indexOf(qiBoxes[i].getAttribute('data-key')) >= 0;
+    for (var i = 0; i < qiBoxes.length; i++) qiBoxes[i].checked = ps.qualityIssueFields.indexOf(qiBoxes[i].getAttribute('data-key')) >= 0;
+    // Sliders
+    setSl('dq', 'completeness', ps.dqWeights.completeness); setSl('dq', 'udef', ps.dqWeights.udef); setSl('dq', 'quality', ps.dqWeights.quality);
+    updateSlTotal('dq');
+    if (ps.engagementWeights) {
+      setSl('eng', 'withActivity', ps.engagementWeights.withActivity); setSl('eng', 'withPerson', ps.engagementWeights.withPerson); setSl('eng', 'withPipeline', ps.engagementWeights.withPipeline);
+      updateSlTotal('eng');
     }
-
-    // Update DQ weight sliders
-    setSliderValue('dq', 'completeness', ps.dqWeights.completeness);
-    setSliderValue('dq', 'udef', ps.dqWeights.udef);
-    setSliderValue('dq', 'quality', ps.dqWeights.quality);
-    updateSliderGroupTotal('dq');
-
-    // Update engagement weight sliders
-    setSliderValue('eng', 'withActivity', ps.engagementWeights.withActivity);
-    setSliderValue('eng', 'withPerson', ps.engagementWeights.withPerson);
-    setSliderValue('eng', 'withPipeline', ps.engagementWeights.withPipeline);
-    updateSliderGroupTotal('eng');
-
-    // Update pipeline radio
+    // Pipeline
     var radios = document.querySelectorAll('input[name="pipelineType"]');
-    for (var i = 0; i < radios.length; i++) {
-      radios[i].checked = radios[i].value === ps.pipelineType;
+    for (var i = 0; i < radios.length; i++) radios[i].checked = radios[i].value === ps.pipelineType;
+    // UDEF reset
+    var uToggles = document.querySelectorAll('.udef-imp-toggle');
+    for (var i = 0; i < uToggles.length; i++) {
+      var btns = uToggles[i].querySelectorAll('.udef-imp-btn');
+      for (var j = 0; j < btns.length; j++) { btns[j].className = 'udef-imp-btn'; if (btns[j].textContent === 'Normal') btns[j].className = 'udef-imp-btn active norm'; }
+      var row = uToggles[i].closest('tr'); if (row) row.classList.remove('udef-excluded');
     }
-
-    // Reset all UDEF fields to 'normal'
-    var udefToggles = document.querySelectorAll('.udef-imp-toggle');
-    for (var i = 0; i < udefToggles.length; i++) {
-      var btns = udefToggles[i].querySelectorAll('.udef-imp-btn');
-      for (var j = 0; j < btns.length; j++) {
-        btns[j].className = 'udef-imp-btn';
-        if (btns[j].textContent === 'Normal') btns[j].className = 'udef-imp-btn active norm';
-      }
-      var row = udefToggles[i].closest('tr');
-      if (row) row.classList.remove('udef-excluded');
-    }
-
     updatePresetDesc();
   }
 
-  function setSliderValue(group, key, val) {
-    var slider = document.getElementById('ws_' + group + '_' + key);
-    if (slider) {
-      slider.value = val;
-      updateSliderTrack(slider);
-    }
-    var valEl = document.getElementById('wsv_' + group + '_' + key);
-    if (valEl) valEl.textContent = val + '%';
-  }
-
-  function updateSliderGroupTotal(group) {
-    var allSliders = document.querySelectorAll('.weight-slider[data-group="' + group + '"]');
-    var total = 0;
-    for (var i = 0; i < allSliders.length; i++) {
-      total += parseInt(allSliders[i].value);
-    }
-    var totalEl = document.getElementById('wst_' + group);
-    if (totalEl) {
-      totalEl.textContent = 'Total: ' + total + '%';
-      totalEl.className = total === 100 ? 'weight-slider-total' : 'weight-slider-total weight-slider-total-warn';
-    }
-  }
-
-  function isPresetActive(presetKey) {
-    var s = getSettings('company');
-    var ps = PRESETS[presetKey].settings;
-    // Compare key fields
+  function isPresetMatch(pk) {
+    var s = getSettings('company'); var ps = PRESETS[pk].s;
     if (s.pipelineType !== ps.pipelineType) return false;
     if (JSON.stringify(s.dqWeights) !== JSON.stringify(ps.dqWeights)) return false;
     if (JSON.stringify(s.engagementWeights) !== JSON.stringify(ps.engagementWeights)) return false;
-    if (JSON.stringify(s.completenessFields.sort()) !== JSON.stringify(ps.completenessFields.slice().sort())) return false;
+    if (JSON.stringify(s.completenessFields.slice().sort()) !== JSON.stringify(ps.completenessFields.slice().sort())) return false;
     return true;
   }
 
   function updatePresetDesc() {
-    var el = document.getElementById('presetDesc');
-    var sel = document.getElementById('settingsPreset');
+    var el = document.querySelector('.ds-preset-desc');
+    var sel = document.querySelector('.ds-preset');
     if (!el || !sel) return;
     var pk = sel.value;
     el.textContent = pk && PRESETS[pk] ? PRESETS[pk].desc : 'You have custom settings';
   }
 
   // ============================================================
-  // SAVE — collect panel state into settings + persist
+  // SAVE
   // ============================================================
-
   function save() {
-    // Read completeness fields
-    var cplFields = [];
-    var cplBoxes = document.querySelectorAll('input[data-group="cpl"]');
-    for (var i = 0; i < cplBoxes.length; i++) {
-      if (cplBoxes[i].checked) cplFields.push(cplBoxes[i].getAttribute('data-key'));
-    }
+    var cplF = []; var qiF = [];
+    var cplB = document.querySelectorAll('input[data-group="cpl"]');
+    for (var i = 0; i < cplB.length; i++) { if (cplB[i].checked) cplF.push(cplB[i].getAttribute('data-key')); }
+    var qiB = document.querySelectorAll('input[data-group="qi"]');
+    for (var i = 0; i < qiB.length; i++) { if (qiB[i].checked) qiF.push(qiB[i].getAttribute('data-key')); }
 
-    // Read quality issue fields
-    var qiFields = [];
-    var qiBoxes = document.querySelectorAll('input[data-group="qi"]');
-    for (var i = 0; i < qiBoxes.length; i++) {
-      if (qiBoxes[i].checked) qiFields.push(qiBoxes[i].getAttribute('data-key'));
-    }
+    var dqW = readSl('dq'); var engW = readSl('eng');
 
-    // Read DQ weights
-    var dqW = readSliderGroup('dq');
-    var engW = readSliderGroup('eng');
-
-    // Read pipeline type
-    var pipelineType = 'sale';
+    var pipType = 'sale';
     var radios = document.querySelectorAll('input[name="pipelineType"]');
-    for (var i = 0; i < radios.length; i++) {
-      if (radios[i].checked) { pipelineType = radios[i].value; break; }
+    for (var i = 0; i < radios.length; i++) { if (radios[i].checked) { pipType = radios[i].value; break; } }
+
+    // UDEF
+    var uCfg = {};
+    var uToggles = document.querySelectorAll('.udef-imp-toggle');
+    for (var i = 0; i < uToggles.length; i++) {
+      var act = uToggles[i].querySelector('.udef-imp-btn.active');
+      if (!act) continue;
+      var row = uToggles[i].closest('tr');
+      var pidEl = row ? row.querySelector('.udef-progid') : null;
+      if (!pidEl) continue;
+      var pid = pidEl.textContent;
+      if (act.classList.contains('req')) uCfg[pid] = 'required';
+      else if (act.classList.contains('excl')) uCfg[pid] = 'excluded';
     }
 
-    // Read UDEF field importance
-    var udefConfig = {};
-    var udefRows = document.querySelectorAll('.udef-imp-toggle');
-    for (var i = 0; i < udefRows.length; i++) {
-      var activeBtn = udefRows[i].querySelector('.udef-imp-btn.active');
-      if (activeBtn) {
-        var progId = activeBtn.getAttribute('onclick').match(/setUdefImportance\('([^']+)'/);
-        if (progId && progId[1]) {
-          var val = 'normal';
-          if (activeBtn.classList.contains('req')) val = 'required';
-          if (activeBtn.classList.contains('excl')) val = 'excluded';
-          if (val !== 'normal') {
-            udefConfig[progId[1]] = val;
-          }
-        }
-      }
+    // Validate
+    var dqT = (dqW.completeness || 0) + (dqW.udef || 0) + (dqW.quality || 0);
+    if (dqT !== 100) { alert('DQ Score weights must total 100% (currently ' + dqT + '%)'); return; }
+    if (engW.withActivity !== undefined) {
+      var engT = (engW.withActivity || 0) + (engW.withPerson || 0) + (engW.withPipeline || 0);
+      if (engT !== 100) { alert('Engagement weights must total 100% (currently ' + engT + '%)'); return; }
     }
 
-    // Validate weights sum to 100
-    var dqTotal = (dqW.completeness || 0) + (dqW.udef || 0) + (dqW.quality || 0);
-    var engTotal = (engW.withActivity || 0) + (engW.withPerson || 0) + (engW.withPipeline || 0);
-
-    if (dqTotal !== 100 || engTotal !== 100) {
-      var msg = 'Weight sliders must total 100%:';
-      if (dqTotal !== 100) msg += '\n• DQ Weights: ' + dqTotal + '%';
-      if (engTotal !== 100) msg += '\n• Engagement Weights: ' + engTotal + '%';
-      alert(msg);
-      return;
-    }
-
-    // Apply
+    var prev = _settings.company;
     _settings.company = {
-      completenessFields: cplFields,
-      dqWeights: { completeness: dqW.completeness, udef: dqW.udef, quality: dqW.quality },
-      qualityIssueFields: qiFields,
-      udefFieldConfig: udefConfig,
-      engagementWeights: { withActivity: engW.withActivity, withPerson: engW.withPerson, withPipeline: engW.withPipeline },
-      pipelineType: pipelineType
+      completenessFields: cplF,
+      dqWeights: { completeness: dqW.completeness || 40, udef: dqW.udef || 30, quality: dqW.quality || 30 },
+      qualityIssueFields: qiF,
+      udefFieldConfig: uCfg,
+      engagementWeights: engW.withActivity !== undefined ? { withActivity: engW.withActivity, withPerson: engW.withPerson, withPipeline: engW.withPipeline } : prev.engagementWeights,
+      pipelineType: pipType
     };
-
     saveSettings();
 
-    // Recalculate — re-render DQ score and adoption for company
     if (typeof renderDQScore === 'function') renderDQScore('company');
-    if (typeof renderCrossEntityFunnel === 'function' && typeof companyDetailData !== 'undefined' && companyDetailData) {
-      renderCrossEntityFunnel(companyDetailData);
+    if (typeof renderCrossEntityFunnel === 'function' && typeof companyDetailData !== 'undefined' && companyDetailData) renderCrossEntityFunnel(companyDetailData);
+    if (typeof renderCompanyDetails === 'function' && typeof companyDetailData !== 'undefined' && companyDetailData) renderCompanyDetails(companyDetailData);
+
+    showToast('Settings applied and scores recalculated');
+  }
+
+  function readSl(g) {
+    var r = {}; var sl = document.querySelectorAll('.weight-slider[data-group="' + g + '"]');
+    for (var i = 0; i < sl.length; i++) r[sl[i].getAttribute('data-key')] = parseInt(sl[i].value);
+    return r;
+  }
+
+  function resetDefaults() {
+    _settings = deepClone(DEFAULTS); saveSettings();
+    if (_activeContainer) {
+      var el = document.getElementById(_activeContainer);
+      if (el) renderPanel(el, el.getAttribute('data-settings-mode') || 'full');
     }
-    if (typeof renderCompanyDetails === 'function' && typeof companyDetailData !== 'undefined' && companyDetailData) {
-      renderCompanyDetails(companyDetailData);
-    }
-
-    // Show confirmation
-    showSettingsToast('Settings applied and scores recalculated');
+    showToast('Settings reset to defaults');
   }
 
-  function readSliderGroup(group) {
-    var result = {};
-    var sliders = document.querySelectorAll('.weight-slider[data-group="' + group + '"]');
-    for (var i = 0; i < sliders.length; i++) {
-      result[sliders[i].getAttribute('data-key')] = parseInt(sliders[i].value);
-    }
-    return result;
-  }
-
-  function resetToDefaults() {
-    _settings = deepClone(DEFAULTS);
-    saveSettings();
-    renderSettingsPanel();
-    showSettingsToast('Settings reset to defaults');
-  }
-
-  function showSettingsToast(msg) {
-    var existing = document.getElementById('settingsToast');
-    if (existing) existing.remove();
-
-    var toast = document.createElement('div');
-    toast.id = 'settingsToast';
-    toast.className = 'settings-toast';
-    toast.textContent = msg;
-    document.body.appendChild(toast);
-
-    setTimeout(function() { toast.classList.add('show'); }, 10);
-    setTimeout(function() {
-      toast.classList.remove('show');
-      setTimeout(function() { toast.remove(); }, 300);
-    }, 2500);
+  function showToast(msg) {
+    var ex = document.getElementById('settingsToast'); if (ex) ex.remove();
+    var t = document.createElement('div'); t.id = 'settingsToast'; t.className = 'settings-toast'; t.textContent = msg;
+    document.body.appendChild(t);
+    setTimeout(function() { t.classList.add('show'); }, 10);
+    setTimeout(function() { t.classList.remove('show'); setTimeout(function() { t.remove(); }, 300); }, 2500);
   }
 
   // ============================================================
-  // INIT — called when settings tab is shown
+  // PUBLIC
   // ============================================================
-
-  function init() {
-    loadSettings();
-    renderSettingsPanel();
-  }
-
-  // ============================================================
-  // PUBLIC API
-  // ============================================================
+  function init() { loadSettings(); var p = document.getElementById('settings-quality'); if (p) renderPanel(p, 'full'); }
+  function renderInto(elId, mode) { loadSettings(); var el = document.getElementById(elId); if (el) renderPanel(el, mode || 'full'); }
 
   window.daSettings = {
-    init: init,
-    getSettings: getSettings,
-    computeDQScore: computeConfiguredDQScore,
-    computeEngagement: computeEngagement,
-    getCompletenessValue: getCompletenessValue,
-    getPipelineLabel: getPipelineLabel,
-    getPipelineType: getPipelineType,
+    init: init, renderInto: renderInto,
+    getSettings: getSettings, computeDQScore: computeConfiguredDQScore, computeEngagement: computeEngagement,
+    getCompletenessValue: getCompletenessValue, getPipelineLabel: getPipelineLabel, getPipelineType: getPipelineType,
     notifyUdefLoaded: notifyUdefLoaded,
-    COMPLETENESS_OPTIONS: COMPLETENESS_OPTIONS,
-    QUALITY_ISSUE_OPTIONS: QUALITY_ISSUE_OPTIONS,
-
-    // Panel event handlers (called from onclick)
-    onSliderChange: onSliderChange,
-    onFieldToggle: onFieldToggle,
-    onPipelineChange: onPipelineChange,
-    setUdefImportance: setUdefImportance,
-    applyPreset: applyPreset,
-    save: save,
-    resetToDefaults: resetToDefaults
+    COMPLETENESS_OPTIONS: COMPLETENESS_OPTIONS, QUALITY_ISSUE_OPTIONS: QUALITY_ISSUE_OPTIONS,
+    onSlider: onSlider, markCustom: markCustom, setUdefImp: setUdefImp,
+    applyPreset: applyPreset, save: save, resetDefaults: resetDefaults
   };
 
-  // Auto-load settings on script load
   loadSettings();
-
 })();
