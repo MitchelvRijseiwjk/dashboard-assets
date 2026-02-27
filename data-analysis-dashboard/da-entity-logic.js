@@ -760,22 +760,33 @@ function renderCrossEntityFunnel(d) {
   h += '</div>';
 
   // -- CRM Health metrics with context descriptions --
+  var pipeLabel = (typeof daSettings !== 'undefined') ? daSettings.getPipelineLabel('company') : 'Open Sale';
+  var pipeType = (typeof daSettings !== 'undefined') ? daSettings.getPipelineType('company') : 'sale';
+  var showPipeline = pipeType !== 'none';
+
   h += '<div class="detail-section">';
   h += '<div class="detail-section-head">' + secHead('CRM Health Pipeline') + '</div>';
   h += '<div class="stat-row">';
   h += pctCard('Person Coverage', m.personCoverage, 'Companies with a contact person', slColor(m.personCoverage), f.withPerson, f.total);
   h += pctCard('Activity Rate', m.activityRate, 'With person + activity in 12 months', slColor(m.activityRate), f.withPersonActivity, f.withPerson);
-  h += pctCard('Pipeline Rate', m.pipelineRate, 'Active companies with an open sale', slColor(m.pipelineRate), f.withPersonActivitySale, f.withPersonActivity);
-  h += pctCard('Overall Health', m.overallHealth, 'Person + activity + sale (fully engaged)', slColor(m.overallHealth), f.withPersonActivitySale, f.total);
+  if (showPipeline) {
+    h += pctCard('Pipeline Rate', m.pipelineRate, 'Active companies with ' + pipeLabel.toLowerCase(), slColor(m.pipelineRate), f.withPersonActivitySale, f.withPersonActivity);
+    h += pctCard('Overall Health', m.overallHealth, 'Person + activity + pipeline (fully engaged)', slColor(m.overallHealth), f.withPersonActivitySale, f.total);
+  } else {
+    var actHealth = f.total > 0 ? Math.round(f.withPersonActivity / f.total * 100) : 0;
+    h += pctCard('Overall Health', actHealth, 'Person + activity (fully engaged)', slColor(actHealth), f.withPersonActivity, f.total);
+  }
   h += '</div></div>';
 
   // -- Engagement Funnel (compact: stage + count with %) --
   var funnelSteps = [
     { label: 'Total Companies', count: f.total, pct: 100 },
     { label: 'With Contact Person', count: f.withPerson, pct: f.total > 0 ? Math.round(f.withPerson / f.total * 1000) / 10 : 0 },
-    { label: 'With Activity (12m)', count: f.withPersonActivity, pct: f.total > 0 ? Math.round(f.withPersonActivity / f.total * 1000) / 10 : 0 },
-    { label: 'With Open Sale', count: f.withPersonActivitySale, pct: f.total > 0 ? Math.round(f.withPersonActivitySale / f.total * 1000) / 10 : 0 }
+    { label: 'With Activity (12m)', count: f.withPersonActivity, pct: f.total > 0 ? Math.round(f.withPersonActivity / f.total * 1000) / 10 : 0 }
   ];
+  if (showPipeline) {
+    funnelSteps.push({ label: 'With ' + pipeLabel, count: f.withPersonActivitySale, pct: f.total > 0 ? Math.round(f.withPersonActivitySale / f.total * 1000) / 10 : 0 });
+  }
 
   h += '<div class="entity-card">';
   h += '<div class="entity-header"><div class="entity-info"><h3>Company Engagement Funnel</h3></div>';
@@ -837,22 +848,31 @@ function renderDQScore(key) {
       var q = companyDetailData.quality;
       var total = companyDetailData.activityHealth ? companyDetailData.activityHealth.total : 0;
       if (total > 0) {
-        var issues = [
-          { label: 'No contact person', val: q.noPerson },
-          { label: 'No category', val: q.noCategory },
-          { label: 'No business type', val: q.noBusiness },
-          { label: 'No org. number', val: q.noOrgNr },
-          { label: 'Unreachable', val: q.unreachable }
+        // Use settings-driven quality issue fields
+        var qiFields = (typeof daSettings !== 'undefined') ? daSettings.getSettings('company').qualityIssueFields : ['noPerson', 'noCategory', 'noBusiness', 'noOrgNr', 'unreachable'];
+        var qiOptions = (typeof daSettings !== 'undefined') ? daSettings.QUALITY_ISSUE_OPTIONS : null;
+
+        var allIssues = [
+          { key: 'noPerson',    label: 'No contact person', val: q.noPerson },
+          { key: 'noCategory',  label: 'No category', val: q.noCategory },
+          { key: 'noBusiness',  label: 'No business type', val: q.noBusiness },
+          { key: 'noOrgNr',     label: 'No org. number', val: q.noOrgNr },
+          { key: 'unreachable', label: 'Unreachable', val: q.unreachable }
         ];
+
         h += '<div class="entity-card">';
         h += '<div class="entity-header"><div class="entity-info"><h3>Data Quality Issues</h3></div>';
         h += '<span class="record-badge">' + fmtNum(total) + ' companies</span></div>';
         h += '<table class="data-table"><thead><tr><th>Issue</th><th class="col-right">Count</th><th class="col-right">' + P + '</th></tr></thead><tbody>';
-        for (var i = 0; i < issues.length; i++) {
-          var pct = Math.round((issues[i].val / total) * 1000) / 10;
+        for (var i = 0; i < allIssues.length; i++) {
+          var iss = allIssues[i];
+          var isActive = qiFields.indexOf(iss.key) >= 0;
+          var pct = Math.round((iss.val / total) * 1000) / 10;
           var col = slColorInv(pct);
-          h += '<tr><td>' + issues[i].label + '</td>';
-          h += '<td class="col-right">' + fmtNum(issues[i].val) + '</td>';
+          var dimStyle = isActive ? '' : ' style="opacity:0.4"';
+          var badge = isActive ? '' : ' <span style="font-size:.65rem;color:var(--so-text-muted)">(not in score)</span>';
+          h += '<tr' + dimStyle + '><td>' + iss.label + badge + '</td>';
+          h += '<td class="col-right">' + fmtNum(iss.val) + '</td>';
           h += '<td class="col-right">' + barCell(pct, col) + '</td></tr>';
         }
         h += '</tbody></table></div>';
@@ -863,17 +883,31 @@ function renderDQScore(key) {
       var ov = overviewData['company'];
       var c = ov.completeness;
       var total = ov.overview.total || 0;
-      var ovLabCfg = ovLabels['company'];
-      if (ovLabCfg && ovLabCfg.completeness && total > 0) {
+      var q = (companyDetailData && companyDetailData.quality) ? companyDetailData.quality : null;
+
+      // Use settings-driven completeness fields
+      var cplFields = (typeof daSettings !== 'undefined') ? daSettings.getSettings('company').completenessFields : ['orgNr', 'email', 'phone', 'address', 'webpage'];
+      var cplOptions = (typeof daSettings !== 'undefined') ? daSettings.COMPLETENESS_OPTIONS : null;
+
+      if (total > 0 && cplFields.length > 0) {
         h += '<div class="entity-card">';
         h += '<div class="entity-header"><div class="entity-info"><h3>Standard Field Completeness</h3></div>';
         h += '<span class="record-badge">' + fmtNum(total) + ' companies</span></div>';
         h += '<table class="data-table"><thead><tr><th>Field</th><th class="col-right">Filled</th><th class="col-right">' + P + '</th></tr></thead><tbody>';
-        for (var j = 0; j < ovLabCfg.completeness.length; j++) {
-          var cm = ovLabCfg.completeness[j];
-          var val = c[cm[0]] || 0;
+        for (var j = 0; j < cplFields.length; j++) {
+          var fk = cplFields[j];
+          var val = (typeof daSettings !== 'undefined') ? daSettings.getCompletenessValue(fk, c, q, total) : (c[fk] || 0);
           var pct = Math.round((val / total) * 1000) / 10;
-          h += '<tr><td>' + cm[1] + '</td>';
+          var label = fk;
+          if (cplOptions) {
+            for (var co = 0; co < cplOptions.length; co++) {
+              if (cplOptions[co].key === fk) { label = cplOptions[co].label; break; }
+            }
+          } else {
+            var fallbackLabels = { orgNr: 'Org. Number', email: 'Email', phone: 'Phone', address: 'Address', webpage: 'Webpage' };
+            if (fallbackLabels[fk]) label = fallbackLabels[fk];
+          }
+          h += '<tr><td>' + label + '</td>';
           h += '<td class="col-right">' + fmtNum(val) + '</td>';
           h += '<td class="col-right">' + barCell(pct, '') + '</td></tr>';
         }
@@ -894,7 +928,12 @@ function renderDQScore(key) {
     scoreHtml += '</div>';
     scoreHtml += '<div class="dq-score-info">';
     scoreHtml += '<div class="dq-score-label">Data Quality Score</div>';
-    scoreHtml += '<div class="dq-score-desc">Based on field completeness, extra field usage and data quality issues</div>';
+    var scoreDesc = 'Based on field completeness, custom field usage and data quality issues';
+    if (typeof daSettings !== 'undefined') {
+      var sw = daSettings.getSettings('company').dqWeights;
+      scoreDesc = 'Completeness ' + sw.completeness + '% · Custom fields ' + sw.udef + '% · Quality issues ' + sw.quality + '%';
+    }
+    scoreHtml += '<div class="dq-score-desc">' + scoreDesc + '</div>';
     scoreHtml += '</div></div>';
     h = scoreHtml + h; // prepend score to top
   }
@@ -905,9 +944,22 @@ function renderDQScore(key) {
 }
 
 function computeDQScore(key) {
+  // Use settings-driven calculation if available
+  if (typeof daSettings !== 'undefined' && key === 'company') {
+    var ov = overviewData['company'];
+    var total = (ov && ov.overview) ? ov.overview.total : 0;
+    var cpl = (ov && ov.completeness) ? ov.completeness : null;
+    var q = (companyDetailData && companyDetailData.quality) ? companyDetailData.quality : null;
+    var ec = entityConfig[key];
+    var ud = (ec && ec.udefId > 0 && udefData[ec.udefId]) ? udefData[ec.udefId] : null;
+
+    var result = daSettings.computeDQScore('company', cpl, q, ud, total);
+    if (result) return result.total;
+  }
+
+  // Fallback: original hardcoded logic for non-company entities
   var scores = [];
 
-  // Completeness score (company only for now)
   if (key === 'company' && overviewData['company'] && overviewData['company'].completeness) {
     var c = overviewData['company'].completeness;
     var total = overviewData['company'].overview.total || 1;
@@ -919,7 +971,6 @@ function computeDQScore(key) {
     scores.push(sum / fields.length);
   }
 
-  // UDEF fill rate score
   var ec = entityConfig[key];
   if (ec && ec.udefId > 0 && udefData[ec.udefId]) {
     var ud = udefData[ec.udefId];
@@ -932,11 +983,9 @@ function computeDQScore(key) {
     }
   }
 
-  // Quality issues score (company only)
   if (key === 'company' && companyDetailData && companyDetailData.quality && companyDetailData.activityHealth) {
     var q = companyDetailData.quality;
     var total = companyDetailData.activityHealth.total || 1;
-    // Invert: lower issues = higher score
     var issuePct = ((q.noPerson + q.noCategory + q.unreachable) / (total * 3)) * 100;
     scores.push(100 - issuePct);
   }
@@ -1128,23 +1177,35 @@ function renderCompanyDetails(d) {
     h += '<th onclick="sortT(' + Q + ctid + Q + ',0)">Category <span class="sort-arrow">' + svgSortN + '</span></th>';
     h += '<th class="col-right" onclick="sortT(' + Q + ctid + Q + ',1)">Companies <span class="sort-arrow active">' + svgSortD + '</span></th>';
     h += '<th class="col-right" onclick="sortT(' + Q + ctid + Q + ',2)">With Person <span class="sort-arrow">' + svgSortN + '</span></th>';
+    var catPipeLabel = (typeof daSettings !== 'undefined') ? daSettings.getPipelineLabel('company') : 'Open Sale';
+    var catPipeType = (typeof daSettings !== 'undefined') ? daSettings.getPipelineType('company') : 'sale';
+    var catShowPipe = catPipeType !== 'none';
     h += '<th class="col-right" onclick="sortT(' + Q + ctid + Q + ',3)">Active (12m) <span class="sort-arrow">' + svgSortN + '</span></th>';
-    h += '<th class="col-right" onclick="sortT(' + Q + ctid + Q + ',4)">Open Sale <span class="sort-arrow">' + svgSortN + '</span></th>';
-    h += '<th class="col-right" onclick="sortT(' + Q + ctid + Q + ',5)">Engagement <span class="sort-arrow">' + svgSortN + '</span></th>';
+    if (catShowPipe) {
+      h += '<th class="col-right" onclick="sortT(' + Q + ctid + Q + ',4)">' + catPipeLabel + ' <span class="sort-arrow">' + svgSortN + '</span></th>';
+    }
+    h += '<th class="col-right" onclick="sortT(' + Q + ctid + Q + ',' + (catShowPipe ? 5 : 4) + ')">Engagement <span class="sort-arrow">' + svgSortN + '</span></th>';
     h += '</tr></thead><tbody>';
     for (var i = 0; i < ce.length; i++) {
       var c = ce[i];
       var pctPers = c.total > 0 ? Math.round((c.withPerson / c.total) * 1000) / 10 : 0;
       var pctAct = c.total > 0 ? Math.round((c.withActivity / c.total) * 1000) / 10 : 0;
-      var pctSale = c.total > 0 ? Math.round((c.withSale / c.total) * 1000) / 10 : 0;
-      var engagement = c.total > 0 ? Math.round((c.withActivity * 0.5 + c.withPerson * 0.3 + c.withSale * 0.2) / c.total * 100) : 0;
+      var engagement = 0;
+      if (typeof daSettings !== 'undefined') {
+        engagement = daSettings.computeEngagement(c, c.total, 'company');
+      } else {
+        engagement = c.total > 0 ? Math.round((c.withActivity * 0.5 + c.withPerson * 0.3 + c.withSale * 0.2) / c.total * 100) : 0;
+      }
       var engCol = slColor(engagement);
       h += '<tr>';
       h += '<td data-sort-value="' + c.name + '">' + c.name + '</td>';
       h += '<td class="col-right" data-sort-value="' + c.total + '">' + fmtNum(c.total) + '</td>';
       h += '<td class="col-right" data-sort-value="' + pctPers + '">' + fmtNum(c.withPerson) + '<span style="color:#999;font-size:.75rem;margin-left:4px">' + pctPers + P + '</span></td>';
       h += '<td class="col-right" data-sort-value="' + pctAct + '">' + fmtNum(c.withActivity) + '<span style="color:#999;font-size:.75rem;margin-left:4px">' + pctAct + P + '</span></td>';
-      h += '<td class="col-right" data-sort-value="' + pctSale + '">' + fmtNum(c.withSale) + '<span style="color:#999;font-size:.75rem;margin-left:4px">' + pctSale + P + '</span></td>';
+      if (catShowPipe) {
+        var pctSale = c.total > 0 ? Math.round((c.withSale / c.total) * 1000) / 10 : 0;
+        h += '<td class="col-right" data-sort-value="' + pctSale + '">' + fmtNum(c.withSale) + '<span style="color:#999;font-size:.75rem;margin-left:4px">' + pctSale + P + '</span></td>';
+      }
       h += '<td class="col-right" data-sort-value="' + engagement + '">' + barCell(engagement, engCol) + '</td>';
       h += '</tr>';
     }
