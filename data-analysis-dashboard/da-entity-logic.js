@@ -190,11 +190,22 @@ function getExtraTablesFromCache(callback) {
       _flushExtraCacheQueue();
       return;
     }
+    // Build entity counts param from listing response (v4)
+    var ecParam = '';
+    if (d.entityCounts) {
+      var parts = [];
+      for (var k in d.entityCounts) {
+        if (d.entityCounts.hasOwnProperty(k)) {
+          parts.push(k + ':' + d.entityCounts[k]);
+        }
+      }
+      ecParam = String.fromCharCode(38) + 'ec=' + parts.join(',');
+    }
     _extraCache = { tables: d.tables, data: {}, ready: false };
     var remaining = d.tables.length;
     for (var i = 0; i < d.tables.length; i++) {
       (function(tbl) {
-        ajax(extraUrl + String.fromCharCode(38) + 'tableId=' + tbl.id, function(td) {
+        ajax(extraUrl + String.fromCharCode(38) + 'tableId=' + tbl.id + ecParam, function(td) {
           _extraCache.data[tbl.id] = td;
           remaining--;
           if (remaining <= 0) {
