@@ -672,9 +672,9 @@ function populateDetailCatFilter() {
     }
   }
   if (companyDetailCatValue) sel.value = companyDetailCatValue;
-  var badge = document.getElementById('companyFilterBadge');
+  var bar = document.getElementById('companyCatFilterBar');
   var resetBtn = document.getElementById('companyFilterReset');
-  if (badge) badge.style.display = companyDetailCatValue ? '' : 'none';
+  if (bar) bar.className = companyDetailCatValue ? 'cat-filter-bar active' : 'cat-filter-bar';
   if (resetBtn) resetBtn.style.display = companyDetailCatValue ? '' : 'none';
 }
 
@@ -719,23 +719,18 @@ function renderCompanyDetails(d) {
 
   var subRight = document.getElementById('companySubTabsRight');
   if (subRight) {
-    var sr = '';
-    sr += '<span class="record-badge">' + fmtNum(total) + ' companies</span>';
-    sr += '<div class="detail-filter-wrap">';
-    sr += '<div class="detail-filter-btn" onclick="togDetailFilter(\'company\')">';
-    sr += '<svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M14.4 3.1A1 1 0 0 0 13.5 2.5h-11a1 1 0 0 0-.74 1.67l4.24 4.52v3.47a1 1 0 0 0 .55.9l2 1a1 1 0 0 0 1.45-.9v-4.47l4.23-4.52a1 1 0 0 0 .17-1.07z" fill="#06423e"/></svg>';
-    sr += ' Filters <span class="filter-badge" id="companyFilterBadge" style="display:none">1</span>';
-    sr += '</div>';
-    sr += '<div class="detail-filter-popover" id="companyFilterPopover">';
-    sr += '<label>Category</label>';
-    sr += '<select id="companyDetailCatFilter" onchange="onDetailFilterChange(\'company\')">';
-    sr += '<option value="">All categories</option>';
-    sr += '</select>';
-    sr += '<span class="filter-count" id="companyDetailFilterCount"></span>';
-    sr += '<span class="filter-reset" id="companyFilterReset" style="display:none" onclick="resetDetailFilter(\'company\')">Reset</span>';
-    sr += '</div></div>';
-    subRight.innerHTML = sr;
+    subRight.innerHTML = '<span class="record-badge">' + fmtNum(total) + ' companies</span>';
   }
+
+  // -- Inline category filter bar (always visible) --
+  h += '<div class="cat-filter-bar" id="companyCatFilterBar">';
+  h += '<span style="font-weight:500;font-size:.85rem;color:var(--so-charcoal)">Category filter:</span>';
+  h += '<select id="companyDetailCatFilter" class="cat-filter-select" onchange="onDetailFilterChange(\'company\')">';
+  h += '<option value="">All categories</option>';
+  h += '</select>';
+  h += '<span class="filter-count" id="companyDetailFilterCount" style="font-size:.82rem;color:#666"></span>';
+  h += '<span class="filter-reset-link" id="companyFilterReset" style="display:none" onclick="resetDetailFilter(\'company\')">Reset</span>';
+  h += '</div>';
 
   // 1. DATA QUALITY ISSUES
   var q = d.quality;
@@ -758,25 +753,47 @@ function renderCompanyDetails(d) {
     h += '</div></div>';
   }
 
-  // 1b. REGISTRATION TREND
+  // 1b. REGISTRATION TREND (with active overlay)
   var trend = d.trend;
+  var trendMonthly = d.trendMonthly;
   if (trend && trend.length > 0) {
+    var useMonthly = false;
+    var chartData = [];
     var firstIdx = 0;
-    for (var i = 0; i < trend.length; i++) { if (trend[i].count > 0) { firstIdx = i; break; } }
-    var visibleTrend = trend.slice(firstIdx);
+    var nonZeroYears = 0;
+    for (var i = 0; i < trend.length; i++) { if (trend[i].count > 0) nonZeroYears++; }
+    if (nonZeroYears <= 2 && trendMonthly && trendMonthly.length > 0) {
+      useMonthly = true;
+      for (var i = 0; i < trendMonthly.length; i++) {
+        chartData.push({ label: trendMonthly[i].month.substring(2), count: trendMonthly[i].count, active: trendMonthly[i].active || 0 });
+      }
+    } else {
+      for (var i = 0; i < trend.length; i++) {
+        chartData.push({ label: '' + trend[i].year, count: trend[i].count, active: trend[i].active || 0 });
+      }
+    }
+    firstIdx = 0;
+    for (var i = 0; i < chartData.length; i++) { if (chartData[i].count > 0 || chartData[i].active > 0) { firstIdx = i; break; } }
+    var visibleData = chartData.slice(firstIdx);
     var maxCount = 0;
-    for (var i = 0; i < visibleTrend.length; i++) { if (visibleTrend[i].count > maxCount) maxCount = visibleTrend[i].count; }
-    if (maxCount > 0 && visibleTrend.length > 1) {
+    for (var i = 0; i < visibleData.length; i++) {
+      if (visibleData[i].count > maxCount) maxCount = visibleData[i].count;
+      if (visibleData[i].active > maxCount) maxCount = visibleData[i].active;
+    }
+    if (maxCount > 0 && visibleData.length > 1) {
       var beforeTotal = d.trendBefore || 0;
-      for (var i = 0; i < firstIdx; i++) { beforeTotal += trend[i].count; }
+      if (!useMonthly) {
+        for (var i = 0; i < firstIdx; i++) { beforeTotal += chartData[i].count; }
+      }
       h += '<div class="detail-section">';
       h += '<div class="detail-section-head">';
-      h += secHead('New Registrations Per Year');
-      if (beforeTotal > 0) {
-        h += '<span class="record-badge">' + fmtNum(beforeTotal) + ' before ' + visibleTrend[0].year + '</span>';
+      h += secHead(useMonthly ? 'New Registrations Per Month' : 'New Registrations Per Year');
+      if (beforeTotal > 0 && !useMonthly) {
+        h += '<span class="record-badge">' + fmtNum(beforeTotal) + ' before ' + visibleData[0].label + '</span>';
       }
       h += '</div>';
-      var cW = 960, cH = 200, padL = 40, padR = 10, padT = 15, padB = 40;
+      h += '<div style="font-size:.78rem;color:#999;margin:-4px 0 8px">Dashed line = retention: how many registered companies still have activity within the last 12 months</div>';
+      var cW = 960, cH = 270, padL = 40, padR = 10, padT = 20, padB = 60;
       var plotW = cW - padL - padR, plotH = cH - padT - padB;
       var dataInset = 15;
       var niceMax = maxCount;
@@ -785,15 +802,23 @@ function renderCompanyDetails(d) {
       for (var oi = 0; oi < options.length; oi++) { if (options[oi] * mag >= maxCount) { niceMax = options[oi] * mag; break; } }
       var ySteps = 4;
       var yStep = niceMax / ySteps;
-      var step = (plotW - 2 * dataInset) / (visibleTrend.length - 1);
+      var step = (plotW - 2 * dataInset) / (visibleData.length - 1);
       var pts = [];
-      for (var i = 0; i < visibleTrend.length; i++) {
+      for (var i = 0; i < visibleData.length; i++) {
         var px = padL + dataInset + i * step;
-        var py = padT + plotH - (visibleTrend[i].count / niceMax) * plotH;
+        var py = padT + plotH - (visibleData[i].count / niceMax) * plotH;
         pts.push(px.toFixed(1) + ',' + py.toFixed(1));
       }
-      var areaPath = 'M' + (padL + dataInset) + ',' + (padT + plotH) + ' L' + pts.join(' L') + ' L' + (padL + dataInset + (visibleTrend.length - 1) * step).toFixed(1) + ',' + (padT + plotH) + ' Z';
-      h += '<svg viewBox="0 0 ' + cW + ' ' + cH + '" style="width:100%;height:auto;display:block;max-height:220px">';
+      var hasActiveData = false;
+      var aPts = [];
+      for (var i = 0; i < visibleData.length; i++) {
+        if (visibleData[i].active > 0) hasActiveData = true;
+        var px = padL + dataInset + i * step;
+        var py = padT + plotH - (visibleData[i].active / niceMax) * plotH;
+        aPts.push(px.toFixed(1) + ',' + py.toFixed(1));
+      }
+      var areaPath = 'M' + (padL + dataInset) + ',' + (padT + plotH) + ' L' + pts.join(' L') + ' L' + (padL + dataInset + (visibleData.length - 1) * step).toFixed(1) + ',' + (padT + plotH) + ' Z';
+      h += '<svg viewBox="0 0 ' + cW + ' ' + cH + '" style="width:100%;height:auto;display:block;max-height:280px">';
       for (var gi = 0; gi <= ySteps; gi++) {
         var gy = padT + plotH - (gi / ySteps) * plotH;
         var yVal = Math.round(gi * yStep);
@@ -802,13 +827,36 @@ function renderCompanyDetails(d) {
       }
       h += '<path d="' + areaPath + '" fill="rgba(22,91,112,0.06)"/>';
       h += '<polyline points="' + pts.join(' ') + '" fill="none" stroke="var(--so-green)" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>';
-      for (var i = 0; i < visibleTrend.length; i++) {
+      if (hasActiveData) {
+        h += '<polyline points="' + aPts.join(' ') + '" fill="none" stroke="var(--sl-good)" stroke-width="2" stroke-dasharray="6,4" stroke-linejoin="round" stroke-linecap="round"/>';
+      }
+      for (var i = 0; i < visibleData.length; i++) {
         var xy = pts[i].split(',');
-        h += '<circle cx="' + xy[0] + '" cy="' + xy[1] + '" r="5" fill="var(--so-green)" stroke="#fff" stroke-width="2"/>';
-        h += '<text x="' + xy[0] + '" y="' + (parseFloat(xy[1]) - 12).toFixed(1) + '" text-anchor="middle" fill="var(--so-charcoal)" font-size="11" font-weight="600" font-family="DM Sans,sans-serif">' + fmtNum(visibleTrend[i].count) + '</text>';
-        h += '<text x="' + xy[0] + '" y="' + (padT + plotH + 22) + '" text-anchor="middle" fill="#999" font-size="11" font-family="DM Sans,sans-serif">' + visibleTrend[i].year + '</text>';
+        h += '<circle cx="' + xy[0] + '" cy="' + xy[1] + '" r="4" fill="var(--so-green)" stroke="#fff" stroke-width="2"/>';
+        if (visibleData[i].count > 0) {
+          h += '<text x="' + xy[0] + '" y="' + (parseFloat(xy[1]) - 10).toFixed(1) + '" text-anchor="middle" fill="var(--so-charcoal)" font-size="10" font-weight="600" font-family="DM Sans,sans-serif">' + fmtNum(visibleData[i].count) + '</text>';
+        }
+        if (hasActiveData) {
+          var axy = aPts[i].split(',');
+          h += '<circle cx="' + axy[0] + '" cy="' + axy[1] + '" r="3" fill="var(--sl-good)" stroke="#fff" stroke-width="1.5"/>';
+          if (visibleData[i].active !== visibleData[i].count) {
+            h += '<text x="' + axy[0] + '" y="' + (parseFloat(axy[1]) + 14).toFixed(1) + '" text-anchor="middle" fill="var(--sl-good)" font-size="9" font-weight="600" font-family="DM Sans,sans-serif">' + visibleData[i].active + '</text>';
+          }
+        }
+        var displayLabel = useMonthly ? visibleData[i].label.replace('-', '/') : visibleData[i].label;
+        if (useMonthly) {
+          h += '<text x="' + xy[0] + '" y="' + (padT + plotH + 14) + '" text-anchor="end" fill="#999" font-size="9" font-family="DM Sans,sans-serif" transform="rotate(-45,' + xy[0] + ',' + (padT + plotH + 14) + ')">' + displayLabel + '</text>';
+        } else {
+          h += '<text x="' + xy[0] + '" y="' + (padT + plotH + 22) + '" text-anchor="middle" fill="#999" font-size="10" font-family="DM Sans,sans-serif">' + displayLabel + '</text>';
+        }
       }
       h += '</svg>';
+      h += '<div style="display:flex;gap:16px;margin-top:4px;padding-left:' + padL + 'px">';
+      h += '<span style="font-size:.75rem;color:#666;display:flex;align-items:center;gap:4px"><span style="width:12px;height:3px;background:var(--so-green);border-radius:2px"></span> Registered</span>';
+      if (hasActiveData) {
+        h += '<span style="font-size:.75rem;color:#666;display:flex;align-items:center;gap:4px"><span style="width:12px;height:0;border-top:2px dashed var(--sl-good)"></span> Retention (of which still active today)</span>';
+      }
+      h += '</div>';
       h += '</div>';
     }
   }
