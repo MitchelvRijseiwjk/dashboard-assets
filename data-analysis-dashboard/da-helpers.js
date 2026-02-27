@@ -1,4 +1,4 @@
-// === SETTINGS SUB-TABS ===
+// === SETTINGS SUB-TABS ====
 function swSetupTab(panel, el) {
   var panels = document.querySelectorAll('.setup-tab-panel');
   for (var i = 0; i < panels.length; i++) { panels[i].classList.remove('active'); }
