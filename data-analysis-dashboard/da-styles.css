@@ -1,4 +1,4 @@
-    @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap');
     :root {
       --so-green:#06423e; --so-green-light:#0f5c57; --so-green-dark:#002420;
       --so-coast:#b2c7eb; --so-coast-dark1:#6a8cb9; --so-coast-dark2:#395d9c;
@@ -67,6 +67,20 @@
 
     .settings-toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--so-charcoal);color:white;padding:10px 24px;border-radius:8px;font-size:.85rem;font-weight:500;opacity:0;transition:all .3s ease;z-index:9999;pointer-events:none}
     .settings-toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+    /* UDEF field importance toggle */
+    .udef-config-table{margin-top:8px}
+    .udef-config-table td{vertical-align:middle}
+    .udef-imp-toggle{display:flex;border:1px solid var(--so-border);border-radius:6px;overflow:hidden}
+    .udef-imp-btn{flex:1;padding:4px 0;font-size:.72rem;font-weight:500;border:none;background:var(--so-white);color:var(--so-text-muted);cursor:pointer;transition:all .15s;font-family:inherit;white-space:nowrap}
+    .udef-imp-btn:not(:last-child){border-right:1px solid var(--so-border)}
+    .udef-imp-btn:hover{background:var(--so-bg)}
+    .udef-imp-btn.active.req{background:var(--so-green);color:white;font-weight:700}
+    .udef-imp-btn.active.norm{background:var(--so-coast);color:var(--so-green-dark);font-weight:600}
+    .udef-imp-btn.active.excl{background:var(--so-bg);color:var(--so-text-muted);font-weight:600}
+    .udef-row.udef-excluded td{opacity:.4}
+    .udef-row.udef-excluded .udef-imp-toggle{opacity:1}
+    .udef-config-empty{padding:16px 0}
 
     *{margin:0;padding:0;box-sizing:border-box}
     body{font-family:'DM Sans',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--so-bg);color:var(--so-charcoal);display:flex;height:100vh;overflow:hidden;font-size:14px}
