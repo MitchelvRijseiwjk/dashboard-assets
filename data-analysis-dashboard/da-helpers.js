@@ -7,6 +7,9 @@ function swSetupTab(panel, el) {
   var tabs = document.querySelectorAll('.setup-tab');
   for (var j = 0; j < tabs.length; j++) { tabs[j].classList.remove('active'); }
   if (el) el.classList.add('active');
+  if (panel === 'quality' && typeof daSettings !== 'undefined') {
+    daSettings.renderInto('setupQualityContent', 'dq');
+  }
 }
 
 function swSettings(panel, el) {
