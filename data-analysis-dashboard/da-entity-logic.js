@@ -802,6 +802,7 @@ function renderCrossEntityFunnel(d) {
   h += '</tbody></table></div>';
 
   el.innerHTML = h;
+  populateDetailCatFilter();
 }
 
 // ===========================================================
