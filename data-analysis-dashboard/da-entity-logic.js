@@ -234,13 +234,8 @@ function loadingPlaceholder(label) {
   if (document.getElementById('progressiveLoadStyles')) return;
   var style = document.createElement('style');
   style.id = 'progressiveLoadStyles';
-  style.textContent = '@keyframes spin{to{transform:rotate(360deg)}}' +
-    '.section-loaded{animation:fadeIn .3s ease}' +
-    '@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}' +
-    '.progress-inline{display:flex;align-items:center;gap:8px;padding:8px 16px;margin:0 0 12px;border-radius:8px;background:var(--so-cream,#faf9f7);font-size:.8rem;color:#666}' +
-    '.progress-inline .pi-bar{flex:1;height:4px;background:#e0dfdc;border-radius:2px;overflow:hidden}' +
-    '.progress-inline .pi-fill{height:100%;background:var(--so-green);border-radius:2px;transition:width .3s}' +
-    '.progress-inline .pi-check{color:var(--so-green);font-weight:600}';
+  style.textContent = '.section-loaded{animation:fadeIn .3s ease}' +
+    '@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}';
   document.head.appendChild(style);
 })();
 
@@ -263,72 +258,81 @@ function startFullEntity(key) {
 
   if (headerBtn) headerBtn.disabled = true;
 
-  // === PROGRESSIVE: Show results immediately with loading placeholders ===
+  // === Show results container but with loading overlay ===
   if (progressScreen) progressScreen.style.display = 'none';
   if (subTabs) subTabs.style.display = '';
   if (resultsContainer) resultsContainer.style.display = '';
 
-  // Set loading placeholders in each section
+  // Clear all section content
   var overviewEl = document.getElementById(tabKey + 'OverviewContent');
-  if (overviewEl) overviewEl.innerHTML = loadingPlaceholder('Loading overview data...');
-
+  if (overviewEl) overviewEl.innerHTML = '';
+  var dqScoreEl = document.getElementById(tabKey + 'DQScoreContent');
+  if (dqScoreEl) dqScoreEl.innerHTML = '';
   if (ec && ec.udefId > 0) {
     var udefCards = document.getElementById(tabKey + 'UdefCards');
     var udefSummary = document.getElementById(tabKey + 'UdefSummary');
-    if (udefCards) udefCards.innerHTML = loadingPlaceholder('Loading extra fields...');
+    if (udefCards) udefCards.innerHTML = '';
     if (udefSummary) udefSummary.textContent = '';
   }
-
-  if (hasDetails) {
-    var detailEl = document.getElementById('companyDetailContent');
-    if (detailEl) detailEl.innerHTML = loadingPlaceholder('Loading detail analysis...');
-  }
-
   var extraCards = document.getElementById(tabKey + 'ExtraCards');
   var extraSummary = document.getElementById(tabKey + 'ExtraSummary');
-  if (extraCards) extraCards.innerHTML = loadingPlaceholder('Loading extra tables...');
+  if (extraCards) extraCards.innerHTML = '';
   if (extraSummary) extraSummary.textContent = '';
+  if (hasDetails) {
+    var crossEl = document.getElementById('companyCrossContent');
+    if (crossEl) crossEl.innerHTML = '';
+    var detailEl = document.getElementById('companyDetailContent');
+    if (detailEl) detailEl.innerHTML = '';
+  }
 
-  // Show inline progress bar
-  var inlineProgress = document.createElement('div');
-  inlineProgress.className = 'progress-inline';
-  inlineProgress.id = tabKey + 'InlineProgress';
-  inlineProgress.innerHTML = '<span id="' + tabKey + 'IPLabel">Loading...</span>' +
-    '<div class="pi-bar"><div class="pi-fill" id="' + tabKey + 'IPBar" style="width:0"></div></div>' +
-    '<span id="' + tabKey + 'IPPct">0' + P + '</span>';
-  if (overviewEl && overviewEl.parentNode) {
-    overviewEl.parentNode.insertBefore(inlineProgress, overviewEl);
+  // === Create unified loading overlay ===
+  var existingOverlay = document.getElementById(tabKey + 'LoadingOverlay');
+  if (existingOverlay) existingOverlay.parentNode.removeChild(existingOverlay);
+  var overlay = document.createElement('div');
+  overlay.id = tabKey + 'LoadingOverlay';
+  overlay.className = 'loading-overlay';
+  overlay.innerHTML = '<div class="loading-overlay-inner">' +
+    '<div class="loading-spinner"></div>' +
+    '<div class="loading-title" id="' + tabKey + 'LoadTitle">Analyzing...</div>' +
+    '<div class="loading-progress-wrap"><div class="loading-progress-bar" id="' + tabKey + 'LoadBar"></div></div>' +
+    '<div class="loading-status" id="' + tabKey + 'LoadStatus">Starting analysis</div>' +
+    '</div>';
+  if (resultsContainer) {
+    resultsContainer.style.position = 'relative';
+    resultsContainer.appendChild(overlay);
   }
 
   // === Track completion of parallel loads ===
   var totalSteps = 2; // overview + extra (always)
   if (ec && ec.udefId > 0) totalSteps++;
   if (ec && ec.hasTicketFields) totalSteps++;
-  if (hasDetails) totalSteps++;
+  if (hasDetails) totalSteps++; // details (includes funnel now)
   var completedSteps = 0;
   var dfParam = getDateFilterParam();
 
   function stepDone(label) {
     completedSteps++;
     var pct = Math.round((completedSteps / totalSteps) * 100);
-    var barEl = document.getElementById(tabKey + 'IPBar');
-    var pctEl = document.getElementById(tabKey + 'IPPct');
-    var labelEl = document.getElementById(tabKey + 'IPLabel');
+    var barEl = document.getElementById(tabKey + 'LoadBar');
+    var statusEl = document.getElementById(tabKey + 'LoadStatus');
     if (barEl) barEl.style.width = pct + P;
-    if (pctEl) pctEl.textContent = pct + P;
-    if (labelEl) labelEl.textContent = label;
+    if (statusEl) statusEl.textContent = label + ' (' + pct + P + ')';
+
+    // Progressively update DQ score as data becomes available
+    renderDQScore(key);
 
     if (completedSteps >= totalSteps) {
-      // All done
-      if (labelEl) labelEl.innerHTML = '<span class="pi-check">\u2713 Analysis complete</span>';
+      // All done — remove overlay with fade
       var expBtn = document.getElementById(tabKey + 'ExportBtn') || document.getElementById('ticketExportBtn');
       if (expBtn) expBtn.style.display = '';
       if (headerBtn) { headerBtn.disabled = false; headerBtn.onclick = function(){ reAnalyze(key); }; }
-      // Auto-hide progress bar after 3 seconds
-      setTimeout(function() {
-        var ip = document.getElementById(tabKey + 'InlineProgress');
-        if (ip) { ip.style.opacity = '0'; ip.style.transition = 'opacity .5s'; setTimeout(function() { if (ip.parentNode) ip.parentNode.removeChild(ip); }, 500); }
-      }, 3000);
+      renderDQScore(key);
+      var ov = document.getElementById(tabKey + 'LoadingOverlay');
+      if (ov) {
+        ov.style.opacity = '0';
+        ov.style.transition = 'opacity .4s ease';
+        setTimeout(function() { if (ov.parentNode) ov.parentNode.removeChild(ov); }, 400);
+      }
     }
   }
 
@@ -336,6 +340,7 @@ function startFullEntity(key) {
   ajax(overviewUrl + String.fromCharCode(38) + 'entity=' + key + dfParam, function(d) {
     if (d) renderEntityOverview(key, d);
     if (overviewEl) overviewEl.style.animation = 'fadeIn .3s ease';
+    if (key === 'company') populateDetailCatFilter();
     stepDone('Overview loaded');
   });
 
@@ -352,10 +357,7 @@ function startFullEntity(key) {
         if (summaryEl) summaryEl.textContent = 'No extra fields found.';
         if (cardsEl) cardsEl.innerHTML = '';
       }
-      // Make UDEF sub-panel visible
-      var udefStart = document.getElementById(tabKey + 'UdefStart');
       var udefResults = document.getElementById(tabKey + 'UdefResults');
-      if (udefStart) udefStart.style.display = 'none';
       if (udefResults) udefResults.style.display = 'block';
       stepDone('Extra fields loaded');
     });
@@ -375,6 +377,13 @@ function startFullEntity(key) {
     }
     ajax(detailUrl + dfParam + catParam, function(d) {
       companyDetailData = d;
+      // Render funnel first (creates category filter select element)
+      if (d && d.funnel) {
+        companyCrossData = d;
+        renderCrossEntityFunnel(d);
+        var crossEl2 = document.getElementById('companyCrossContent');
+        if (crossEl2) crossEl2.style.animation = 'fadeIn .3s ease';
+      }
       if (d) renderCompanyDetails(d);
       populateDetailCatFilter();
       var countEl = document.getElementById('companyDetailFilterCount');
@@ -393,7 +402,6 @@ function startFullEntity(key) {
       if (!entExtra[tabKey]) entExtra[tabKey] = { tables: [], cur: 0, data: {} };
       entExtra[tabKey].tables = cache.tables;
       entExtra[tabKey].entityType = ec.extraType;
-      // Copy cached data
       for (var i = 0; i < cache.tables.length; i++) {
         var tbl = cache.tables[i];
         entExtra[tabKey].data[tbl.id] = cache.data[tbl.id];
@@ -404,7 +412,6 @@ function startFullEntity(key) {
       stepDone('Extra tables loaded');
     });
   } else {
-    // No extra tables for this entity type
     if (extraCards) extraCards.innerHTML = '';
     stepDone('Complete');
   }
@@ -462,7 +469,6 @@ function startEntityOverview(key) {
 
 function renderEntityOverview(key, d) {
   overviewData[key] = d;
-  if (key === 'company') populateDetailCatFilter();
   var cfg = ovLabels[key];
   var o = d.overview;
   var totalKey = cfg.stats[0][0];
@@ -505,17 +511,8 @@ function renderEntityOverview(key, d) {
     }
   }
 
-  if (cfg.completeness && d.completeness) {
-    var c = d.completeness;
-    h += '<div class="detail-section">';
-    h += '<div class="detail-section-head">' + secHead('Data Completeness') + '</div>';
-    h += '<div class="stat-row">';
-    for (var j = 0; j < cfg.completeness.length; j++) {
-      var cm = cfg.completeness[j];
-      h += ovCard(cm[1], c[cm[0]], total, '');
-    }
-    h += '</div></div>';
-  }
+  // Completeness is now shown in the Data Quality tab — skip here
+  // (renderDQScore handles completeness display)
 
   if (d.distributions && d.distributions.length > 0) {
     var cols = d.distributions.length >= 2 ? 2 : 1;
@@ -556,6 +553,22 @@ function ovCard(label, value, total, color) {
     h += '<div style="margin-top:6px">' + fillBar(pct, 8, color) + '</div>';
     h += '<div class="stat-label" style="margin-top:3px">' + pct + P + '</div>';
   }
+  h += '</div>';
+  return h;
+}
+
+function pctCard(label, pct, desc, color, count, base) {
+  var v = (typeof pct === 'number' && !isNaN(pct)) ? pct : 0;
+  var h = '<div class="stat-card">';
+  if (typeof count === 'number' && typeof base === 'number') {
+    h += '<div class="stat-value">' + fmtNum(count) + '<span style="font-size:.55em;color:#999;font-weight:400"> / ' + fmtNum(base) + '</span></div>';
+    h += '<div class="stat-label">' + label + ' <span style="font-weight:700;color:' + color + '">' + v + P + '</span></div>';
+  } else {
+    h += '<div class="stat-value">' + v + P + '</div>';
+    h += '<div class="stat-label">' + label + '</div>';
+  }
+  h += '<div style="margin-top:6px">' + fillBar(v, 8, color) + '</div>';
+  h += '<div class="stat-label" style="margin-top:4px;font-size:.7rem;color:#999">' + desc + '</div>';
   h += '</div>';
   return h;
 }
@@ -672,24 +685,21 @@ function populateDetailCatFilter() {
     }
   }
   if (companyDetailCatValue) sel.value = companyDetailCatValue;
-  var bar = document.getElementById('companyCatFilterBar');
   var resetBtn = document.getElementById('companyFilterReset');
-  if (bar) bar.className = companyDetailCatValue ? 'cat-filter-bar active' : 'cat-filter-bar';
   if (resetBtn) resetBtn.style.display = companyDetailCatValue ? '' : 'none';
+  var bar = document.getElementById('companyCatFilterBar');
+  if (bar) bar.classList.toggle('active', !!companyDetailCatValue);
 }
 
 function reloadCompanyDetails() {
   var el = document.getElementById('companyDetailContent');
   if (el) el.innerHTML = '<div style="text-align:center;padding:40px;color:#999">Loading...</div>';
-  fetchCompanyDetails(null);
-}
-
-function togDetailFilter(key) {
-  var pop = document.getElementById(key + 'FilterPopover');
-  if (!pop) return;
-  var isOpen = pop.classList.contains('show');
-  document.querySelectorAll('.detail-filter-popover.show').forEach(function(p) { p.classList.remove('show'); });
-  if (!isOpen) pop.classList.add('show');
+  var crossEl = document.getElementById('companyCrossContent');
+  if (crossEl) crossEl.innerHTML = '<div style="text-align:center;padding:40px;color:#999">Loading...</div>';
+  fetchCompanyDetails(function() {
+    renderDQScore('company');
+    loadCompanyCross(null);
+  });
 }
 
 function onDetailFilterChange(key) {
@@ -703,24 +713,30 @@ function resetDetailFilter(key) {
   reloadCompanyDetails();
 }
 
-document.addEventListener('click', function(e) {
-  if (!e.target.closest('.detail-filter-wrap')) {
-    document.querySelectorAll('.detail-filter-popover.show').forEach(function(p) { p.classList.remove('show'); });
-  }
-});
+// ===========================================================
+// CROSS-ENTITY ANALYSIS (Company)
+// ===========================================================
+var companyCrossData = null;
 
-function renderCompanyDetails(d) {
-  var el = document.getElementById('companyDetailContent');
+function loadCompanyCross(cb) {
+  // Funnel data is now included in CompanyDetailFetch response
+  // No separate AJAX call needed — just render from companyDetailData
+  if (companyDetailData && companyDetailData.funnel) {
+    companyCrossData = companyDetailData;
+    renderCrossEntityFunnel(companyDetailData);
+  }
+  if (cb) cb();
+}
+
+function renderCrossEntityFunnel(d) {
+  var el = document.getElementById('companyCrossContent');
   if (!el) return;
+  var f = d.funnel;
+  if (!f) { el.innerHTML = ''; return; }
+  var segs = f.segments;
+  var m = f.metrics;
   var h = '';
   h += dateFilterNotice();
-  var ah = d.activityHealth;
-  var total = ah ? ah.total : 0;
-
-  var subRight = document.getElementById('companySubTabsRight');
-  if (subRight) {
-    subRight.innerHTML = '<span class="record-badge">' + fmtNum(total) + ' companies</span>';
-  }
 
   // -- Inline category filter bar (always visible) --
   h += '<div class="cat-filter-bar" id="companyCatFilterBar">';
@@ -732,34 +748,245 @@ function renderCompanyDetails(d) {
   h += '<span class="filter-reset-link" id="companyFilterReset" style="display:none" onclick="resetDetailFilter(\'company\')">Reset</span>';
   h += '</div>';
 
-  // 1. DATA QUALITY ISSUES
-  var q = d.quality;
-  if (q && total > 0) {
-    h += '<div class="detail-section">';
-    h += '<div class="detail-section-head">' + secHead('Data Quality Issues') + '</div>';
-    h += '<div class="stat-row">';
-    var issues = [
-      { label: 'No contact person', val: q.noPerson },
-      { label: 'No category', val: q.noCategory },
-      { label: 'No business type', val: q.noBusiness },
-      { label: 'No org. number', val: q.noOrgNr },
-      { label: 'Unreachable', val: q.unreachable }
-    ];
-    for (var i = 0; i < issues.length; i++) {
-      var pct = Math.round((issues[i].val / total) * 1000) / 10;
-      var col = pct < 10 ? 'var(--so-meadow)' : pct < 30 ? 'var(--so-mango)' : 'var(--so-coral)';
-      h += ovCard(issues[i].label, issues[i].val, total, col);
+  // -- CRM Health metrics with context descriptions --
+  h += '<div class="detail-section">';
+  h += '<div class="detail-section-head">' + secHead('CRM Health Pipeline') + '</div>';
+  h += '<div class="stat-row">';
+  h += pctCard('Person Coverage', m.personCoverage, 'Companies with a contact person', slColor(m.personCoverage), f.withPerson, f.total);
+  h += pctCard('Activity Rate', m.activityRate, 'With person + activity in 12 months', slColor(m.activityRate), f.withPersonActivity, f.withPerson);
+  h += pctCard('Pipeline Rate', m.pipelineRate, 'Active companies with an open sale', slColor(m.pipelineRate), f.withPersonActivitySale, f.withPersonActivity);
+  h += pctCard('Overall Health', m.overallHealth, 'Person + activity + sale (fully engaged)', slColor(m.overallHealth), f.withPersonActivitySale, f.total);
+  h += '</div></div>';
+
+  // -- Engagement Funnel (compact: stage + count with %) --
+  var funnelSteps = [
+    { label: 'Total Companies', count: f.total, pct: 100 },
+    { label: 'With Contact Person', count: f.withPerson, pct: f.total > 0 ? Math.round(f.withPerson / f.total * 1000) / 10 : 0 },
+    { label: 'With Activity (12m)', count: f.withPersonActivity, pct: f.total > 0 ? Math.round(f.withPersonActivity / f.total * 1000) / 10 : 0 },
+    { label: 'With Open Sale', count: f.withPersonActivitySale, pct: f.total > 0 ? Math.round(f.withPersonActivitySale / f.total * 1000) / 10 : 0 }
+  ];
+
+  h += '<div class="entity-card">';
+  h += '<div class="entity-header"><div class="entity-info"><h3>Company Engagement Funnel</h3></div>';
+  h += '<span class="record-badge">' + fmtNum(f.total) + ' companies</span></div>';
+  h += '<table class="data-table"><thead><tr>';
+  h += '<th>Stage</th><th class="col-right">Companies</th>';
+  h += '</tr></thead><tbody>';
+  for (var i = 0; i < funnelSteps.length; i++) {
+    var step = funnelSteps[i];
+    h += '<tr>';
+    h += '<td><span style="font-weight:500">' + step.label + '</span></td>';
+    h += '<td class="col-right">' + fmtNum(step.count) + ' <span style="color:#999;font-size:.78rem">' + step.pct + P + '</span></td>';
+    h += '</tr>';
+  }
+  h += '</tbody></table></div>';
+
+  // -- Segments (description middle, bar+% right) --
+  h += '<div class="entity-card">';
+  h += '<div class="entity-header"><div class="entity-info"><h3>Company Segments</h3></div>';
+  h += '<span class="record-badge">4 segments</span></div>';
+  h += '<table class="data-table"><thead><tr>';
+  h += '<th>Segment</th><th class="col-right">Companies</th><th>Description</th><th class="col-right">' + P + '</th>';
+  h += '</tr></thead><tbody>';
+  for (var si = 0; si < segs.length; si++) {
+    var seg = segs[si];
+    var segPct = f.total > 0 ? Math.round(seg.count / f.total * 1000) / 10 : 0;
+    h += '<tr>';
+    h += '<td><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:' + seg.color + ';margin-right:8px;vertical-align:middle"></span>';
+    h += '<span style="font-weight:500">' + seg.name + '</span></td>';
+    h += '<td class="col-right">' + fmtNum(seg.count) + '</td>';
+    h += '<td style="color:var(--so-text-muted);font-size:.82rem">' + seg.description + '</td>';
+    h += '<td class="col-right">' + barCell(segPct, seg.color) + '</td>';
+    h += '</tr>';
+  }
+  h += '</tbody></table></div>';
+
+  el.innerHTML = h;
+}
+
+// ===========================================================
+// DATA QUALITY SCORE (computed frontend from available data)
+// ===========================================================
+function renderDQScore(key) {
+  var el = document.getElementById(key + 'DQScoreContent');
+  if (!el) return;
+
+  var scores = [];
+  var h = '';
+
+  // Company-specific: Issues + Completeness side by side as tables
+  var hasIssues = (key === 'company' && companyDetailData && companyDetailData.quality);
+  var hasCpl = (key === 'company' && overviewData['company'] && overviewData['company'].completeness);
+  if (hasIssues || hasCpl) {
+    var cols = (hasIssues && hasCpl) ? 2 : 1;
+    if (cols === 2) h += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-bottom:18px">';
+
+    if (hasIssues) {
+      var q = companyDetailData.quality;
+      var total = companyDetailData.activityHealth ? companyDetailData.activityHealth.total : 0;
+      if (total > 0) {
+        var issues = [
+          { label: 'No contact person', val: q.noPerson },
+          { label: 'No category', val: q.noCategory },
+          { label: 'No business type', val: q.noBusiness },
+          { label: 'No org. number', val: q.noOrgNr },
+          { label: 'Unreachable', val: q.unreachable }
+        ];
+        h += '<div class="entity-card">';
+        h += '<div class="entity-header"><div class="entity-info"><h3>Data Quality Issues</h3></div>';
+        h += '<span class="record-badge">' + fmtNum(total) + ' companies</span></div>';
+        h += '<table class="data-table"><thead><tr><th>Issue</th><th class="col-right">Count</th><th class="col-right">' + P + '</th></tr></thead><tbody>';
+        for (var i = 0; i < issues.length; i++) {
+          var pct = Math.round((issues[i].val / total) * 1000) / 10;
+          var col = slColorInv(pct);
+          h += '<tr><td>' + issues[i].label + '</td>';
+          h += '<td class="col-right">' + fmtNum(issues[i].val) + '</td>';
+          h += '<td class="col-right">' + barCell(pct, col) + '</td></tr>';
+        }
+        h += '</tbody></table></div>';
+      }
     }
-    h += '</div></div>';
+
+    if (hasCpl) {
+      var ov = overviewData['company'];
+      var c = ov.completeness;
+      var total = ov.overview.total || 0;
+      var ovLabCfg = ovLabels['company'];
+      if (ovLabCfg && ovLabCfg.completeness && total > 0) {
+        h += '<div class="entity-card">';
+        h += '<div class="entity-header"><div class="entity-info"><h3>Standard Field Completeness</h3></div>';
+        h += '<span class="record-badge">' + fmtNum(total) + ' companies</span></div>';
+        h += '<table class="data-table"><thead><tr><th>Field</th><th class="col-right">Filled</th><th class="col-right">' + P + '</th></tr></thead><tbody>';
+        for (var j = 0; j < ovLabCfg.completeness.length; j++) {
+          var cm = ovLabCfg.completeness[j];
+          var val = c[cm[0]] || 0;
+          var pct = Math.round((val / total) * 1000) / 10;
+          h += '<tr><td>' + cm[1] + '</td>';
+          h += '<td class="col-right">' + fmtNum(val) + '</td>';
+          h += '<td class="col-right">' + barCell(pct, '') + '</td></tr>';
+        }
+        h += '</tbody></table></div>';
+      }
+    }
+
+    if (cols === 2) h += '</div>';
+  }
+
+  // DQ Score summary card
+  var dqScore = computeDQScore(key);
+  if (dqScore !== null) {
+    var scoreColor = slColor(dqScore);
+    var scoreHtml = '<div class="dq-score-banner">';
+    scoreHtml += '<div class="dq-score-ring" style="--score:' + dqScore + ';--color:' + scoreColor + '">';
+    scoreHtml += '<span class="dq-score-value">' + dqScore + '<span style="font-size:.5em">%</span></span>';
+    scoreHtml += '</div>';
+    scoreHtml += '<div class="dq-score-info">';
+    scoreHtml += '<div class="dq-score-label">Data Quality Score</div>';
+    scoreHtml += '<div class="dq-score-desc">Based on field completeness, extra field usage and data quality issues</div>';
+    scoreHtml += '</div></div>';
+    h = scoreHtml + h; // prepend score to top
+  }
+
+  h = dateFilterNotice() + h; // filter notice always at very top
+
+  el.innerHTML = h;
+}
+
+function computeDQScore(key) {
+  var scores = [];
+
+  // Completeness score (company only for now)
+  if (key === 'company' && overviewData['company'] && overviewData['company'].completeness) {
+    var c = overviewData['company'].completeness;
+    var total = overviewData['company'].overview.total || 1;
+    var fields = ['orgNr', 'email', 'phone', 'address', 'webpage'];
+    var sum = 0;
+    for (var i = 0; i < fields.length; i++) {
+      sum += (c[fields[i]] || 0) / total * 100;
+    }
+    scores.push(sum / fields.length);
+  }
+
+  // UDEF fill rate score
+  var ec = entityConfig[key];
+  if (ec && ec.udefId > 0 && udefData[ec.udefId]) {
+    var ud = udefData[ec.udefId];
+    if (ud.fields && ud.fields.length > 0) {
+      var udefSum = 0;
+      for (var i = 0; i < ud.fields.length; i++) {
+        udefSum += ud.fields[i].percent;
+      }
+      scores.push(udefSum / ud.fields.length);
+    }
+  }
+
+  // Quality issues score (company only)
+  if (key === 'company' && companyDetailData && companyDetailData.quality && companyDetailData.activityHealth) {
+    var q = companyDetailData.quality;
+    var total = companyDetailData.activityHealth.total || 1;
+    // Invert: lower issues = higher score
+    var issuePct = ((q.noPerson + q.noCategory + q.unreachable) / (total * 3)) * 100;
+    scores.push(100 - issuePct);
+  }
+
+  if (scores.length === 0) return null;
+  var avg = 0;
+  for (var i = 0; i < scores.length; i++) avg += scores[i];
+  return Math.round(avg / scores.length);
+}
+
+// end of DQ score functions
+
+function renderCompanyDetails(d) {
+  var el = document.getElementById('companyDetailContent');
+  if (!el) return;
+  var h = '';
+  // Filter notice is shown at top of Adoption tab (in renderCrossEntityFunnel)
+  var ah = d.activityHealth;
+  var total = ah ? ah.total : 0;
+
+  // 1. ACTIVITY RECENCY — compact stacked bar (replaces standalone Activity Health)
+  var ah = d.activityHealth;
+  if (ah && total > 0) {
+    h += '<div class="detail-section">';
+    h += '<div class="detail-section-head">' + secHead('Activity Recency') + '<span class="record-badge">' + fmtNum(total) + ' companies</span></div>';
+    var ahParts = [
+      { val: ah.active6m, col: 'var(--sl-good)', label: 'Active (6m)' },
+      { val: ah.dormant12m, col: 'var(--sl-ok)', label: 'Cooling (6\u201312m)' },
+      { val: ah.dormantOlder, col: 'var(--sl-warn)', label: 'Dormant (>12m)' },
+      { val: ah.noActivity, col: 'var(--sl-bad)', label: 'No Activity' }
+    ];
+    h += '<div class="stacked-bar" style="height:28px;border-radius:6px">';
+    for (var i = 0; i < ahParts.length; i++) {
+      var pct = ahParts[i].val / total * 100;
+      if (pct > 0) {
+        var segLabel = pct >= 10 ? '<span style="font-size:.72rem;color:#fff;font-weight:600">' + fmtNum(ahParts[i].val) + ' (' + Math.round(pct) + P + ')</span>' : '';
+        h += '<div class="stacked-segment" style="width:' + pct + P + ';background:' + ahParts[i].col + ';display:flex;align-items:center;justify-content:center;overflow:hidden;border-radius:0">' + segLabel + '</div>';
+      }
+    }
+    h += '</div>';
+    h += '<div style="display:flex;gap:16px;margin-top:6px;flex-wrap:wrap">';
+    for (var i = 0; i < ahParts.length; i++) {
+      var pct = Math.round(ahParts[i].val / total * 1000) / 10;
+      h += '<span style="font-size:.75rem;color:#666;display:flex;align-items:center;gap:4px">';
+      h += '<span style="width:8px;height:8px;border-radius:50%;background:' + ahParts[i].col + ';flex-shrink:0"></span>';
+      h += ahParts[i].label + ': ' + fmtNum(ahParts[i].val) + ' (' + pct + P + ')';
+      h += '</span>';
+    }
+    h += '</div>';
+    h += '</div>';
   }
 
   // 1b. REGISTRATION TREND (with active overlay)
   var trend = d.trend;
   var trendMonthly = d.trendMonthly;
   if (trend && trend.length > 0) {
+    // Decide: monthly vs yearly based on filter span
     var useMonthly = false;
     var chartData = [];
     var firstIdx = 0;
+
+    // Check if filter is ≤24 months (yearly data has ≤2 non-zero years)
     var nonZeroYears = 0;
     for (var i = 0; i < trend.length; i++) { if (trend[i].count > 0) nonZeroYears++; }
     if (nonZeroYears <= 2 && trendMonthly && trendMonthly.length > 0) {
@@ -772,6 +999,8 @@ function renderCompanyDetails(d) {
         chartData.push({ label: '' + trend[i].year, count: trend[i].count, active: trend[i].active || 0 });
       }
     }
+
+    // Trim leading zeros
     firstIdx = 0;
     for (var i = 0; i < chartData.length; i++) { if (chartData[i].count > 0 || chartData[i].active > 0) { firstIdx = i; break; } }
     var visibleData = chartData.slice(firstIdx);
@@ -780,6 +1009,7 @@ function renderCompanyDetails(d) {
       if (visibleData[i].count > maxCount) maxCount = visibleData[i].count;
       if (visibleData[i].active > maxCount) maxCount = visibleData[i].active;
     }
+
     if (maxCount > 0 && visibleData.length > 1) {
       var beforeTotal = d.trendBefore || 0;
       if (!useMonthly) {
@@ -803,12 +1033,15 @@ function renderCompanyDetails(d) {
       var ySteps = 4;
       var yStep = niceMax / ySteps;
       var step = (plotW - 2 * dataInset) / (visibleData.length - 1);
+
+      // Compute registration line points
       var pts = [];
       for (var i = 0; i < visibleData.length; i++) {
         var px = padL + dataInset + i * step;
         var py = padT + plotH - (visibleData[i].count / niceMax) * plotH;
         pts.push(px.toFixed(1) + ',' + py.toFixed(1));
       }
+      // Compute active overlay points
       var hasActiveData = false;
       var aPts = [];
       for (var i = 0; i < visibleData.length; i++) {
@@ -817,25 +1050,31 @@ function renderCompanyDetails(d) {
         var py = padT + plotH - (visibleData[i].active / niceMax) * plotH;
         aPts.push(px.toFixed(1) + ',' + py.toFixed(1));
       }
+
       var areaPath = 'M' + (padL + dataInset) + ',' + (padT + plotH) + ' L' + pts.join(' L') + ' L' + (padL + dataInset + (visibleData.length - 1) * step).toFixed(1) + ',' + (padT + plotH) + ' Z';
       h += '<svg viewBox="0 0 ' + cW + ' ' + cH + '" style="width:100%;height:auto;display:block;max-height:280px">';
+      // Y grid
       for (var gi = 0; gi <= ySteps; gi++) {
         var gy = padT + plotH - (gi / ySteps) * plotH;
         var yVal = Math.round(gi * yStep);
         h += '<line x1="' + padL + '" y1="' + gy.toFixed(1) + '" x2="' + (cW - padR) + '" y2="' + gy.toFixed(1) + '" stroke="#e0dfdc" stroke-width="1"/>';
         h += '<text x="' + (padL - 8) + '" y="' + (gy + 4).toFixed(1) + '" text-anchor="end" fill="#999" font-size="11" font-family="DM Sans,sans-serif">' + fmtNum(yVal) + '</text>';
       }
+      // Registration area + line
       h += '<path d="' + areaPath + '" fill="rgba(22,91,112,0.06)"/>';
       h += '<polyline points="' + pts.join(' ') + '" fill="none" stroke="var(--so-green)" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>';
+      // Active overlay line (dashed)
       if (hasActiveData) {
         h += '<polyline points="' + aPts.join(' ') + '" fill="none" stroke="var(--sl-good)" stroke-width="2" stroke-dasharray="6,4" stroke-linejoin="round" stroke-linecap="round"/>';
       }
+      // Data points + labels
       for (var i = 0; i < visibleData.length; i++) {
         var xy = pts[i].split(',');
         h += '<circle cx="' + xy[0] + '" cy="' + xy[1] + '" r="4" fill="var(--so-green)" stroke="#fff" stroke-width="2"/>';
         if (visibleData[i].count > 0) {
           h += '<text x="' + xy[0] + '" y="' + (parseFloat(xy[1]) - 10).toFixed(1) + '" text-anchor="middle" fill="var(--so-charcoal)" font-size="10" font-weight="600" font-family="DM Sans,sans-serif">' + fmtNum(visibleData[i].count) + '</text>';
         }
+        // Active dot + label (below the dot, skip when same as count)
         if (hasActiveData) {
           var axy = aPts[i].split(',');
           h += '<circle cx="' + axy[0] + '" cy="' + axy[1] + '" r="3" fill="var(--sl-good)" stroke="#fff" stroke-width="1.5"/>';
@@ -843,6 +1082,7 @@ function renderCompanyDetails(d) {
             h += '<text x="' + axy[0] + '" y="' + (parseFloat(axy[1]) + 14).toFixed(1) + '" text-anchor="middle" fill="var(--sl-good)" font-size="9" font-weight="600" font-family="DM Sans,sans-serif">' + visibleData[i].active + '</text>';
           }
         }
+        // X labels (show all, rotate monthly for readability)
         var displayLabel = useMonthly ? visibleData[i].label.replace('-', '/') : visibleData[i].label;
         if (useMonthly) {
           h += '<text x="' + xy[0] + '" y="' + (padT + plotH + 14) + '" text-anchor="end" fill="#999" font-size="9" font-family="DM Sans,sans-serif" transform="rotate(-45,' + xy[0] + ',' + (padT + plotH + 14) + ')">' + displayLabel + '</text>';
@@ -851,6 +1091,7 @@ function renderCompanyDetails(d) {
         }
       }
       h += '</svg>';
+      // Legend
       h += '<div style="display:flex;gap:16px;margin-top:4px;padding-left:' + padL + 'px">';
       h += '<span style="font-size:.75rem;color:#666;display:flex;align-items:center;gap:4px"><span style="width:12px;height:3px;background:var(--so-green);border-radius:2px"></span> Registered</span>';
       if (hasActiveData) {
@@ -885,14 +1126,14 @@ function renderCompanyDetails(d) {
       var pctAct = c.total > 0 ? Math.round((c.withActivity / c.total) * 1000) / 10 : 0;
       var pctSale = c.total > 0 ? Math.round((c.withSale / c.total) * 1000) / 10 : 0;
       var engagement = c.total > 0 ? Math.round((c.withActivity * 0.5 + c.withPerson * 0.3 + c.withSale * 0.2) / c.total * 100) : 0;
-      var engCol = engagement >= 50 ? 'var(--so-meadow)' : engagement >= 25 ? 'var(--so-mango)' : 'var(--so-coral)';
+      var engCol = slColor(engagement);
       h += '<tr>';
       h += '<td data-sort-value="' + c.name + '">' + c.name + '</td>';
       h += '<td class="col-right" data-sort-value="' + c.total + '">' + fmtNum(c.total) + '</td>';
       h += '<td class="col-right" data-sort-value="' + pctPers + '">' + fmtNum(c.withPerson) + '<span style="color:#999;font-size:.75rem;margin-left:4px">' + pctPers + P + '</span></td>';
       h += '<td class="col-right" data-sort-value="' + pctAct + '">' + fmtNum(c.withActivity) + '<span style="color:#999;font-size:.75rem;margin-left:4px">' + pctAct + P + '</span></td>';
       h += '<td class="col-right" data-sort-value="' + pctSale + '">' + fmtNum(c.withSale) + '<span style="color:#999;font-size:.75rem;margin-left:4px">' + pctSale + P + '</span></td>';
-      h += '<td class="col-right" data-sort-value="' + engagement + '">' + fillBar(engagement, 8, engCol) + '<span style="color:#999;font-size:.75rem;margin-left:6px">' + engagement + P + '</span></td>';
+      h += '<td class="col-right" data-sort-value="' + engagement + '">' + barCell(engagement, engCol) + '</td>';
       h += '</tr>';
     }
     h += '</tbody></table></div>';
@@ -957,7 +1198,7 @@ function renderCompanyDetails(d) {
       r += '<td class="col-right" data-sort-value="' + a.withActivities + '">' + fmtNum(a.withActivities) + '<span style="color:#999;font-size:.75rem;margin-left:4px">' + pctAct + P + '</span></td>';
       r += '<td class="col-right" data-sort-value="' + a.withEmail + '">' + fmtNum(a.withEmail) + '<span style="color:#999;font-size:.75rem;margin-left:4px">' + pctEm + P + '</span></td>';
       r += '<td class="col-right" data-sort-value="' + stale + '">' + fmtNum(stale) + '<span style="color:#999;font-size:.75rem;margin-left:4px">' + pctStale + P + '</span></td>';
-      r += '<td class="col-right" data-sort-value="' + compP + '">' + fillBar(compP, 8, '') + '<span style="color:#999;font-size:.75rem;margin-left:6px">' + compP + P + '</span></td>';
+      r += '<td class="col-right" data-sort-value="' + compP + '">' + barCell(compP, '') + '</td>';
       r += '</tr>';
       return r;
     }
@@ -975,7 +1216,7 @@ function renderCompanyDetails(d) {
         h += '<td class="col-right" data-sort-value="' + g.withActivities + '">' + fmtNum(g.withActivities) + '</td>';
         h += '<td class="col-right" data-sort-value="' + g.withEmail + '">' + fmtNum(g.withEmail) + '</td>';
         h += '<td class="col-right" data-sort-value="' + g.stale + '">' + fmtNum(g.stale) + '<span style="color:#999;font-size:.75rem;margin-left:4px">' + gPctStale + P + '</span></td>';
-        h += '<td class="col-right" data-sort-value="' + gCompP + '">' + fillBar(gCompP, 8, '') + '<span style="color:#999;font-size:.75rem;margin-left:6px">' + gCompP + P + '</span></td>';
+        h += '<td class="col-right" data-sort-value="' + gCompP + '">' + barCell(gCompP, '') + '</td>';
         h += '</tr>';
         for (var mi = 0; mi < g.members.length; mi++) {
           h += assocRow(g.members[mi]);
