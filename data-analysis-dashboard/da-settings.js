@@ -14,6 +14,9 @@
       completenessFields: ['email', 'phone', 'person', 'category', 'orgNr'],
       dqWeights: { completeness: 40, udef: 30, quality: 30 },
       qualityIssueFields: ['noPerson', 'noCategory', 'noBusiness', 'unreachable'],
+      // UDEF field importance: { progId: 'required' | 'normal' | 'excluded' }
+      // Empty = all fields treated as 'normal' (auto-discovered)
+      udefFieldConfig: {},
 
       // --- ADOPTION ---
       engagementWeights: { withActivity: 50, withPerson: 30, withPipeline: 20 },
@@ -135,6 +138,7 @@
         for (var w in s.dqWeights) { r.dqWeights[w] = s.dqWeights[w]; }
       }
       if (s.qualityIssueFields) r.qualityIssueFields = s.qualityIssueFields.slice();
+      if (s.udefFieldConfig) r.udefFieldConfig = deepClone(s.udefFieldConfig);
       if (s.engagementWeights) {
         for (var w in s.engagementWeights) { r.engagementWeights[w] = s.engagementWeights[w]; }
       }
@@ -189,13 +193,23 @@
       scores.completeness = sum / s.completenessFields.length;
     }
 
-    // 2. UDEF fill rate
+    // 2. UDEF fill rate (with field importance weighting)
     if (udefData && udefData.fields && udefData.fields.length > 0) {
+      var s_udef = s.udefFieldConfig || {};
       var udefSum = 0;
+      var udefWeight = 0;
       for (var i = 0; i < udefData.fields.length; i++) {
-        udefSum += udefData.fields[i].percent;
+        var f = udefData.fields[i];
+        var progId = f.progId || f.label || ('field_' + i);
+        var importance = s_udef[progId] || 'normal';
+        if (importance === 'excluded') continue;
+        var w = (importance === 'required') ? 2 : 1;
+        udefSum += f.percent * w;
+        udefWeight += w;
       }
-      scores.udef = udefSum / udefData.fields.length;
+      if (udefWeight > 0) {
+        scores.udef = udefSum / udefWeight;
+      }
     }
 
     // 3. Quality issues (inverted: fewer issues = higher score)
@@ -272,6 +286,31 @@
   }
 
   // ============================================================
+  // UDEF FIELD DISCOVERY — populated when UDEF data loads
+  // ============================================================
+  var _discoveredUdefFields = []; // [{ progId, label, type, percent }]
+
+  function notifyUdefLoaded(entityId, udefResult) {
+    if (entityId !== 7) return; // Only company for now
+    if (!udefResult || !udefResult.fields) return;
+    _discoveredUdefFields = [];
+    for (var i = 0; i < udefResult.fields.length; i++) {
+      var f = udefResult.fields[i];
+      _discoveredUdefFields.push({
+        progId: f.progId || f.label || ('field_' + i),
+        label: f.label,
+        type: f.type,
+        percent: f.percent
+      });
+    }
+    // Re-render if settings panel is visible
+    var panel = document.getElementById('settings-quality');
+    if (panel && panel.classList.contains('active')) {
+      renderSettingsPanel();
+    }
+  }
+
+  // ============================================================
   // SETTINGS PANEL — render into existing DA_Main structure
   // ============================================================
 
@@ -340,9 +379,46 @@
     h += '</div>';
 
     h += '</div>'; // end grid
-    h += '</div>'; // end section
 
-    // ---- ADOPTION SECTION ----
+    // UDEF Field Importance (outside grid, full width)
+    h += '<div style="max-width:820px;margin:0 auto;padding:0 20px 0 20px">';
+    h += '<div class="settings-card" style="margin-top:0">';
+    h += '<h3>Custom Field Importance (UDEF)</h3>';
+    h += '<div class="settings-desc">Set importance per custom field. <strong>Required</strong> fields count double in the DQ score. <strong>Excluded</strong> fields are ignored.</div>';
+
+    if (_discoveredUdefFields.length === 0) {
+      h += '<div class="udef-config-empty">';
+      h += '<span style="color:var(--so-text-muted);font-size:.82rem">Run the analysis first to discover custom fields, or navigate to Company to load UDEF data.</span>';
+      h += '</div>';
+    } else {
+      h += '<table class="data-table udef-config-table"><thead><tr>';
+      h += '<th>Field</th><th>Type</th><th class="col-right">Fill %</th><th style="width:160px">Importance</th>';
+      h += '</tr></thead><tbody>';
+      for (var ui = 0; ui < _discoveredUdefFields.length; ui++) {
+        var uf = _discoveredUdefFields[ui];
+        var curImp = s.udefFieldConfig[uf.progId] || 'normal';
+        var fillCol = uf.percent >= 70 ? 'var(--sl-good)' : (uf.percent >= 30 ? 'var(--sl-ok)' : 'var(--sl-bad)');
+        var escId = uf.progId.replace(/'/g, "\\'");
+        h += '<tr class="udef-row' + (curImp === 'excluded' ? ' udef-excluded' : '') + '" data-udef-progid="' + uf.progId + '">';
+        h += '<td><span style="font-weight:500">' + uf.label + '</span>';
+        h += '<span style="display:block;font-size:.7rem;color:var(--so-text-muted)">' + uf.progId + '</span></td>';
+        h += '<td style="font-size:.78rem;color:var(--so-text-muted)">' + (uf.type || '') + '</td>';
+        h += '<td class="col-right"><span style="font-weight:600;color:' + fillCol + '">' + uf.percent + '%</span></td>';
+        h += '<td>';
+        h += '<div class="udef-imp-toggle">';
+        h += '<button class="udef-imp-btn' + (curImp === 'required' ? ' active req' : '') + '" onclick="daSettings.setUdefImportance(\'' + escId + '\',\'required\',this)">Required</button>';
+        h += '<button class="udef-imp-btn' + (curImp === 'normal' ? ' active norm' : '') + '" onclick="daSettings.setUdefImportance(\'' + escId + '\',\'normal\',this)">Normal</button>';
+        h += '<button class="udef-imp-btn' + (curImp === 'excluded' ? ' active excl' : '') + '" onclick="daSettings.setUdefImportance(\'' + escId + '\',\'excluded\',this)">Excluded</button>';
+        h += '</div>';
+        h += '</td>';
+        h += '</tr>';
+      }
+      h += '</tbody></table>';
+    }
+    h += '</div>';
+    h += '</div>';
+
+    h += '</div>'; // end section
     h += '<div class="settings-section">';
     h += '<div class="settings-section-head">Adoption</div>';
 
@@ -478,6 +554,31 @@
     updatePresetDesc();
   }
 
+  function setUdefImportance(progId, importance, btn) {
+    // Update visual state
+    var toggle = btn.parentElement;
+    var btns = toggle.querySelectorAll('.udef-imp-btn');
+    for (var i = 0; i < btns.length; i++) {
+      btns[i].className = 'udef-imp-btn';
+    }
+    btn.className = 'udef-imp-btn active ' + (importance === 'required' ? 'req' : (importance === 'normal' ? 'norm' : 'excl'));
+
+    // Dim/undim the row
+    var row = btn.closest('tr');
+    if (row) {
+      if (importance === 'excluded') {
+        row.classList.add('udef-excluded');
+      } else {
+        row.classList.remove('udef-excluded');
+      }
+    }
+
+    // Mark preset as custom
+    var presetSel = document.getElementById('settingsPreset');
+    if (presetSel) presetSel.value = '';
+    updatePresetDesc();
+  }
+
   function applyPreset(presetKey) {
     if (!presetKey || !PRESETS[presetKey]) return;
     var ps = PRESETS[presetKey].settings;
@@ -510,6 +611,18 @@
     var radios = document.querySelectorAll('input[name="pipelineType"]');
     for (var i = 0; i < radios.length; i++) {
       radios[i].checked = radios[i].value === ps.pipelineType;
+    }
+
+    // Reset all UDEF fields to 'normal'
+    var udefToggles = document.querySelectorAll('.udef-imp-toggle');
+    for (var i = 0; i < udefToggles.length; i++) {
+      var btns = udefToggles[i].querySelectorAll('.udef-imp-btn');
+      for (var j = 0; j < btns.length; j++) {
+        btns[j].className = 'udef-imp-btn';
+        if (btns[j].textContent === 'Normal') btns[j].className = 'udef-imp-btn active norm';
+      }
+      var row = udefToggles[i].closest('tr');
+      if (row) row.classList.remove('udef-excluded');
     }
 
     updatePresetDesc();
@@ -587,6 +700,24 @@
       if (radios[i].checked) { pipelineType = radios[i].value; break; }
     }
 
+    // Read UDEF field importance
+    var udefConfig = {};
+    var udefRows = document.querySelectorAll('.udef-imp-toggle');
+    for (var i = 0; i < udefRows.length; i++) {
+      var activeBtn = udefRows[i].querySelector('.udef-imp-btn.active');
+      if (activeBtn) {
+        var progId = activeBtn.getAttribute('onclick').match(/setUdefImportance\('([^']+)'/);
+        if (progId && progId[1]) {
+          var val = 'normal';
+          if (activeBtn.classList.contains('req')) val = 'required';
+          if (activeBtn.classList.contains('excl')) val = 'excluded';
+          if (val !== 'normal') {
+            udefConfig[progId[1]] = val;
+          }
+        }
+      }
+    }
+
     // Validate weights sum to 100
     var dqTotal = (dqW.completeness || 0) + (dqW.udef || 0) + (dqW.quality || 0);
     var engTotal = (engW.withActivity || 0) + (engW.withPerson || 0) + (engW.withPipeline || 0);
@@ -604,6 +735,7 @@
       completenessFields: cplFields,
       dqWeights: { completeness: dqW.completeness, udef: dqW.udef, quality: dqW.quality },
       qualityIssueFields: qiFields,
+      udefFieldConfig: udefConfig,
       engagementWeights: { withActivity: engW.withActivity, withPerson: engW.withPerson, withPipeline: engW.withPipeline },
       pipelineType: pipelineType
     };
@@ -677,6 +809,7 @@
     getCompletenessValue: getCompletenessValue,
     getPipelineLabel: getPipelineLabel,
     getPipelineType: getPipelineType,
+    notifyUdefLoaded: notifyUdefLoaded,
     COMPLETENESS_OPTIONS: COMPLETENESS_OPTIONS,
     QUALITY_ISSUE_OPTIONS: QUALITY_ISSUE_OPTIONS,
 
@@ -684,6 +817,7 @@
     onSliderChange: onSliderChange,
     onFieldToggle: onFieldToggle,
     onPipelineChange: onPipelineChange,
+    setUdefImportance: setUdefImportance,
     applyPreset: applyPreset,
     save: save,
     resetToDefaults: resetToDefaults
