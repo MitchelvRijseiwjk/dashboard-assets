@@ -75,6 +75,7 @@ function loadEntityUdef(entityId, entityKey, udefIdx, callback) {
 
   ajax(udefUrl + String.fromCharCode(38) + 'entityId=' + entityId + getDateFilterParam(), function(d) {
     udefData[entityId] = d;
+    if (typeof daSettings !== 'undefined' && daSettings.notifyUdefLoaded) daSettings.notifyUdefLoaded(entityId, d);
     if (barEl) barEl.style.width = '100' + P;
     if (statusEl) statusEl.textContent = 'Complete!';
     if (startEl) startEl.style.display = 'none';
@@ -95,6 +96,7 @@ function loadEntityUdefQuiet(entityId, entityKey, udefIdx, callback) {
 
   ajax(udefUrl + String.fromCharCode(38) + 'entityId=' + entityId + getDateFilterParam(), function(d) {
     udefData[entityId] = d;
+    if (typeof daSettings !== 'undefined' && daSettings.notifyUdefLoaded) daSettings.notifyUdefLoaded(entityId, d);
     if (d && summaryEl) {
       summaryEl.textContent = d.fields.length + ' active extra fields. Click column headers to sort.';
       if (cardsEl) cardsEl.innerHTML = renderUdef(d, udefIdx);
@@ -359,6 +361,7 @@ function startFullEntity(key) {
   if (ec && ec.udefId > 0) {
     ajax(udefUrl + String.fromCharCode(38) + 'entityId=' + ec.udefId + dfParam, function(d) {
       udefData[ec.udefId] = d;
+      if (typeof daSettings !== 'undefined' && daSettings.notifyUdefLoaded) daSettings.notifyUdefLoaded(ec.udefId, d);
       var cardsEl = document.getElementById(tabKey + 'UdefCards');
       var summaryEl = document.getElementById(tabKey + 'UdefSummary');
       if (d && summaryEl) {
