@@ -10,6 +10,9 @@
       --sl-good:#2e7d32; --sl-ok:#f9a825; --sl-warn:#ef6c00; --sl-bad:#c62828;
     }
 
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'DM Sans', sans-serif; display: flex; height: 100vh; background: var(--so-bg); color: var(--so-charcoal); overflow: hidden; }
+
     /* === SETTINGS TABS === */
     .settings-tabs{display:flex;align-items:center;gap:0;border-bottom:1px solid var(--so-border);padding:0 28px;background:#f8f7f5}
     .settings-tab{padding:11px 20px;font-size:.88rem;font-weight:500;color:var(--so-text-muted);cursor:pointer;border-bottom:2px solid transparent;transition:all .15s;white-space:nowrap;margin-bottom:-1px}
