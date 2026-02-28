@@ -35,7 +35,7 @@
     /* Settings — sections & layout */
     .s-section{margin-bottom:8px;max-width:820px;margin-left:auto;margin-right:auto;padding:0 20px}
     .s-section:first-child{padding-top:4px}
-    .s-section-head{font-size:.78rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--so-green);margin-bottom:10px;margin-top:24px;padding-bottom:5px;border-bottom:2px solid var(--so-coast);display:flex;align-items:center;gap:6px}
+    .s-section-head{font-size:.92rem;font-weight:600;letter-spacing:0;color:var(--so-green);margin-bottom:10px;margin-top:22px;padding-bottom:0;border-bottom:none;display:flex;align-items:center;gap:6px}
     .s-section .s-grid{padding:0;margin:0 0 12px 0;max-width:none}
     .s-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;max-width:820px;margin:0 auto}
 
@@ -117,11 +117,11 @@
     .s-entity-tab{padding:10px 20px;font-size:.84rem;font-weight:500;color:var(--so-text-muted);cursor:pointer;border-bottom:2px solid transparent;transition:all .15s;white-space:nowrap;margin-bottom:-2px;background:none;border-top:none;border-left:none;border-right:none;font-family:inherit;display:flex;align-items:center;gap:7px}
     .s-entity-tab:hover{color:var(--so-charcoal);background:rgba(0,0,0,.02)}
     .s-entity-tab.active{color:var(--so-green);border-bottom-color:var(--so-green);font-weight:600}
-    .s-entity-ico{width:18px;height:18px;opacity:.55}
+    .s-entity-ico{width:17px;height:17px;opacity:.55;vertical-align:middle;margin-top:-1px}
     .s-entity-tab.active .s-entity-ico{opacity:.85}
 
     /* Overall Health card */
-    .s-health-card{background:var(--so-white);border:1.5px solid var(--so-coast);border-radius:12px;padding:20px 22px;margin:0 auto 16px;max-width:820px;box-shadow:0 2px 12px rgba(6,66,62,.06)}
+    .s-health-card{background:var(--so-white);border:1px solid var(--so-border);border-radius:12px;padding:20px 22px;margin:0 auto 16px;max-width:820px;box-shadow:0 2px 12px rgba(0,0,0,.04)}
     .s-health-card h3{font-size:1rem;font-weight:700;color:var(--so-green);margin-bottom:2px;display:flex;align-items:center;gap:8px}
     .s-health-card .settings-desc{font-size:.78rem;color:var(--so-text-muted);margin-bottom:14px}
 
