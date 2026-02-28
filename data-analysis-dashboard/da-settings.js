@@ -1,161 +1,255 @@
-// da-settings.js v3 — Settings Manager
-// Unified field importance for standard + UDEF fields
-// Collapsible UDEF section, better toggle UX
+// da-settings.js v4 — Multi-Entity Settings Manager
+// 3 Scores (Data Quality, Data Integrity, Adoption) + Overall Health
+// H/M/L weight system, per-entity configuration
 
 (function() {
   'use strict';
 
-  // ============================================================
-  // FIELD & OPTION DEFINITIONS
-  // ============================================================
-  var STD_FIELDS = [
-    { key: 'email',    label: 'Email address' },
-    { key: 'phone',    label: 'Phone number' },
-    { key: 'person',   label: 'Contact person' },
-    { key: 'category', label: 'Category' },
-    { key: 'orgNr',    label: 'Org. number' },
-    { key: 'business', label: 'Business type' },
-    { key: 'address',  label: 'Address' },
-    { key: 'webpage',  label: 'Webpage' }
-  ];
+  var POINTS = { high: 3, medium: 2, low: 1 };
+  var _mode = 'full';
 
-  var QUALITY_ISSUES = [
-    { key: 'noPerson',    label: 'No contact person' },
-    { key: 'noCategory',  label: 'No category' },
-    { key: 'noBusiness',  label: 'No business type' },
-    { key: 'unreachable', label: 'Unreachable (no email or phone)' },
-    { key: 'noOrgNr',     label: 'No org. number' }
-  ];
+  // ============================================================
+  // ENTITY DEFINITIONS — fields, checks, engagement per entity
+  // ============================================================
+  var ENTITY_DEFS = {
+    company: {
+      label: 'Company', entityId: 7,
+      stdFields: [
+        { key: 'email',    label: 'Email address' },
+        { key: 'phone',    label: 'Phone number' },
+        { key: 'category', label: 'Category' },
+        { key: 'business', label: 'Business type' },
+        { key: 'orgNr',    label: 'Org. number' },
+        { key: 'address',  label: 'Address' },
+        { key: 'postcode', label: 'Postcode' },
+        { key: 'country',  label: 'Country' },
+        { key: 'webpage',  label: 'Webpage' }
+      ],
+      integrityChecks: [
+        { key: 'noPerson',      label: 'No contact person',  desc: 'Company has zero linked persons' },
+        { key: 'unreachable',   label: 'Unreachable company', desc: 'No person has an email or phone number' },
+        { key: 'noActivity12m', label: 'No recent activity',  desc: 'No activities logged in the last 12 months', isNew: true },
+        { key: 'noOwner',       label: 'No owner',            desc: 'Company has no assigned associate/owner', isNew: true }
+      ],
+      engagementComponents: [
+        { key: 'withPerson',   label: 'Persons',    alwaysOn: true },
+        { key: 'withActivity', label: 'Activities',  alwaysOn: true },
+        { key: 'withPipeline', label: 'Pipeline',    alwaysOn: false }
+      ],
+      hasPipelineConfig: true
+    },
+    contact: {
+      label: 'Contact', entityId: 6,
+      stdFields: [
+        { key: 'firstName', label: 'First name' },
+        { key: 'lastName',  label: 'Last name' },
+        { key: 'email',     label: 'Email' },
+        { key: 'phone',     label: 'Phone' },
+        { key: 'position',  label: 'Position/Title' },
+        { key: 'mrMrs',     label: 'Mr/Ms' }
+      ],
+      integrityChecks: [
+        { key: 'noEmail',     label: 'No email address',     desc: 'Person has no email — unreachable digitally' },
+        { key: 'noCompany',   label: 'Not linked to company', desc: 'Person is not associated with any company' },
+        { key: 'noActivity',  label: 'No activity',          desc: 'No logged activity in 12 months', isNew: true }
+      ],
+      engagementComponents: [
+        { key: 'withActivity', label: 'Activities',    alwaysOn: true },
+        { key: 'withSales',    label: 'Linked Sales',  alwaysOn: false }
+      ],
+      hasPipelineConfig: false
+    },
+    sale: {
+      label: 'Sale', entityId: 10,
+      stdFields: [
+        { key: 'amount',      label: 'Amount' },
+        { key: 'saleType',    label: 'Sale type' },
+        { key: 'stage',       label: 'Stage' },
+        { key: 'probability', label: 'Probability' },
+        { key: 'closeDate',   label: 'Close date' },
+        { key: 'competitor',  label: 'Competitor' },
+        { key: 'source',      label: 'Source' }
+      ],
+      integrityChecks: [
+        { key: 'noContact',     label: 'No contact linked',  desc: 'Sale has no associated contact person' },
+        { key: 'staleSale',     label: 'Stale sale',         desc: 'Open sale past expected close date' },
+        { key: 'noActivities',  label: 'No activities logged', desc: 'Sale has zero linked activities' },
+        { key: 'noAmount',      label: 'No amount',          desc: 'Sale amount is zero or empty', isNew: true }
+      ],
+      engagementComponents: [
+        { key: 'withActivity',     label: 'Activities logged',  alwaysOn: true },
+        { key: 'stageProgression', label: 'Stage progression',  alwaysOn: true }
+      ],
+      hasPipelineConfig: false
+    },
+    project: {
+      label: 'Project', entityId: 11,
+      stdFields: [
+        { key: 'projectType', label: 'Project type' },
+        { key: 'status',      label: 'Status' },
+        { key: 'endDate',     label: 'End date' },
+        { key: 'description', label: 'Description' }
+      ],
+      integrityChecks: [
+        { key: 'noMembers',    label: 'No members',    desc: 'Project has zero members assigned' },
+        { key: 'noActivities', label: 'No activities',  desc: 'Project has zero linked activities' }
+      ],
+      engagementComponents: [
+        { key: 'withActivity',     label: 'Activities logged',   alwaysOn: true },
+        { key: 'memberEngagement', label: 'Member engagement',   alwaysOn: true }
+      ],
+      hasPipelineConfig: false
+    }
+  };
+
+  var ENTITY_ORDER = ['company', 'contact', 'sale', 'project'];
 
   var PIPE_OPTS = [
-    { key: 'sale', label: 'Open Sale',           desc: 'Companies with an open sale opportunity' },
-    { key: 'project', label: 'Active Project',   desc: 'Companies with an active project', soon: true },
-    { key: 'both', label: 'Sale or Project',     desc: 'Companies with either sale or project', soon: true },
+    { key: 'sale', label: 'Open Sale', desc: 'Companies with an open sale opportunity' },
     { key: 'none', label: 'None (activity only)', desc: 'Funnel stops at activity — for relationship-only CRM' }
   ];
 
-  var PRESETS = {
-    standard: { label: 'Standard', desc: 'Balanced scoring for general CRM usage',
-      s: { std: { email:'required', phone:'required', person:'required', category:'required', orgNr:'normal', business:'excluded', address:'excluded', webpage:'excluded' }, dqW: {c:40,u:30,q:30}, qi: ['noPerson','noCategory','noBusiness','unreachable'], engW: {a:50,p:30,s:20}, pipe:'sale' }},
-    salesFocus: { label: 'Sales Focus', desc: 'Emphasizes pipeline and commercial data quality',
-      s: { std: { email:'required', phone:'required', person:'required', category:'required', orgNr:'required', business:'normal', address:'excluded', webpage:'excluded' }, dqW: {c:30,u:20,q:50}, qi: ['noPerson','noCategory','unreachable'], engW: {a:35,p:25,s:40}, pipe:'sale' }},
-    serviceFocus: { label: 'Service Focus', desc: 'Emphasizes reachability and contact data',
-      s: { std: { email:'required', phone:'required', person:'required', category:'normal', orgNr:'excluded', business:'excluded', address:'normal', webpage:'excluded' }, dqW: {c:50,u:20,q:30}, qi: ['noPerson','unreachable'], engW: {a:60,p:30,s:10}, pipe:'none' }},
-    projectBased: { label: 'Project Based', desc: 'For organizations using projects, not sales',
-      s: { std: { email:'required', phone:'normal', person:'required', category:'required', orgNr:'normal', business:'excluded', address:'excluded', webpage:'excluded' }, dqW: {c:40,u:30,q:30}, qi: ['noPerson','noCategory','noBusiness'], engW: {a:50,p:30,s:20}, pipe:'project' }}
-  };
+  // ============================================================
+  // DEFAULT SETTINGS GENERATOR (per entity)
+  // ============================================================
+  function entityDefaults(entityKey) {
+    var def = ENTITY_DEFS[entityKey];
+    if (!def) return null;
+    var stdCfg = {};
+    for (var i = 0; i < def.stdFields.length; i++) {
+      var f = def.stdFields[i];
+      if (i < 3) stdCfg[f.key] = 'required';
+      else if (i < def.stdFields.length - 2) stdCfg[f.key] = 'normal';
+      else stdCfg[f.key] = 'excluded';
+    }
+    var intCfg = {};
+    for (var i = 0; i < def.integrityChecks.length; i++) {
+      var c = def.integrityChecks[i];
+      if (i < 2) intCfg[c.key] = { enabled: true, weight: 'high' };
+      else if (c.isNew) intCfg[c.key] = { enabled: false, weight: 'low' };
+      else intCfg[c.key] = { enabled: true, weight: 'medium' };
+    }
+    var engCfg = {};
+    for (var i = 0; i < def.engagementComponents.length; i++) {
+      var e = def.engagementComponents[i];
+      engCfg[e.key] = { enabled: true, weight: i < 2 ? 'high' : 'low' };
+    }
+    return {
+      healthWeights: { dq: 'high', integrity: 'medium', adoption: 'high' },
+      healthExclude: { integrity: false, adoption: false },
+      stdFieldConfig: stdCfg,
+      udefFieldConfig: {},
+      integrityConfig: intCfg,
+      engagementConfig: engCfg,
+      pipelineType: 'sale'
+    };
+  }
 
-  // Defaults
-  var DEF = {
-    stdFieldConfig: { email:'required', phone:'required', person:'required', category:'required', orgNr:'normal', business:'excluded', address:'excluded', webpage:'excluded' },
-    udefFieldConfig: {},
-    dqWeights: { completeness:40, udef:30, quality:30 },
-    qualityIssueFields: ['noPerson','noCategory','noBusiness','unreachable'],
-    engagementWeights: { withActivity:50, withPerson:30, withPipeline:20 },
-    pipelineType: 'sale'
-  };
+  function allDefaults() {
+    var d = {};
+    for (var i = 0; i < ENTITY_ORDER.length; i++) d[ENTITY_ORDER[i]] = entityDefaults(ENTITY_ORDER[i]);
+    return d;
+  }
 
   // ============================================================
   // STATE
   // ============================================================
-  var SK = 'da_settings_v2';
+  var SK = 'da_settings_v3';
   var _s = null;
-  var _udefFields = [];
+  var _udefFields = {};
   var _activeId = null;
+  var _activeEntity = 'company';
 
   function clone(o) { return JSON.parse(JSON.stringify(o)); }
 
   function load() {
     try {
       var raw = localStorage.getItem(SK);
-      if (raw) { _s = migrate(JSON.parse(raw)); return; }
-      // Try v1 migration
-      var v1 = localStorage.getItem('da_settings_v1');
-      if (v1) { _s = migrateV1(JSON.parse(v1)); save(); return; }
-    } catch(e) {}
-    _s = clone(DEF);
+      if (raw) { _s = migrateV3(JSON.parse(raw)); return; }
+      var v2 = localStorage.getItem('da_settings_v2');
+      if (v2) { _s = migrateFromV2(JSON.parse(v2)); save(); return; }
+    } catch(e) { console.warn('Settings load error:', e); }
+    _s = allDefaults();
   }
 
-  function migrate(saved) {
-    var r = clone(DEF);
-    if (saved.stdFieldConfig) r.stdFieldConfig = clone(saved.stdFieldConfig);
-    if (saved.udefFieldConfig) r.udefFieldConfig = clone(saved.udefFieldConfig);
-    if (saved.dqWeights) r.dqWeights = clone(saved.dqWeights);
-    if (saved.qualityIssueFields) r.qualityIssueFields = saved.qualityIssueFields.slice();
-    if (saved.engagementWeights) r.engagementWeights = clone(saved.engagementWeights);
-    if (saved.pipelineType) r.pipelineType = saved.pipelineType;
-    return r;
+  function migrateV3(saved) {
+    var defs = allDefaults();
+    for (var ek in defs) {
+      if (!saved[ek]) { saved[ek] = defs[ek]; continue; }
+      var d = defs[ek]; var s = saved[ek];
+      if (!s.healthWeights) s.healthWeights = d.healthWeights;
+      if (!s.healthExclude) s.healthExclude = d.healthExclude;
+      if (!s.stdFieldConfig) s.stdFieldConfig = d.stdFieldConfig;
+      if (!s.udefFieldConfig) s.udefFieldConfig = {};
+      if (!s.integrityConfig) s.integrityConfig = d.integrityConfig;
+      if (!s.engagementConfig) s.engagementConfig = d.engagementConfig;
+      if (!s.pipelineType) s.pipelineType = d.pipelineType;
+      for (var ck in d.integrityConfig) { if (!s.integrityConfig[ck]) s.integrityConfig[ck] = d.integrityConfig[ck]; }
+      for (var cek in d.engagementConfig) { if (!s.engagementConfig[cek]) s.engagementConfig[cek] = d.engagementConfig[cek]; }
+    }
+    return saved;
   }
 
-  function migrateV1(v1) {
-    var r = clone(DEF);
-    if (v1.company) {
-      var c = v1.company;
-      // Convert completenessFields array → stdFieldConfig
-      if (c.completenessFields) {
-        for (var i = 0; i < STD_FIELDS.length; i++) {
-          var k = STD_FIELDS[i].key;
-          r.stdFieldConfig[k] = c.completenessFields.indexOf(k) >= 0 ? 'normal' : 'excluded';
-        }
+  function migrateFromV2(v2) {
+    var all = allDefaults();
+    var c = all.company;
+    if (v2.stdFieldConfig) { c.stdFieldConfig = {}; for (var k in v2.stdFieldConfig) c.stdFieldConfig[k] = v2.stdFieldConfig[k]; }
+    if (v2.udefFieldConfig) c.udefFieldConfig = clone(v2.udefFieldConfig);
+    if (v2.qualityIssueFields) {
+      var oldMap = { noPerson: 'noPerson', unreachable: 'unreachable' };
+      for (var ck in c.integrityConfig) {
+        if (oldMap[ck] && v2.qualityIssueFields.indexOf(oldMap[ck]) >= 0) c.integrityConfig[ck].enabled = true;
       }
-      if (c.udefFieldConfig) r.udefFieldConfig = clone(c.udefFieldConfig);
-      if (c.dqWeights) r.dqWeights = clone(c.dqWeights);
-      if (c.qualityIssueFields) r.qualityIssueFields = c.qualityIssueFields.slice();
-      if (c.engagementWeights) r.engagementWeights = clone(c.engagementWeights);
-      if (c.pipelineType) r.pipelineType = c.pipelineType;
     }
-    return r;
-  }
-
-  function save() {
-    try { localStorage.setItem(SK, JSON.stringify(_s)); } catch(e) {}
-  }
-
-  function get() { if (!_s) load(); return _s; }
-
-  // Derive completenessFields for backward compat with entity-logic
-  function getCompleteness() {
-    var s = get();
-    var fields = [];
-    for (var i = 0; i < STD_FIELDS.length; i++) {
-      var imp = s.stdFieldConfig[STD_FIELDS[i].key] || 'excluded';
-      if (imp !== 'excluded') fields.push(STD_FIELDS[i].key);
+    if (v2.pipelineType) c.pipelineType = v2.pipelineType;
+    if (v2.engagementWeights) {
+      var ew = v2.engagementWeights;
+      c.engagementConfig.withActivity = { enabled: true, weight: ew.withActivity >= 40 ? 'high' : (ew.withActivity >= 25 ? 'medium' : 'low') };
+      c.engagementConfig.withPerson = { enabled: true, weight: ew.withPerson >= 40 ? 'high' : (ew.withPerson >= 25 ? 'medium' : 'low') };
+      c.engagementConfig.withPipeline = { enabled: true, weight: ew.withPipeline >= 25 ? 'high' : (ew.withPipeline >= 15 ? 'medium' : 'low') };
     }
-    return fields;
+    return all;
   }
 
-  // Public getSettings (backward compat)
-  function getSettings(entity) {
-    var s = get();
-    return {
-      completenessFields: getCompleteness(),
-      stdFieldConfig: s.stdFieldConfig,
-      dqWeights: s.dqWeights,
-      qualityIssueFields: s.qualityIssueFields,
-      udefFieldConfig: s.udefFieldConfig,
-      engagementWeights: s.engagementWeights,
-      pipelineType: s.pipelineType
-    };
-  }
+  function save() { try { localStorage.setItem(SK, JSON.stringify(_s)); } catch(e) {} }
+  function get(entity) { if (!_s) load(); return _s[entity || 'company'] || entityDefaults(entity || 'company'); }
 
   // ============================================================
   // UDEF DISCOVERY
   // ============================================================
   function notifyUdefLoaded(entityId, data) {
-    if (entityId !== 7 || !data || !data.fields) return;
-    _udefFields = [];
+    if (!data || !data.fields) return;
+    var eKey = null;
+    for (var k in ENTITY_DEFS) { if (ENTITY_DEFS[k].entityId === entityId) { eKey = k; break; } }
+    if (!eKey) return;
+    _udefFields[eKey] = [];
     for (var i = 0; i < data.fields.length; i++) {
       var f = data.fields[i];
-      _udefFields.push({ progId: f.progId || f.label || ('f' + i), label: f.label, type: f.type, percent: f.percent });
+      _udefFields[eKey].push({ progId: f.progId || f.label || ('f' + i), label: f.label, type: f.type, percent: f.percent });
     }
-    if (_activeId) {
+    if (_activeEntity === eKey && _activeId) {
       var el = document.getElementById(_activeId);
-      if (el && el.offsetParent !== null) renderPanel(el, el.getAttribute('data-mode') || 'full');
+      if (el && el.offsetParent !== null) renderPanel(el, 'full');
     }
   }
 
   // ============================================================
-  // COMPUTE HELPERS
+  // WEIGHT CALC HELPERS
+  // ============================================================
+  function calcWeightPct(items) {
+    var total = 0;
+    for (var i = 0; i < items.length; i++) { if (items[i].enabled !== false) total += POINTS[items[i].weight] || 0; }
+    var result = [];
+    for (var i = 0; i < items.length; i++) {
+      if (items[i].enabled === false) { result.push({ pct: 0, pts: 0 }); continue; }
+      var pts = POINTS[items[i].weight] || 0;
+      result.push({ pct: total > 0 ? Math.round(pts / total * 100) : 0, pts: pts });
+    }
+    return result;
+  }
+
+  // ============================================================
+  // COMPUTE — backward-compat API for entity-logic
   // ============================================================
   function getCompletenessValue(key, ovCpl, qData, total) {
     if (!total) return 0;
@@ -166,24 +260,21 @@
   }
 
   function computeDQ(entity, ovCpl, qData, uData, total) {
-    var s = get();
+    var s = get(entity);
+    var def = ENTITY_DEFS[entity] || ENTITY_DEFS.company;
     var scores = {};
-
-    // Completeness: standard fields
-    var cplFields = getCompleteness();
-    if (ovCpl && cplFields.length > 0 && total > 0) {
+    if (ovCpl && total > 0) {
       var sum = 0; var wt = 0;
-      for (var i = 0; i < cplFields.length; i++) {
-        var k = cplFields[i];
-        var imp = s.stdFieldConfig[k] || 'normal';
+      for (var i = 0; i < def.stdFields.length; i++) {
+        var k = def.stdFields[i].key;
+        var imp = s.stdFieldConfig[k] || 'excluded';
+        if (imp === 'excluded') continue;
         var w = imp === 'required' ? 2 : 1;
         sum += (getCompletenessValue(k, ovCpl, qData, total) / total * 100) * w;
         wt += w;
       }
       if (wt > 0) scores.completeness = sum / wt;
     }
-
-    // UDEF
     if (uData && uData.fields && uData.fields.length > 0) {
       var cfg = s.udefFieldConfig || {};
       var uS = 0; var uW = 0;
@@ -197,169 +288,285 @@
       }
       if (uW > 0) scores.udef = uS / uW;
     }
-
-    // Quality
-    if (qData && s.qualityIssueFields.length > 0 && total > 0) {
-      var issS = 0;
-      for (var i = 0; i < s.qualityIssueFields.length; i++) issS += (qData[s.qualityIssueFields[i]] || 0);
-      scores.quality = 100 - (issS / (total * s.qualityIssueFields.length) * 100);
-    }
-
-    var dw = s.dqWeights; var tW = 0; var wS = 0;
-    if (scores.completeness !== undefined) { wS += scores.completeness * dw.completeness; tW += dw.completeness; }
-    if (scores.udef !== undefined) { wS += scores.udef * dw.udef; tW += dw.udef; }
-    if (scores.quality !== undefined) { wS += scores.quality * dw.quality; tW += dw.quality; }
+    var tW = 0; var wS = 0;
+    if (scores.completeness !== undefined) { wS += scores.completeness * 70; tW += 70; }
+    if (scores.udef !== undefined) { wS += scores.udef * 30; tW += 30; }
     if (tW <= 0) return null;
-    return { total: Math.round(wS / tW), components: scores, weights: dw };
+    return { total: Math.round(wS / tW), components: scores, weights: { completeness: 70, udef: 30 } };
   }
 
   function computeEngagement(row, total, entity) {
     if (!total) return 0;
-    var s = get();
-    var w = s.engagementWeights;
-    var pV = 0;
-    if (s.pipelineType === 'sale') pV = row.withSale || 0;
-    else if (s.pipelineType === 'project') pV = row.withProject || 0;
-    else if (s.pipelineType === 'both') pV = row.withSaleOrProject || 0;
-    return Math.round(((row.withActivity || 0) * w.withActivity / 100 + (row.withPerson || 0) * w.withPerson / 100 + pV * w.withPipeline / 100) / total * 100);
+    var s = get(entity);
+    var cfg = s.engagementConfig;
+    var items = [];
+    for (var k in cfg) { if (cfg[k].enabled !== false) items.push({ key: k, weight: cfg[k].weight, enabled: true }); }
+    var wts = calcWeightPct(items);
+    var score = 0;
+    for (var i = 0; i < items.length; i++) {
+      var val = 0;
+      if (items[i].key === 'withPipeline') {
+        var pt = s.pipelineType || 'sale';
+        if (pt === 'sale') val = row.withSale || 0;
+        else if (pt === 'project') val = row.withProject || 0;
+        else if (pt === 'both') val = row.withSaleOrProject || 0;
+      } else { val = row[items[i].key] || 0; }
+      score += (val / total * 100) * wts[i].pct / 100;
+    }
+    return Math.round(score);
   }
 
-  function getPipelineLabel() {
-    var s = get();
+  function getPipelineLabel(entity) {
+    var s = get(entity || 'company');
     for (var i = 0; i < PIPE_OPTS.length; i++) if (PIPE_OPTS[i].key === s.pipelineType) return PIPE_OPTS[i].label;
     return 'Open Sale';
   }
+  function getPipelineType(entity) { return get(entity || 'company').pipelineType; }
 
-  function getPipelineType() { return get().pipelineType; }
+  function getCompleteness(entity) {
+    var s = get(entity || 'company');
+    var def = ENTITY_DEFS[entity || 'company'];
+    var fields = [];
+    for (var i = 0; i < def.stdFields.length; i++) {
+      var imp = s.stdFieldConfig[def.stdFields[i].key] || 'excluded';
+      if (imp !== 'excluded') fields.push(def.stdFields[i].key);
+    }
+    return fields;
+  }
+
+  function getSettings(entity) {
+    var s = get(entity || 'company');
+    return {
+      completenessFields: getCompleteness(entity),
+      stdFieldConfig: s.stdFieldConfig,
+      udefFieldConfig: s.udefFieldConfig,
+      integrityConfig: s.integrityConfig,
+      engagementConfig: s.engagementConfig,
+      healthWeights: s.healthWeights,
+      healthExclude: s.healthExclude,
+      pipelineType: s.pipelineType,
+      dqWeights: { completeness: 70, udef: 30, quality: 0 },
+      qualityIssueFields: Object.keys(s.integrityConfig).filter(function(k) { return s.integrityConfig[k].enabled; }),
+      engagementWeights: _backCompatEngWeights(s)
+    };
+  }
+
+  function _backCompatEngWeights(s) {
+    var cfg = s.engagementConfig;
+    var items = [];
+    for (var k in cfg) items.push({ key: k, weight: cfg[k].weight, enabled: cfg[k].enabled });
+    var wts = calcWeightPct(items);
+    var r = {};
+    for (var i = 0; i < items.length; i++) r[items[i].key] = wts[i].pct;
+    return r;
+  }
 
   // ============================================================
-  // RENDER — 'full' (settings page) or 'dq' (minimal)
+  // RENDER
   // ============================================================
   function renderPanel(el, mode) {
-    var s = get();
+    _mode = mode || 'full';
     var h = '';
 
-    // Preset
-    h += '<div class="s-preset-bar">';
-    h += '<span class="s-preset-lbl">Preset:</span>';
-    h += '<select class="s-preset-sel" id="sPreset" onchange="daSettings.applyPreset(this.value)">';
-    h += '<option value="">Custom</option>';
-    for (var pk in PRESETS) h += '<option value="' + pk + '"' + (isPresetMatch(pk) ? ' selected' : '') + '>' + PRESETS[pk].label + '</option>';
-    h += '</select>';
-    h += '<span class="s-preset-desc" id="sPresetDesc"></span>';
-    h += '</div>';
-
-    // DATA QUALITY
-    h += '<div class="s-section">';
-    h += '<div class="s-section-head">Data Quality</div>';
-
-    // Row 1: DQ Weights + Quality Issues
-    h += '<div class="s-grid">';
-    h += '<div class="settings-card">';
-    h += '<h3>DQ Score Weights</h3>';
-    h += '<div class="settings-desc">Component weights for the overall DQ Score.</div>';
-    h += sliders('dq', [
-      { k:'completeness', l:'Field Completeness', v:s.dqWeights.completeness },
-      { k:'udef', l:'Custom Fields (UDEF)', v:s.dqWeights.udef },
-      { k:'quality', l:'Quality Issues', v:s.dqWeights.quality }
-    ]);
-    h += '</div>';
-    h += '<div class="settings-card">';
-    h += '<h3>Quality Issue Checks</h3>';
-    h += '<div class="settings-desc">Which issues count in the DQ score.</div>';
-    h += '<div class="settings-field-grid">';
-    for (var i = 0; i < QUALITY_ISSUES.length; i++) {
-      var qi = QUALITY_ISSUES[i];
-      h += '<label class="settings-checkbox"><input type="checkbox" data-group="qi" data-key="' + qi.key + '"' + (s.qualityIssueFields.indexOf(qi.key) >= 0 ? ' checked' : '') + ' onchange="daSettings.mc()"> ' + qi.label + '</label>';
-    }
-    h += '</div></div>';
-    h += '</div>'; // grid
-
-    // Completeness Definition
-    h += '<div class="s-cpl-card">';
-    h += '<h3>Completeness Definition</h3>';
-    h += '<div class="settings-desc">Which fields count towards completeness. <strong>Required</strong> fields count double.</div>';
-
-    // Standard fields table
-    h += '<div class="s-cpl-sub-head">Standard Fields</div>';
-    h += '<div class="s-field-list">';
-    for (var i = 0; i < STD_FIELDS.length; i++) {
-      var sf = STD_FIELDS[i];
-      var imp = s.stdFieldConfig[sf.key] || 'excluded';
-      h += fieldRow(sf.label, null, null, imp, 'std', sf.key);
+    // Entity tabs
+    h += '<div class="s-entity-tabs">';
+    for (var i = 0; i < ENTITY_ORDER.length; i++) {
+      var ek = ENTITY_ORDER[i];
+      var def = ENTITY_DEFS[ek];
+      var active = ek === _activeEntity ? ' active' : '';
+      var icoAttr = el.getAttribute('data-ico-' + ek);
+      var ico = icoAttr ? '<img class="s-entity-ico" src="data:image/svg+xml;base64,' + icoAttr + '">' : '';
+      h += '<button class="s-entity-tab' + active + '" onclick="daSettings.switchEntity(\'' + ek + '\')">' + ico + def.label + '</button>';
     }
     h += '</div>';
 
-    // UDEF fields (collapsible)
-    h += '<div class="s-cpl-sub-head s-cpl-udef-head" onclick="daSettings.toggleUdef()">';
-    h += '<span class="s-udef-chev" id="sUdefChev">&#9654;</span> Custom Fields (UDEF)';
-    if (_udefFields.length > 0) h += ' <span class="s-udef-count">' + _udefFields.length + ' fields</span>';
-    h += '</div>';
-    h += '<div class="s-udef-body" id="sUdefBody" style="display:none">';
-    if (_udefFields.length === 0) {
-      h += '<div class="s-udef-empty">Run the Company analysis first to discover custom fields.</div>';
-    } else {
-      h += '<div class="s-field-list">';
-      for (var i = 0; i < _udefFields.length; i++) {
-        var uf = _udefFields[i];
-        var imp = s.udefFieldConfig[uf.progId] || 'normal';
-        var fillCol = uf.percent >= 70 ? 'var(--sl-good)' : (uf.percent >= 30 ? 'var(--sl-ok)' : 'var(--sl-bad)');
-        h += fieldRow(uf.label, uf.type, '<span style="font-weight:600;color:' + fillCol + '">' + uf.percent + '%</span>', imp, 'udef', uf.progId);
-      }
-      h += '</div>';
-    }
-    h += '</div>'; // udef body
+    h += renderEntityPanel(_activeEntity);
 
-    h += '</div>'; // cpl card
-    h += '</div>'; // section
-
-    // ADOPTION (full only)
-    if (mode === 'full') {
-      h += '<div class="s-section">';
-      h += '<div class="s-section-head">Adoption</div>';
-      h += '<div class="s-grid">';
-
-      h += '<div class="settings-card">';
-      h += '<h3>Engagement Score Weights</h3>';
-      h += '<div class="settings-desc">Category Effectiveness engagement calculation.</div>';
-      h += sliders('eng', [
-        { k:'withActivity', l:'Activity', v:s.engagementWeights.withActivity },
-        { k:'withPerson', l:'Contact Person', v:s.engagementWeights.withPerson },
-        { k:'withPipeline', l:'Pipeline', v:s.engagementWeights.withPipeline }
-      ]);
-      h += '</div>';
-
-      h += '<div class="settings-card">';
-      h += '<h3>Pipeline Definition</h3>';
-      h += '<div class="settings-desc">What counts as "pipeline" in the funnel.</div>';
-      for (var i = 0; i < PIPE_OPTS.length; i++) {
-        var po = PIPE_OPTS[i];
-        h += '<label class="settings-radio' + (po.soon ? ' settings-radio-soon' : '') + '">';
-        h += '<input type="radio" name="pipelineType" value="' + po.key + '"' + (s.pipelineType === po.key ? ' checked' : '') + (po.soon ? ' disabled' : '') + ' onchange="daSettings.mc()">';
-        h += '<span><strong>' + po.label + '</strong><span class="settings-radio-desc">' + po.desc + '</span>';
-        if (po.soon) h += '<span class="settings-badge-soon">Coming soon</span>';
-        h += '</span></label>';
-      }
-      h += '</div>';
-      h += '</div></div>'; // grid + section
-    }
-
-    // Actions
     h += '<div class="s-actions">';
     h += '<button class="btn-settings-save" onclick="daSettings.doSave()">Apply &amp; Recalculate</button>';
     h += '<button class="btn-settings-reset" onclick="daSettings.doReset()">Reset to Defaults</button>';
     h += '</div>';
 
     el.innerHTML = h;
-    el.setAttribute('data-mode', mode);
+    el.setAttribute('data-mode', _mode);
     _activeId = el.id;
-    updPresetDesc();
   }
 
-  // Field row with 3-way toggle
-  function fieldRow(label, type, extra, imp, group, key) {
+  function renderEntityPanel(entityKey) {
+    var s = get(entityKey);
+    var def = ENTITY_DEFS[entityKey];
+    var h = '';
+
+    // ── OVERALL HEALTH ──
+    h += '<div class="s-health-card">';
+    h += '<h3>Overall Health Score <span class="s-info-icon" onclick="daSettings.openInfo()" title="Scoring methodology">i</span></h3>';
+    h += '<div class="settings-desc">Combines all three scores into one metric. Adjust weights to reflect priorities.</div>';
+    h += renderHealthWeights(entityKey, s);
+    h += '</div>';
+
+    // ── DATA QUALITY ──
+    h += '<div class="s-section"><div class="s-section-head">Data Quality <span class="s-info-icon" onclick="daSettings.openInfo()">i</span></div></div>';
+    h += renderCompletenessCard(entityKey, s, def);
+
+    // ── DATA INTEGRITY ──
+    h += '<div class="s-section"><div class="s-section-head">Data Integrity <span class="s-info-icon" onclick="daSettings.openInfo()">i</span></div></div>';
+    h += '<div class="s-grid s-grid-single">';
+    h += '<div class="settings-card">';
+    h += '<h3>Integrity Checks</h3>';
+    h += '<div class="settings-desc">Structural quality problems. Each check can be enabled and weighted independently.</div>';
+    h += renderIntegrityChecks(entityKey, s, def);
+    h += '</div></div>';
+
+    // ── ADOPTION ──
+    if (_mode === 'full') {
+      h += '<div class="s-section"><div class="s-section-head">Adoption <span class="s-info-icon" onclick="daSettings.openInfo()">i</span></div></div>';
+      h += '<div class="s-grid' + (def.hasPipelineConfig ? '' : ' s-grid-single') + '">';
+      h += '<div class="settings-card">';
+      h += '<h3>Engagement Weights</h3>';
+      h += '<div class="settings-desc">How each dimension contributes to the adoption score.</div>';
+      h += renderEngagementWeights(entityKey, s, def);
+      h += '</div>';
+      if (def.hasPipelineConfig) {
+        h += '<div class="settings-card">';
+        h += '<h3>Pipeline Definition</h3>';
+        h += '<div class="settings-desc">What counts as "active pipeline".</div>';
+        h += renderPipelineOpts(entityKey, s);
+        h += '</div>';
+      }
+      h += '</div>';
+    }
+    return h;
+  }
+
+  function renderHealthWeights(ek, s) {
+    var scores = [
+      { key: 'dq',        label: 'Data Quality',   alwaysOn: true },
+      { key: 'integrity',  label: 'Data Integrity',  alwaysOn: false },
+      { key: 'adoption',   label: 'Adoption',        alwaysOn: false }
+    ];
+    var hw = s.healthWeights; var he = s.healthExclude;
+    var items = [];
+    for (var i = 0; i < scores.length; i++) items.push({ weight: hw[scores[i].key] || 'high', enabled: !he[scores[i].key] });
+    var pcts = calcWeightPct(items);
+
+    var h = '<div class="s-weight-rows" data-group="health" data-entity="' + ek + '">';
+    for (var i = 0; i < scores.length; i++) {
+      var sc = scores[i]; var level = hw[sc.key] || 'high'; var excluded = !!he[sc.key];
+      var rowCls = excluded ? ' s-wrow-excl' : '';
+      h += '<div class="s-weight-row' + rowCls + '" data-key="' + sc.key + '" data-level="' + level + '" data-enabled="' + !excluded + '">';
+      if (!sc.alwaysOn) h += '<label class="s-exclude-toggle"><input type="checkbox"' + (!excluded ? ' checked' : '') + ' onchange="daSettings.toggleHealthComp(this,\'' + ek + '\',\'' + sc.key + '\')"></label>';
+      h += '<span class="s-weight-label">' + sc.label + '</span>';
+      h += hmlToggle('health', ek, sc.key, level);
+      h += '<span class="s-weight-pct ' + pctClass(level, excluded) + '">' + (excluded ? '\u2014' : pcts[i].pct + '%') + '</span>';
+      h += '</div>';
+    }
+    h += '</div>';
+    h += '<div class="s-weight-summary" id="healthSum_' + ek + '">' + weightSummaryText(items) + '</div>';
+    return h;
+  }
+
+  function renderEngagementWeights(ek, s, def) {
+    var cfg = s.engagementConfig; var comps = def.engagementComponents;
+    var items = [];
+    for (var i = 0; i < comps.length; i++) {
+      var c = comps[i]; var cc = cfg[c.key] || { enabled: true, weight: 'medium' };
+      items.push({ key: c.key, label: c.label, weight: cc.weight, enabled: cc.enabled !== false, alwaysOn: c.alwaysOn });
+    }
+    var pcts = calcWeightPct(items);
+    var h = '<div class="s-weight-rows" data-group="eng" data-entity="' + ek + '">';
+    for (var i = 0; i < items.length; i++) {
+      var it = items[i]; var excluded = !it.enabled; var rowCls = excluded ? ' s-wrow-excl' : '';
+      h += '<div class="s-weight-row' + rowCls + '" data-key="' + it.key + '" data-level="' + it.weight + '" data-enabled="' + it.enabled + '">';
+      if (!it.alwaysOn) h += '<label class="s-exclude-toggle"><input type="checkbox"' + (it.enabled ? ' checked' : '') + ' onchange="daSettings.toggleEngComp(this,\'' + ek + '\',\'' + it.key + '\')"></label>';
+      h += '<span class="s-weight-label">' + it.label + '</span>';
+      h += hmlToggle('eng', ek, it.key, it.weight);
+      h += '<span class="s-weight-pct ' + pctClass(it.weight, excluded) + '">' + (excluded ? '\u2014' : pcts[i].pct + '%') + '</span>';
+      h += '</div>';
+    }
+    h += '</div>';
+    h += '<div class="s-weight-summary" id="engSum_' + ek + '">' + weightSummaryText(items) + '</div>';
+    return h;
+  }
+
+  function hmlToggle(group, ek, key, level) {
+    var h = '<div class="s-fld-toggle">';
+    var vals = ['high', 'medium', 'low'];
+    var labels = ['High', 'Medium', 'Low'];
+    var acts = { high: 'act-high', medium: 'act-med', low: 'act-low' };
+    for (var i = 0; i < vals.length; i++) {
+      var cls = level === vals[i] ? ' ' + acts[vals[i]] : '';
+      h += '<button class="s-imp-btn' + cls + '" onclick="daSettings.setHML(\'' + group + '\',\'' + ek + '\',\'' + key + '\',\'' + vals[i] + '\',this)">' + labels[i] + '</button>';
+    }
+    h += '</div>';
+    return h;
+  }
+
+  function renderIntegrityChecks(ek, s, def) {
+    var cfg = s.integrityConfig;
+    var h = '<div class="s-integrity-rows" data-entity="' + ek + '">';
+    for (var i = 0; i < def.integrityChecks.length; i++) {
+      var c = def.integrityChecks[i];
+      var cc = cfg[c.key] || { enabled: false, weight: 'medium' };
+      var disabled = !cc.enabled; var rowCls = disabled ? ' s-introw-disabled' : '';
+      h += '<div class="s-integrity-row' + rowCls + '" data-key="' + c.key + '" data-level="' + cc.weight + '" data-enabled="' + cc.enabled + '">';
+      h += '<label class="s-integrity-check"><input type="checkbox"' + (cc.enabled ? ' checked' : '') + ' onchange="daSettings.toggleIntegrity(this,\'' + ek + '\',\'' + c.key + '\')"></label>';
+      h += '<div class="s-integrity-label"><span class="s-integrity-name">' + c.label;
+      if (c.isNew) h += ' <span class="s-badge-new">New</span>';
+      h += '</span><span class="s-integrity-desc">' + c.desc + '</span></div>';
+      h += hmlToggle('int', ek, c.key, cc.weight);
+      h += '</div>';
+    }
+    h += '</div>';
+    return h;
+  }
+
+  function renderCompletenessCard(ek, s, def) {
+    var h = '<div class="s-cpl-card">';
+    h += '<h3>Completeness Definition</h3>';
+    h += '<div class="settings-desc">Which fields count towards completeness. <strong>Required</strong> fields count double, <strong>Excluded</strong> fields are ignored.</div>';
+    h += '<div class="s-cpl-sub-head">Standard Fields</div>';
+    h += '<div class="s-field-list">';
+    for (var i = 0; i < def.stdFields.length; i++) {
+      var sf = def.stdFields[i]; var imp = s.stdFieldConfig[sf.key] || 'excluded';
+      h += fieldRow(sf.label, null, null, imp, 'std', sf.key, ek);
+    }
+    h += '</div>';
+    var ufields = _udefFields[ek] || [];
+    h += '<div class="s-cpl-sub-head s-cpl-udef-head" onclick="daSettings.toggleUdef(\'' + ek + '\')">';
+    h += '<span class="s-udef-chev" id="sUdefChev_' + ek + '">&#9654;</span> Custom Fields (UDEF)';
+    if (ufields.length > 0) h += ' <span class="s-udef-count">' + ufields.length + ' fields</span>';
+    else h += ' <span class="s-udef-count">\u2014 loaded after analysis</span>';
+    h += '</div>';
+    h += '<div class="s-udef-body" id="sUdefBody_' + ek + '" style="display:none">';
+    if (ufields.length === 0) {
+      h += '<div class="s-udef-empty">Run the analysis first to discover custom fields.</div>';
+    } else {
+      h += '<div class="s-field-list">';
+      for (var i = 0; i < ufields.length; i++) {
+        var uf = ufields[i]; var imp = s.udefFieldConfig[uf.progId] || 'normal';
+        var fillCol = uf.percent >= 70 ? 'var(--sl-good)' : (uf.percent >= 30 ? 'var(--sl-ok)' : 'var(--sl-bad)');
+        h += fieldRow(uf.label, uf.type, '<span style="font-weight:600;color:' + fillCol + '">' + uf.percent + '%</span>', imp, 'udef', uf.progId, ek);
+      }
+      h += '</div>';
+    }
+    h += '</div></div>';
+    return h;
+  }
+
+  function renderPipelineOpts(ek, s) {
+    var h = '';
+    for (var i = 0; i < PIPE_OPTS.length; i++) {
+      var po = PIPE_OPTS[i];
+      h += '<label class="settings-radio">';
+      h += '<input type="radio" name="pipelineType_' + ek + '" value="' + po.key + '"' + (s.pipelineType === po.key ? ' checked' : '') + '>';
+      h += '<span><strong>' + po.label + '</strong><span class="settings-radio-desc">' + po.desc + '</span></span></label>';
+    }
+    return h;
+  }
+
+  function fieldRow(label, type, extra, imp, group, key, ek) {
     var esc = key.replace(/'/g, "\\'");
-    var h = '<div class="s-fld-row' + (imp === 'excluded' ? ' s-fld-excl' : '') + '" data-grp="' + group + '" data-key="' + key + '">';
+    var h = '<div class="s-fld-row' + (imp === 'excluded' ? ' s-fld-excl' : '') + '" data-grp="' + group + '" data-key="' + key + '" data-entity="' + ek + '">';
     h += '<div class="s-fld-name">' + label;
     if (type) h += '<span class="s-fld-type">' + type + '</span>';
     h += '</div>';
@@ -372,167 +579,188 @@
     return h;
   }
 
+  function pctClass(level, excluded) {
+    if (excluded) return 's-pct-off';
+    return level === 'high' ? 's-pct-high' : (level === 'medium' ? 's-pct-med' : 's-pct-low');
+  }
+  function weightSummaryText(items) {
+    var labels = { high: 'High (3pt)', medium: 'Medium (2pt)', low: 'Low (1pt)' };
+    var parts = [];
+    for (var i = 0; i < items.length; i++) { if (items[i].enabled !== false) parts.push(labels[items[i].weight]); }
+    if (parts.length === 0) return '<span class="s-wsum-dot s-wsum-dot-off"></span> No components enabled';
+    return '<span class="s-wsum-dot"></span> Total: 100% \u2014 ' + parts.join(' + ');
+  }
+
   // ============================================================
-  // SLIDERS
+  // EVENT HANDLERS
   // ============================================================
-  function sliders(gid, items) {
-    var h = '<div class="weight-slider-group">';
-    for (var i = 0; i < items.length; i++) {
-      h += '<div class="weight-slider-row">';
-      h += '<label class="weight-slider-label">' + items[i].l + '</label>';
-      h += '<input type="range" class="weight-slider" id="ws_' + gid + '_' + items[i].k + '" data-group="' + gid + '" data-key="' + items[i].k + '" min="0" max="100" step="5" value="' + items[i].v + '" oninput="daSettings.onSl(this)">';
-      h += '<span class="weight-slider-value" id="wsv_' + gid + '_' + items[i].k + '">' + items[i].v + '%</span>';
-      h += '</div>';
+  function switchEntity(ek) {
+    // Save current entity DOM state before switching
+    readEntityFromDOM(_activeEntity);
+    _activeEntity = ek;
+    if (_activeId) { var el = document.getElementById(_activeId); if (el) renderPanel(el, _mode); }
+  }
+
+  function setHML(group, ek, key, level, btn) {
+    var toggle = btn.parentElement;
+    var btns = toggle.querySelectorAll('.s-imp-btn');
+    for (var i = 0; i < btns.length; i++) btns[i].classList.remove('act-high', 'act-med', 'act-low');
+    btn.classList.add(level === 'high' ? 'act-high' : (level === 'medium' ? 'act-med' : 'act-low'));
+    var row = btn.closest('.s-weight-row') || btn.closest('.s-integrity-row');
+    if (row) row.setAttribute('data-level', level);
+    if (group === 'health') recalcWeightGroup('health', ek);
+    else if (group === 'eng') recalcWeightGroup('eng', ek);
+  }
+
+  function recalcWeightGroup(group, ek) {
+    var container = document.querySelector('.s-weight-rows[data-group="' + group + '"][data-entity="' + ek + '"]');
+    if (!container) return;
+    var rows = container.querySelectorAll('.s-weight-row');
+    var items = [];
+    for (var i = 0; i < rows.length; i++) items.push({ weight: rows[i].getAttribute('data-level'), enabled: rows[i].getAttribute('data-enabled') === 'true' });
+    var pcts = calcWeightPct(items);
+    for (var i = 0; i < rows.length; i++) {
+      var pctEl = rows[i].querySelector('.s-weight-pct');
+      if (!pctEl) continue;
+      if (items[i].enabled) { pctEl.textContent = pcts[i].pct + '%'; pctEl.className = 's-weight-pct ' + pctClass(items[i].weight, false); }
+      else { pctEl.textContent = '\u2014'; pctEl.className = 's-weight-pct s-pct-off'; }
     }
-    h += '<div class="weight-slider-total" id="wst_' + gid + '">Total: 100%</div></div>';
-    return h;
+    var sumId = (group === 'health' ? 'healthSum_' : 'engSum_') + ek;
+    var sumEl = document.getElementById(sumId);
+    if (sumEl) sumEl.innerHTML = weightSummaryText(items);
   }
 
-  function onSl(el) {
-    var g = el.getAttribute('data-group'), k = el.getAttribute('data-key');
-    var ve = document.getElementById('wsv_' + g + '_' + k);
-    if (ve) ve.textContent = parseInt(el.value) + '%';
-    updSlTotal(g); mc();
+  function toggleHealthComp(cb, ek, key) {
+    var row = cb.closest('.s-weight-row');
+    if (cb.checked) { row.classList.remove('s-wrow-excl'); row.setAttribute('data-enabled', 'true'); }
+    else { row.classList.add('s-wrow-excl'); row.setAttribute('data-enabled', 'false'); }
+    recalcWeightGroup('health', ek);
   }
 
-  function updSlTotal(g) {
-    var all = document.querySelectorAll('.weight-slider[data-group="' + g + '"]');
-    var t = 0; for (var i = 0; i < all.length; i++) t += parseInt(all[i].value);
-    var te = document.getElementById('wst_' + g);
-    if (te) { te.textContent = 'Total: ' + t + '%'; te.className = t === 100 ? 'weight-slider-total' : 'weight-slider-total weight-slider-total-warn'; }
+  function toggleEngComp(cb, ek, key) {
+    var row = cb.closest('.s-weight-row');
+    if (cb.checked) { row.classList.remove('s-wrow-excl'); row.setAttribute('data-enabled', 'true'); }
+    else { row.classList.add('s-wrow-excl'); row.setAttribute('data-enabled', 'false'); }
+    recalcWeightGroup('eng', ek);
   }
 
-  function setSl(g, k, v) {
-    var s = document.getElementById('ws_' + g + '_' + k); if (s) s.value = v;
-    var ve = document.getElementById('wsv_' + g + '_' + k); if (ve) ve.textContent = v + '%';
+  function toggleIntegrity(cb, ek, key) {
+    var row = cb.closest('.s-integrity-row');
+    if (cb.checked) { row.classList.remove('s-introw-disabled'); row.setAttribute('data-enabled', 'true'); }
+    else { row.classList.add('s-introw-disabled'); row.setAttribute('data-enabled', 'false'); }
   }
-
-  // ============================================================
-  // EVENTS
-  // ============================================================
-  function mc() { var sel = document.getElementById('sPreset'); if (sel) sel.value = ''; updPresetDesc(); }
 
   function setImp(group, key, imp, btn) {
     var btns = btn.parentElement.querySelectorAll('.s-imp-btn');
     for (var i = 0; i < btns.length; i++) btns[i].className = 's-imp-btn';
-    btn.className = 's-imp-btn act-' + (imp === 'required' ? 'req' : (imp === 'normal' ? 'norm' : 'excl'));
+    btn.className = 's-imp-btn ' + (imp === 'required' ? 'act-req' : (imp === 'normal' ? 'act-norm' : 'act-excl'));
     var row = btn.closest('.s-fld-row');
     if (row) { if (imp === 'excluded') row.classList.add('s-fld-excl'); else row.classList.remove('s-fld-excl'); }
-    mc();
   }
 
-  function toggleUdef() {
-    var body = document.getElementById('sUdefBody');
-    var chev = document.getElementById('sUdefChev');
+  function toggleUdef(ek) {
+    var body = document.getElementById('sUdefBody_' + ek);
+    var chev = document.getElementById('sUdefChev_' + ek);
     if (!body) return;
     var open = body.style.display !== 'none';
     body.style.display = open ? 'none' : 'block';
     if (chev) chev.innerHTML = open ? '&#9654;' : '&#9660;';
   }
 
-  function applyPreset(pk) {
-    if (!pk || !PRESETS[pk]) return;
-    var ps = PRESETS[pk].s;
-    // Standard fields
-    var rows = document.querySelectorAll('.s-fld-row[data-grp="std"]');
-    for (var i = 0; i < rows.length; i++) {
-      var k = rows[i].getAttribute('data-key');
-      var imp = ps.std[k] || 'excluded';
-      var btns = rows[i].querySelectorAll('.s-imp-btn');
-      for (var j = 0; j < btns.length; j++) btns[j].className = 's-imp-btn';
-      if (imp === 'required') btns[0].className = 's-imp-btn act-req';
-      else if (imp === 'normal') btns[1].className = 's-imp-btn act-norm';
-      else btns[2].className = 's-imp-btn act-excl';
-      if (imp === 'excluded') rows[i].classList.add('s-fld-excl'); else rows[i].classList.remove('s-fld-excl');
-    }
-    // UDEF reset to normal
-    var uRows = document.querySelectorAll('.s-fld-row[data-grp="udef"]');
-    for (var i = 0; i < uRows.length; i++) {
-      var btns = uRows[i].querySelectorAll('.s-imp-btn');
-      for (var j = 0; j < btns.length; j++) btns[j].className = 's-imp-btn';
-      btns[1].className = 's-imp-btn act-norm';
-      uRows[i].classList.remove('s-fld-excl');
-    }
-    // DQ sliders
-    setSl('dq','completeness',ps.dqW.c); setSl('dq','udef',ps.dqW.u); setSl('dq','quality',ps.dqW.q); updSlTotal('dq');
-    // Engagement
-    setSl('eng','withActivity',ps.engW.a); setSl('eng','withPerson',ps.engW.p); setSl('eng','withPipeline',ps.engW.s); updSlTotal('eng');
-    // Quality issues
-    var qiBoxes = document.querySelectorAll('input[data-group="qi"]');
-    for (var i = 0; i < qiBoxes.length; i++) qiBoxes[i].checked = ps.qi.indexOf(qiBoxes[i].getAttribute('data-key')) >= 0;
-    // Pipeline
-    var radios = document.querySelectorAll('input[name="pipelineType"]');
-    for (var i = 0; i < radios.length; i++) radios[i].checked = radios[i].value === ps.pipe;
-    updPresetDesc();
+  // ============================================================
+  // INFO PANEL
+  // ============================================================
+  function openInfo() {
+    var overlay = document.getElementById('sInfoOverlay');
+    if (overlay) { overlay.classList.add('open'); return; }
+    var html = '<div class="s-info-overlay" id="sInfoOverlay" onclick="daSettings.closeInfo()">';
+    html += '<div class="s-info-panel" onclick="event.stopPropagation()">';
+    html += '<div class="s-info-header"><h2>Scoring Methodology</h2><button class="s-info-close" onclick="daSettings.closeInfo()">\u2715</button></div>';
+    html += '<div class="s-info-body">';
+    html += '<div class="s-info-section"><h3>Three Scores + Overall</h3>';
+    html += '<p>Each entity is measured on three independent scores, combined into one Overall Health score.</p>';
+    html += '<div class="s-info-callout"><strong>Data Quality</strong><p>Are fields filled in? Based on Completeness Definition with Required/Normal/Excluded weights.</p></div>';
+    html += '<div class="s-info-callout"><strong>Data Integrity</strong><p>Structural problems? Cross-entity relationship checks, each with H/M/L weight.</p></div>';
+    html += '<div class="s-info-callout"><strong>Adoption</strong><p>Is the CRM being used? Activities, relationships, and pipeline metrics.</p></div></div>';
+    html += '<div class="s-info-section"><h3>How Weights Work (H/M/L)</h3>';
+    html += '<p>High = 3pt, Medium = 2pt, Low = 1pt. Weight % = points \u00F7 total points \u00D7 100.</p>';
+    html += '<p>Example: H/M/H = 3+2+3 = 8pt \u2192 38% / 25% / 38%</p></div>';
+    html += '<div class="s-info-section"><h3>Overall Health</h3>';
+    html += '<div class="s-info-formula">Health = (DQ \u00D7 W\u2081) + (Integrity \u00D7 W\u2082) + (Adoption \u00D7 W\u2083)</div>';
+    html += '<p>Components can be excluded entirely per entity.</p></div>';
+    html += '<div class="s-info-section"><h3>Per-Entity</h3>';
+    html += '<p>Each entity has independent settings \u2014 different fields, checks, engagement metrics, and health weights.</p></div>';
+    html += '</div></div></div>';
+    document.body.insertAdjacentHTML('beforeend', html);
+    setTimeout(function() { document.getElementById('sInfoOverlay').classList.add('open'); }, 10);
   }
-
-  function isPresetMatch(pk) {
-    var s = get(); var ps = PRESETS[pk].s;
-    if (s.pipelineType !== ps.pipe) return false;
-    if (s.dqWeights.completeness !== ps.dqW.c || s.dqWeights.udef !== ps.dqW.u || s.dqWeights.quality !== ps.dqW.q) return false;
-    for (var k in ps.std) { if ((s.stdFieldConfig[k] || 'excluded') !== ps.std[k]) return false; }
-    return true;
-  }
-
-  function updPresetDesc() {
-    var el = document.getElementById('sPresetDesc');
-    var sel = document.getElementById('sPreset');
-    if (!el || !sel) return;
-    el.textContent = sel.value && PRESETS[sel.value] ? PRESETS[sel.value].desc : 'You have custom settings';
+  function closeInfo() {
+    var overlay = document.getElementById('sInfoOverlay');
+    if (overlay) { overlay.classList.remove('open'); }
   }
 
   // ============================================================
-  // SAVE
+  // SAVE / RESET
   // ============================================================
-  function doSave() {
-    // Read standard fields
-    var stdCfg = {};
-    var stdRows = document.querySelectorAll('.s-fld-row[data-grp="std"]');
-    for (var i = 0; i < stdRows.length; i++) {
-      var k = stdRows[i].getAttribute('data-key');
-      var act = stdRows[i].querySelector('.s-imp-btn.act-req,.s-imp-btn.act-norm,.s-imp-btn.act-excl');
-      if (act) {
-        if (act.classList.contains('act-req')) stdCfg[k] = 'required';
-        else if (act.classList.contains('act-norm')) stdCfg[k] = 'normal';
-        else stdCfg[k] = 'excluded';
+  function readEntityFromDOM(ek) {
+    var s = get(ek); var def = ENTITY_DEFS[ek];
+
+    // Health
+    var healthRows = document.querySelectorAll('.s-weight-rows[data-group="health"][data-entity="' + ek + '"] .s-weight-row');
+    if (healthRows.length > 0) {
+      s.healthWeights = {}; s.healthExclude = {};
+      for (var i = 0; i < healthRows.length; i++) {
+        var key = healthRows[i].getAttribute('data-key');
+        s.healthWeights[key] = healthRows[i].getAttribute('data-level');
+        s.healthExclude[key] = healthRows[i].getAttribute('data-enabled') !== 'true';
+      }
+    }
+    // Std fields
+    var stdRows = document.querySelectorAll('.s-fld-row[data-grp="std"][data-entity="' + ek + '"]');
+    if (stdRows.length > 0) {
+      s.stdFieldConfig = {};
+      for (var i = 0; i < stdRows.length; i++) {
+        var k = stdRows[i].getAttribute('data-key');
+        var act = stdRows[i].querySelector('.s-imp-btn.act-req,.s-imp-btn.act-norm,.s-imp-btn.act-excl');
+        if (act) { if (act.classList.contains('act-req')) s.stdFieldConfig[k] = 'required'; else if (act.classList.contains('act-norm')) s.stdFieldConfig[k] = 'normal'; else s.stdFieldConfig[k] = 'excluded'; }
       }
     }
     // UDEF
-    var uCfg = {};
-    var uRows = document.querySelectorAll('.s-fld-row[data-grp="udef"]');
-    for (var i = 0; i < uRows.length; i++) {
-      var k = uRows[i].getAttribute('data-key');
-      var act = uRows[i].querySelector('.s-imp-btn.act-req,.s-imp-btn.act-norm,.s-imp-btn.act-excl');
-      if (act) {
-        if (act.classList.contains('act-req')) uCfg[k] = 'required';
-        else if (act.classList.contains('act-excl')) uCfg[k] = 'excluded';
-        // normal = default, don't store
+    var uRows = document.querySelectorAll('.s-fld-row[data-grp="udef"][data-entity="' + ek + '"]');
+    if (uRows.length > 0) {
+      s.udefFieldConfig = {};
+      for (var i = 0; i < uRows.length; i++) {
+        var k = uRows[i].getAttribute('data-key');
+        var act = uRows[i].querySelector('.s-imp-btn.act-req,.s-imp-btn.act-norm,.s-imp-btn.act-excl');
+        if (act) { if (act.classList.contains('act-req')) s.udefFieldConfig[k] = 'required'; else if (act.classList.contains('act-excl')) s.udefFieldConfig[k] = 'excluded'; }
       }
     }
-    // Quality issues
-    var qiF = [];
-    var qiB = document.querySelectorAll('input[data-group="qi"]');
-    for (var i = 0; i < qiB.length; i++) if (qiB[i].checked) qiF.push(qiB[i].getAttribute('data-key'));
-    // Sliders
-    var dqW = readSl('dq'); var engW = readSl('eng');
-    // Pipeline
-    var pipe = 'sale';
-    var radios = document.querySelectorAll('input[name="pipelineType"]');
-    for (var i = 0; i < radios.length; i++) if (radios[i].checked) { pipe = radios[i].value; break; }
-    // Validate
-    var dqT = (dqW.completeness||0) + (dqW.udef||0) + (dqW.quality||0);
-    if (dqT !== 100) { alert('DQ weights must total 100% (currently ' + dqT + '%)'); return; }
-    if (engW.withActivity !== undefined) {
-      var engT = (engW.withActivity||0) + (engW.withPerson||0) + (engW.withPipeline||0);
-      if (engT !== 100) { alert('Engagement weights must total 100% (currently ' + engT + '%)'); return; }
+    // Integrity
+    var intRows = document.querySelectorAll('.s-integrity-rows[data-entity="' + ek + '"] .s-integrity-row');
+    if (intRows.length > 0) {
+      s.integrityConfig = {};
+      for (var i = 0; i < intRows.length; i++) {
+        var key = intRows[i].getAttribute('data-key');
+        s.integrityConfig[key] = { enabled: intRows[i].getAttribute('data-enabled') === 'true', weight: intRows[i].getAttribute('data-level') };
+      }
     }
-    // Apply
-    _s = {
-      stdFieldConfig: stdCfg, udefFieldConfig: uCfg, dqWeights: { completeness: dqW.completeness||40, udef: dqW.udef||30, quality: dqW.quality||30 },
-      qualityIssueFields: qiF,
-      engagementWeights: engW.withActivity !== undefined ? { withActivity: engW.withActivity, withPerson: engW.withPerson, withPipeline: engW.withPipeline } : get().engagementWeights,
-      pipelineType: pipe
-    };
+    // Engagement
+    var engRows = document.querySelectorAll('.s-weight-rows[data-group="eng"][data-entity="' + ek + '"] .s-weight-row');
+    if (engRows.length > 0) {
+      s.engagementConfig = {};
+      for (var i = 0; i < engRows.length; i++) {
+        var key = engRows[i].getAttribute('data-key');
+        s.engagementConfig[key] = { enabled: engRows[i].getAttribute('data-enabled') === 'true', weight: engRows[i].getAttribute('data-level') };
+      }
+    }
+    // Pipeline
+    var pipeRadio = document.querySelector('input[name="pipelineType_' + ek + '"]:checked');
+    if (pipeRadio) s.pipelineType = pipeRadio.value;
+    _s[ek] = s;
+  }
+
+  function doSave() {
+    readEntityFromDOM(_activeEntity);
     save();
     if (typeof renderDQScore === 'function') renderDQScore('company');
     if (typeof renderCrossEntityFunnel === 'function' && typeof companyDetailData !== 'undefined' && companyDetailData) renderCrossEntityFunnel(companyDetailData);
@@ -540,15 +768,9 @@
     toast('Settings applied and scores recalculated');
   }
 
-  function readSl(g) {
-    var r = {}; var sl = document.querySelectorAll('.weight-slider[data-group="' + g + '"]');
-    for (var i = 0; i < sl.length; i++) r[sl[i].getAttribute('data-key')] = parseInt(sl[i].value);
-    return r;
-  }
-
   function doReset() {
-    _s = clone(DEF); save();
-    if (_activeId) { var el = document.getElementById(_activeId); if (el) renderPanel(el, el.getAttribute('data-mode') || 'full'); }
+    _s = allDefaults(); save();
+    if (_activeId) { var el = document.getElementById(_activeId); if (el) renderPanel(el, _mode); }
     toast('Settings reset to defaults');
   }
 
@@ -560,11 +782,11 @@
     setTimeout(function(){ t.classList.remove('show'); setTimeout(function(){ t.remove(); }, 300); }, 2500);
   }
 
-  // ============================================================
-  // INIT
-  // ============================================================
   function init() { load(); var p = document.getElementById('settings-quality'); if (p) renderPanel(p, 'full'); }
 
+  // ============================================================
+  // PUBLIC API
+  // ============================================================
   window.daSettings = {
     init: init,
     getSettings: getSettings,
@@ -574,11 +796,14 @@
     getPipelineLabel: getPipelineLabel,
     getPipelineType: getPipelineType,
     notifyUdefLoaded: notifyUdefLoaded,
-    COMPLETENESS_OPTIONS: STD_FIELDS.map(function(f){ return { key: f.key, label: f.label }; }),
-    QUALITY_ISSUE_OPTIONS: QUALITY_ISSUES,
-    onSl: onSl, mc: mc, setImp: setImp, toggleUdef: toggleUdef,
-    applyPreset: applyPreset, doSave: doSave, doReset: doReset
+    COMPLETENESS_OPTIONS: ENTITY_DEFS.company.stdFields.map(function(f){ return { key: f.key, label: f.label }; }),
+    QUALITY_ISSUE_OPTIONS: ENTITY_DEFS.company.integrityChecks.map(function(c){ return { key: c.key, label: c.label }; }),
+    switchEntity: switchEntity, setHML: setHML,
+    toggleHealthComp: toggleHealthComp, toggleEngComp: toggleEngComp,
+    toggleIntegrity: toggleIntegrity, setImp: setImp, toggleUdef: toggleUdef,
+    openInfo: openInfo, closeInfo: closeInfo,
+    doSave: doSave, doReset: doReset,
+    ENTITY_DEFS: ENTITY_DEFS, ENTITY_ORDER: ENTITY_ORDER
   };
-
   load();
 })();
