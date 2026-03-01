@@ -32,8 +32,8 @@
         { key: 'noOwner',       label: 'No owner',            desc: 'Company has no assigned associate/owner', isNew: true }
       ],
       engagementComponents: [
-        { key: 'withPerson',   label: 'Persons',    alwaysOn: true },
-        { key: 'withActivity', label: 'Activities',  alwaysOn: true },
+        { key: 'withPerson',   label: 'Persons',    alwaysOn: false },
+        { key: 'withActivity', label: 'Activities',  alwaysOn: false },
         { key: 'withPipeline', label: 'Pipeline',    alwaysOn: false }
       ],
       hasPipelineConfig: true
@@ -54,7 +54,7 @@
         { key: 'noActivity',  label: 'No activity',          desc: 'No logged activity in 12 months', isNew: true }
       ],
       engagementComponents: [
-        { key: 'withActivity', label: 'Activities',    alwaysOn: true },
+        { key: 'withActivity', label: 'Activities',    alwaysOn: false },
         { key: 'withSales',    label: 'Linked Sales',  alwaysOn: false }
       ],
       hasPipelineConfig: false
@@ -77,8 +77,8 @@
         { key: 'noAmount',      label: 'No amount',          desc: 'Sale amount is zero or empty', isNew: true }
       ],
       engagementComponents: [
-        { key: 'withActivity',     label: 'Activities logged',  alwaysOn: true },
-        { key: 'stageProgression', label: 'Stage progression',  alwaysOn: true }
+        { key: 'withActivity',     label: 'Activities logged',  alwaysOn: false },
+        { key: 'stageProgression', label: 'Stage progression',  alwaysOn: false }
       ],
       hasPipelineConfig: false
     },
@@ -95,8 +95,8 @@
         { key: 'noActivities', label: 'No activities',  desc: 'Project has zero linked activities' }
       ],
       engagementComponents: [
-        { key: 'withActivity',     label: 'Activities logged',   alwaysOn: true },
-        { key: 'memberEngagement', label: 'Member engagement',   alwaysOn: true }
+        { key: 'withActivity',     label: 'Activities logged',   alwaysOn: false },
+        { key: 'memberEngagement', label: 'Member engagement',   alwaysOn: false }
       ],
       hasPipelineConfig: false
     }
@@ -159,6 +159,7 @@
   var _udefFields = {};
   var _activeId = null;
   var _activeEntity = 'company';
+  var _activeSection = 'dq';
 
   function clone(o) { return JSON.parse(JSON.stringify(o)); }
 
@@ -404,37 +405,46 @@
     h += renderHealthWeights(entityKey, s);
     h += '</div>';
 
-    // ── DATA QUALITY ──
-    h += '<div class="s-section"><div class="s-section-head">Data Quality <span class="s-info-icon" onclick="daSettings.openInfo()">i</span></div></div>';
-    h += renderCompletenessCard(entityKey, s, def);
+    // ── SECTION TABS ──
+    var sections = [
+      { key: 'dq',        label: 'Data Quality' },
+      { key: 'integrity',  label: 'Data Integrity' },
+      { key: 'adoption',   label: 'Adoption' }
+    ];
+    h += '<div class="s-section-tabs">';
+    for (var i = 0; i < sections.length; i++) {
+      var sc = sections[i];
+      var active = sc.key === _activeSection ? ' active' : '';
+      h += '<button class="s-section-tab' + active + '" onclick="daSettings.switchSection(\'' + sc.key + '\')">' + sc.label + '</button>';
+    }
+    h += '</div>';
 
-    // ── DATA INTEGRITY ──
-    h += '<div class="s-section"><div class="s-section-head">Data Integrity <span class="s-info-icon" onclick="daSettings.openInfo()">i</span></div></div>';
-    h += '<div class="s-grid s-grid-single">';
-    h += '<div class="settings-card">';
-    h += '<h3>Integrity Checks</h3>';
-    h += '<div class="settings-desc">Structural quality problems. Each check can be enabled and weighted independently.</div>';
-    h += renderIntegrityChecks(entityKey, s, def);
-    h += '</div></div>';
-
-    // ── ADOPTION ──
-    if (_mode === 'full') {
-      h += '<div class="s-section"><div class="s-section-head">Adoption <span class="s-info-icon" onclick="daSettings.openInfo()">i</span></div></div>';
-      h += '<div class="s-grid' + (def.hasPipelineConfig ? '' : ' s-grid-single') + '">';
+    // ── ACTIVE SECTION CONTENT ──
+    h += '<div class="s-section-content">';
+    if (_activeSection === 'dq') {
+      h += renderCompletenessCard(entityKey, s, def);
+    } else if (_activeSection === 'integrity') {
+      h += '<div class="settings-card">';
+      h += '<h3>Integrity Checks</h3>';
+      h += '<div class="settings-desc">Structural quality problems. Each check can be enabled and weighted independently.</div>';
+      h += renderIntegrityChecks(entityKey, s, def);
+      h += '</div>';
+    } else if (_activeSection === 'adoption') {
       h += '<div class="settings-card">';
       h += '<h3>Engagement Weights</h3>';
       h += '<div class="settings-desc">How each dimension contributes to the adoption score.</div>';
       h += renderEngagementWeights(entityKey, s, def);
       h += '</div>';
       if (def.hasPipelineConfig) {
-        h += '<div class="settings-card">';
+        h += '<div class="settings-card" style="margin-top:14px">';
         h += '<h3>Pipeline Definition</h3>';
         h += '<div class="settings-desc">What counts as "active pipeline".</div>';
         h += renderPipelineOpts(entityKey, s);
         h += '</div>';
       }
-      h += '</div>';
     }
+    h += '</div>';
+
     return h;
   }
 
@@ -510,9 +520,7 @@
       var disabled = !cc.enabled; var rowCls = disabled ? ' s-introw-disabled' : '';
       h += '<div class="s-integrity-row' + rowCls + '" data-key="' + c.key + '" data-level="' + cc.weight + '" data-enabled="' + cc.enabled + '">';
       h += '<label class="s-integrity-check"><input type="checkbox"' + (cc.enabled ? ' checked' : '') + ' onchange="daSettings.toggleIntegrity(this,\'' + ek + '\',\'' + c.key + '\')"></label>';
-      h += '<div class="s-integrity-label"><span class="s-integrity-name">' + c.label;
-      if (c.isNew) h += ' <span class="s-badge-new">New</span>';
-      h += '</span><span class="s-integrity-desc">' + c.desc + '</span></div>';
+      h += '<div class="s-integrity-label"><span class="s-integrity-name">' + c.label + '</span><span class="s-integrity-desc">' + c.desc + '</span></div>';
       h += hmlToggle('int', ek, c.key, cc.weight);
       h += '</div>';
     }
@@ -533,7 +541,7 @@
     h += '</div>';
     var ufields = _udefFields[ek] || [];
     h += '<div class="s-cpl-sub-head s-cpl-udef-head" onclick="daSettings.toggleUdef(\'' + ek + '\')">';
-    h += '<span class="s-udef-chev" id="sUdefChev_' + ek + '">&#9654;</span> Custom Fields (UDEF)';
+    h += '<span class="s-udef-chev" id="sUdefChev_' + ek + '"><svg viewBox="0 0 10 6" fill="none"><path d="M1 1l4 4 4-4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg></span> Custom Fields (UDEF)';
     if (ufields.length > 0) h += ' <span class="s-udef-count">' + ufields.length + ' fields</span>';
     else h += ' <span class="s-udef-count">\u2014 loaded after analysis</span>';
     h += '</div>';
@@ -601,6 +609,13 @@
     if (_activeId) { var el = document.getElementById(_activeId); if (el) renderPanel(el, _mode); }
   }
 
+  function switchSection(sk) {
+    // Save current section DOM state before switching
+    readEntityFromDOM(_activeEntity);
+    _activeSection = sk;
+    if (_activeId) { var el = document.getElementById(_activeId); if (el) renderPanel(el, _mode); }
+  }
+
   function setHML(group, ek, key, level, btn) {
     var toggle = btn.parentElement;
     var btns = toggle.querySelectorAll('.s-imp-btn');
@@ -664,7 +679,7 @@
     if (!body) return;
     var open = body.style.display !== 'none';
     body.style.display = open ? 'none' : 'block';
-    if (chev) chev.innerHTML = open ? '&#9654;' : '&#9660;';
+    if (chev) { if (open) chev.classList.remove('s-udef-open'); else chev.classList.add('s-udef-open'); }
   }
 
   // ============================================================
@@ -798,7 +813,7 @@
     notifyUdefLoaded: notifyUdefLoaded,
     COMPLETENESS_OPTIONS: ENTITY_DEFS.company.stdFields.map(function(f){ return { key: f.key, label: f.label }; }),
     QUALITY_ISSUE_OPTIONS: ENTITY_DEFS.company.integrityChecks.map(function(c){ return { key: c.key, label: c.label }; }),
-    switchEntity: switchEntity, setHML: setHML,
+    switchEntity: switchEntity, switchSection: switchSection, setHML: setHML,
     toggleHealthComp: toggleHealthComp, toggleEngComp: toggleEngComp,
     toggleIntegrity: toggleIntegrity, setImp: setImp, toggleUdef: toggleUdef,
     openInfo: openInfo, closeInfo: closeInfo,
