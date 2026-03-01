@@ -159,7 +159,6 @@
   var _udefFields = {};
   var _activeId = null;
   var _activeEntity = 'company';
-  var _activeSection = 'dq';
 
   function clone(o) { return JSON.parse(JSON.stringify(o)); }
 
@@ -405,47 +404,85 @@
     h += renderHealthWeights(entityKey, s);
     h += '</div>';
 
-    // ── SECTION TABS ──
-    var sections = [
-      { key: 'dq',        label: 'Data Quality' },
-      { key: 'integrity',  label: 'Data Integrity' },
-      { key: 'adoption',   label: 'Adoption' }
-    ];
-    h += '<div class="s-section-tabs">';
-    for (var i = 0; i < sections.length; i++) {
-      var sc = sections[i];
-      var active = sc.key === _activeSection ? ' active' : '';
-      h += '<button class="s-section-tab' + active + '" onclick="daSettings.switchSection(\'' + sc.key + '\')">' + sc.label + '</button>';
-    }
+    // ── ACCORDION: DATA QUALITY ──
+    var dqBadge = accBadgeDQ(s, def);
+    h += '<div class="s-accordion open" id="sAcc_dq_' + entityKey + '">';
+    h += '<div class="s-accordion-head" onclick="daSettings.toggleAcc(\'sAcc_dq_' + entityKey + '\')">';
+    h += chevSvg();
+    h += '<span class="s-accordion-title">Data Quality</span>';
+    h += '<span class="s-accordion-badge">' + dqBadge + '</span>';
     h += '</div>';
+    h += '<div class="s-accordion-body">';
+    h += renderCompletenessBody(entityKey, s, def);
+    h += '</div></div>';
 
-    // ── ACTIVE SECTION CONTENT ──
-    h += '<div class="s-section-content">';
-    if (_activeSection === 'dq') {
-      h += renderCompletenessCard(entityKey, s, def);
-    } else if (_activeSection === 'integrity') {
-      h += '<div class="settings-card">';
-      h += '<h3>Integrity Checks</h3>';
-      h += '<div class="settings-desc">Structural quality problems. Each check can be enabled and weighted independently.</div>';
-      h += renderIntegrityChecks(entityKey, s, def);
-      h += '</div>';
-    } else if (_activeSection === 'adoption') {
-      h += '<div class="settings-card">';
-      h += '<h3>Engagement Weights</h3>';
-      h += '<div class="settings-desc">How each dimension contributes to the adoption score.</div>';
-      h += renderEngagementWeights(entityKey, s, def);
-      h += '</div>';
-      if (def.hasPipelineConfig) {
-        h += '<div class="settings-card" style="margin-top:14px">';
-        h += '<h3>Pipeline Definition</h3>';
-        h += '<div class="settings-desc">What counts as "active pipeline".</div>';
-        h += renderPipelineOpts(entityKey, s);
-        h += '</div>';
-      }
-    }
+    // ── ACCORDION: DATA INTEGRITY ──
+    var intBadge = accBadgeInt(s, def);
+    h += '<div class="s-accordion" id="sAcc_int_' + entityKey + '">';
+    h += '<div class="s-accordion-head" onclick="daSettings.toggleAcc(\'sAcc_int_' + entityKey + '\')">';
+    h += chevSvg();
+    h += '<span class="s-accordion-title">Data Integrity</span>';
+    h += '<span class="s-accordion-badge">' + intBadge + '</span>';
     h += '</div>';
+    h += '<div class="s-accordion-body">';
+    h += '<div class="s-acc-desc">Structural quality problems. Each check can be enabled and weighted independently.</div>';
+    h += renderIntegrityChecks(entityKey, s, def);
+    h += '</div></div>';
+
+    // ── ACCORDION: ADOPTION ──
+    var adoptBadge = accBadgeAdopt(s, def);
+    h += '<div class="s-accordion" id="sAcc_adopt_' + entityKey + '">';
+    h += '<div class="s-accordion-head" onclick="daSettings.toggleAcc(\'sAcc_adopt_' + entityKey + '\')">';
+    h += chevSvg();
+    h += '<span class="s-accordion-title">Adoption</span>';
+    h += '<span class="s-accordion-badge">' + adoptBadge + '</span>';
+    h += '</div>';
+    h += '<div class="s-accordion-body">';
+    h += '<div class="s-acc-desc">How each dimension contributes to the adoption score.</div>';
+    h += renderEngagementWeights(entityKey, s, def);
+    if (def.hasPipelineConfig) {
+      h += '<div class="s-sub-card">';
+      h += '<h4>Pipeline Definition</h4>';
+      h += '<div class="s-sub-card-desc">What counts as "active pipeline".</div>';
+      h += renderPipelineOpts(entityKey, s);
+      h += '</div>';
+    }
+    h += '</div></div>';
 
     return h;
+  }
+
+  function chevSvg() {
+    return '<span class="s-accordion-chev"><svg viewBox="0 0 10 6" fill="none"><path d="M1 1l4 4 4-4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg></span>';
+  }
+
+  function accBadgeDQ(s, def) {
+    var active = 0;
+    for (var i = 0; i < def.stdFields.length; i++) {
+      if ((s.stdFieldConfig[def.stdFields[i].key] || 'excluded') !== 'excluded') active++;
+    }
+    return active + ' of ' + def.stdFields.length + ' fields active';
+  }
+  function accBadgeInt(s, def) {
+    var active = 0;
+    for (var i = 0; i < def.integrityChecks.length; i++) {
+      var cc = s.integrityConfig[def.integrityChecks[i].key];
+      if (cc && cc.enabled) active++;
+    }
+    return active + ' of ' + def.integrityChecks.length + ' checks active';
+  }
+  function accBadgeAdopt(s, def) {
+    var active = 0;
+    for (var i = 0; i < def.engagementComponents.length; i++) {
+      var cc = s.engagementConfig[def.engagementComponents[i].key];
+      if (cc && cc.enabled !== false) active++;
+    }
+    return active + ' components';
+  }
+
+  function toggleAcc(id) {
+    var el = document.getElementById(id);
+    if (el) el.classList.toggle('open');
   }
 
   function renderHealthWeights(ek, s) {
@@ -528,10 +565,9 @@
     return h;
   }
 
-  function renderCompletenessCard(ek, s, def) {
-    var h = '<div class="s-cpl-card">';
-    h += '<h3>Completeness Definition</h3>';
-    h += '<div class="settings-desc">Which fields count towards completeness. <strong>Required</strong> fields count double, <strong>Excluded</strong> fields are ignored.</div>';
+  function renderCompletenessBody(ek, s, def) {
+    var h = '';
+    h += '<div class="s-acc-desc">Which fields count towards completeness. <strong>Required</strong> fields count double, <strong>Excluded</strong> are ignored.</div>';
     h += '<div class="s-cpl-sub-head">Standard Fields</div>';
     h += '<div class="s-field-list">';
     for (var i = 0; i < def.stdFields.length; i++) {
@@ -557,7 +593,7 @@
       }
       h += '</div>';
     }
-    h += '</div></div>';
+    h += '</div>';
     return h;
   }
 
@@ -609,12 +645,6 @@
     if (_activeId) { var el = document.getElementById(_activeId); if (el) renderPanel(el, _mode); }
   }
 
-  function switchSection(sk) {
-    // Save current section DOM state before switching
-    readEntityFromDOM(_activeEntity);
-    _activeSection = sk;
-    if (_activeId) { var el = document.getElementById(_activeId); if (el) renderPanel(el, _mode); }
-  }
 
   function setHML(group, ek, key, level, btn) {
     var toggle = btn.parentElement;
@@ -813,7 +843,7 @@
     notifyUdefLoaded: notifyUdefLoaded,
     COMPLETENESS_OPTIONS: ENTITY_DEFS.company.stdFields.map(function(f){ return { key: f.key, label: f.label }; }),
     QUALITY_ISSUE_OPTIONS: ENTITY_DEFS.company.integrityChecks.map(function(c){ return { key: c.key, label: c.label }; }),
-    switchEntity: switchEntity, switchSection: switchSection, setHML: setHML,
+    switchEntity: switchEntity, toggleAcc: toggleAcc, setHML: setHML,
     toggleHealthComp: toggleHealthComp, toggleEngComp: toggleEngComp,
     toggleIntegrity: toggleIntegrity, setImp: setImp, toggleUdef: toggleUdef,
     openInfo: openInfo, closeInfo: closeInfo,
