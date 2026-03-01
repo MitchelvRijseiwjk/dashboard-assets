@@ -122,16 +122,25 @@
     .s-entity-ico{width:17px;height:17px;opacity:.55;vertical-align:middle;margin-top:-1px}
     .s-entity-tab.active .s-entity-ico{opacity:.85}
 
-    /* Section sub-tabs (DQ / Integrity / Adoption) */
-    .s-section-tabs{display:flex;gap:0;margin:0 auto 16px;max-width:820px;padding:0 20px}
-    .s-section-tab{padding:8px 18px;font-size:.82rem;font-weight:500;color:var(--so-text-muted);cursor:pointer;border:1px solid var(--so-border);background:var(--so-white);transition:all .15s;font-family:inherit;white-space:nowrap}
-    .s-section-tab:first-child{border-radius:8px 0 0 8px}
-    .s-section-tab:last-child{border-radius:0 8px 8px 0}
-    .s-section-tab:not(:first-child){border-left:none}
-    .s-section-tab:hover{color:var(--so-charcoal);background:var(--so-dune)}
-    .s-section-tab.active{color:var(--so-green);background:var(--so-dune);font-weight:600;border-color:var(--so-green)}
-    .s-section-tab.active+.s-section-tab{border-left-color:var(--so-green)}
-    .s-section-content{max-width:820px;margin:0 auto;padding:0 20px}
+    /* Accordion sections */
+    .s-accordion{margin-bottom:12px;max-width:820px;margin-left:auto;margin-right:auto}
+    .s-accordion-head{display:flex;align-items:center;gap:10px;padding:14px 20px;background:var(--so-white);border:1px solid var(--so-border);border-radius:10px;cursor:pointer;transition:all .15s;user-select:none}
+    .s-accordion.open .s-accordion-head{border-radius:10px 10px 0 0;border-bottom-color:transparent}
+    .s-accordion-head:hover{background:#fafaf8}
+    .s-accordion-chev{width:12px;height:12px;flex-shrink:0;transition:transform .2s;color:var(--so-text-muted)}
+    .s-accordion-chev svg{width:12px;height:12px;display:block}
+    .s-accordion.open .s-accordion-chev{transform:rotate(0deg)}
+    .s-accordion:not(.open) .s-accordion-chev{transform:rotate(-90deg)}
+    .s-accordion-title{font-size:.88rem;font-weight:600;color:var(--so-green);flex:1}
+    .s-accordion-badge{font-size:.72rem;color:var(--so-text-muted);font-weight:400;background:var(--so-dune);padding:2px 10px;border-radius:200px}
+    .s-accordion-body{background:var(--so-white);border:1px solid var(--so-border);border-top:none;border-radius:0 0 10px 10px;padding:0 20px 20px;display:none}
+    .s-accordion.open .s-accordion-body{display:block}
+    .s-acc-desc{font-size:.78rem;color:var(--so-text-muted);margin-bottom:14px;padding-top:4px}
+
+    /* Sub-card (Pipeline inside Adoption accordion) */
+    .s-sub-card{background:var(--so-dune);border:1px solid var(--so-dune-dark2);border-radius:8px;padding:14px 16px;margin-top:16px}
+    .s-sub-card h4{font-size:.84rem;font-weight:600;color:var(--so-green);margin-bottom:2px}
+    .s-sub-card-desc{font-size:.75rem;color:var(--so-text-muted);margin-bottom:10px}
 
     /* Overall Health card */
     .s-health-card{background:var(--so-white);border:1px solid var(--so-border);border-radius:12px;padding:20px 22px;margin:0 auto 16px;max-width:820px;box-shadow:0 2px 12px rgba(0,0,0,.04)}
