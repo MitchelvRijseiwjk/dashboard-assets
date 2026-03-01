@@ -340,6 +340,7 @@ function startFullEntity(key) {
       if (expBtn) expBtn.style.display = '';
       if (headerBtn) { headerBtn.disabled = false; headerBtn.onclick = function(){ reAnalyze(key); }; }
       renderDQScore(key);
+      renderScoreBanner(key);
       var ov = document.getElementById(tabKey + 'LoadingOverlay');
       if (ov) {
         ov.style.opacity = '0';
@@ -712,6 +713,7 @@ function reloadCompanyDetails() {
   if (crossEl) crossEl.innerHTML = '<div style="text-align:center;padding:40px;color:#999">Loading...</div>';
   fetchCompanyDetails(function() {
     renderDQScore('company');
+    renderScoreBanner('company');
     loadCompanyCross(null);
   });
 }
@@ -831,6 +833,133 @@ function renderCrossEntityFunnel(d) {
 }
 
 // ===========================================================
+// ENTITY SCORES — 3 scores + Overall Health (computed frontend)
+// ===========================================================
+
+/**
+ * gatherEntityData(key) — collects all available data for score computation
+ * Maps entity-specific raw data to generic check/component keys used by settings
+ */
+function gatherEntityData(key) {
+  var ov = overviewData[key];
+  if (!ov) return null;
+  var o = ov.overview;
+  var total = o.total || 0;
+  var cpl = ov.completeness || null;
+  var ec = entityConfig[key];
+  var ud = (ec && ec.udefId > 0 && udefData[ec.udefId]) ? udefData[ec.udefId] : null;
+  var checkData = {};
+  var compData = {};
+  var qData = null;
+  var adoptionTotal = total;
+
+  if (key === 'company') {
+    var q = (companyDetailData && companyDetailData.quality) ? companyDetailData.quality : null;
+    var ah = (companyDetailData && companyDetailData.activityHealth) ? companyDetailData.activityHealth : null;
+    var f = (companyDetailData && companyDetailData.funnel) ? companyDetailData.funnel : null;
+    qData = q;
+    if (q) { checkData.noPerson = q.noPerson; checkData.unreachable = q.unreachable; }
+    if (ah) { checkData.noActivity12m = ah.noActivity; }
+    if (f) {
+      compData.withPerson = f.withPerson;
+      compData.withActivity = f.withPersonActivity;
+      var pt = (typeof daSettings !== 'undefined') ? daSettings.getPipelineType('company') : 'sale';
+      if (pt !== 'none') compData.withPipeline = f.withPersonActivitySale;
+      adoptionTotal = f.total || total;
+    }
+  } else if (key === 'contact') {
+    // Derive from overview stats
+    if (o.withEmail !== undefined) checkData.noEmail = total - (o.withEmail || 0);
+    if (o.withActivities !== undefined) checkData.noActivity = total - (o.withActivities || 0);
+    compData.withActivity = o.withActivities || 0;
+    compData.withSales = o.withSales || 0;
+    // Build completeness from overview if not from server
+    if (!cpl) {
+      cpl = { email: o.withEmail || 0, phone: o.withPhone || 0, position: o.withPosition || 0, mrMrs: o.withTitle || 0 };
+      cpl.firstName = total; cpl.lastName = total; // assume always filled
+    }
+  } else if (key === 'sale') {
+    if (o.withPersons !== undefined) checkData.noContact = total - (o.withPersons || 0);
+    if (o.withActivities !== undefined) checkData.noActivities = total - (o.withActivities || 0);
+    compData.withActivity = o.withActivities || 0;
+    compData.stageProgression = o.withActivities || 0; // approximate
+    if (!cpl) {
+      cpl = { amount: o.withAmount || 0, saleType: total, stage: total, probability: total, closeDate: total };
+    }
+  } else if (key === 'project') {
+    if (o.withMembers !== undefined) checkData.noMembers = total - (o.withMembers || 0);
+    if (o.withActivities !== undefined) checkData.noActivities = total - (o.withActivities || 0);
+    compData.withActivity = o.withActivities || 0;
+    compData.memberEngagement = o.withMembers || 0;
+    if (!cpl) {
+      cpl = { projectType: total, status: total, endDate: total };
+    }
+  }
+
+  return { total: total, completeness: cpl, qualityData: qData, udefData: ud, checkData: checkData, componentData: compData, adoptionTotal: adoptionTotal };
+}
+
+/**
+ * computeEntityScores(key) — computes all 4 scores for an entity
+ * Returns { dq, integrity, adoption, health } or null
+ */
+function computeEntityScores(key) {
+  if (typeof daSettings === 'undefined') return null;
+  var data = gatherEntityData(key);
+  if (!data) return null;
+
+  var dq = daSettings.computeDQScore(key, data.completeness, data.qualityData, data.udefData, data.total);
+  var integrity = daSettings.computeIntegrity(key, data.checkData, data.total);
+  var adoption = daSettings.computeAdoption(key, data.componentData, data.adoptionTotal);
+  var health = daSettings.computeHealth(key, dq, integrity, adoption);
+
+  return { dq: dq, integrity: integrity, adoption: adoption, health: health };
+}
+
+// Cache scores per entity so Overview + DQ tabs both can use them
+var entityScores = {};
+
+function refreshEntityScores(key) {
+  entityScores[key] = computeEntityScores(key);
+  return entityScores[key];
+}
+
+/**
+ * renderScoreBanner(key) — renders 4 score cards at top of Overview tab
+ */
+function renderScoreBanner(key) {
+  var el = document.getElementById(key + 'OverviewContent');
+  if (!el) return;
+  var scores = refreshEntityScores(key);
+  if (!scores) return;
+
+  // Remove existing banner
+  var existing = el.querySelector('.scores-banner');
+  if (existing) existing.parentNode.removeChild(existing);
+
+  var cards = [];
+  if (scores.health) cards.push(scoreMiniCard('Overall Health', scores.health.total, true));
+  if (scores.dq) cards.push(scoreMiniCard('Data Quality', scores.dq.total, false));
+  if (scores.integrity) cards.push(scoreMiniCard('Data Integrity', scores.integrity.total, false));
+  if (scores.adoption) cards.push(scoreMiniCard('Adoption', scores.adoption.total, false));
+
+  if (cards.length === 0) return;
+
+  var h = '<div class="scores-banner"><div class="scores-row">' + cards.join('') + '</div></div>';
+  el.insertAdjacentHTML('afterbegin', h);
+}
+
+function scoreMiniCard(label, score, isMain) {
+  var color = slColor(score);
+  var cls = isMain ? 'score-mini score-mini-main' : 'score-mini';
+  return '<div class="' + cls + '">' +
+    '<div class="score-mini-ring" style="--score:' + score + ';--color:' + color + '">' +
+    '<span class="score-mini-val">' + score + '<small>%</small></span>' +
+    '</div>' +
+    '<div class="score-mini-lbl">' + label + '</div></div>';
+}
+
+// ===========================================================
 // DATA QUALITY SCORE (computed frontend from available data)
 // ===========================================================
 function renderDQScore(key) {
@@ -931,12 +1060,7 @@ function renderDQScore(key) {
     scoreHtml += '</div>';
     scoreHtml += '<div class="dq-score-info">';
     scoreHtml += '<div class="dq-score-label">Data Quality Score</div>';
-    var scoreDesc = 'Based on field completeness, custom field usage and data quality issues';
-    if (typeof daSettings !== 'undefined') {
-      var sw = daSettings.getSettings('company').dqWeights;
-      scoreDesc = 'Completeness ' + sw.completeness + '% · Custom fields ' + sw.udef + '% · Quality issues ' + sw.quality + '%';
-    }
-    scoreHtml += '<div class="dq-score-desc">' + scoreDesc + '</div>';
+    scoreHtml += '<div class="dq-score-desc">Based on field completeness weighted by Required/Normal/Excluded settings.</div>';
     scoreHtml += '</div></div>';
     h = scoreHtml + h; // prepend score to top
   }
@@ -947,56 +1071,23 @@ function renderDQScore(key) {
 }
 
 function computeDQScore(key) {
-  // Use settings-driven calculation if available
-  if (typeof daSettings !== 'undefined' && key === 'company') {
-    var ov = overviewData['company'];
-    var total = (ov && ov.overview) ? ov.overview.total : 0;
-    var cpl = (ov && ov.completeness) ? ov.completeness : null;
-    var q = (companyDetailData && companyDetailData.quality) ? companyDetailData.quality : null;
-    var ec = entityConfig[key];
-    var ud = (ec && ec.udefId > 0 && udefData[ec.udefId]) ? udefData[ec.udefId] : null;
-
-    var result = daSettings.computeDQScore('company', cpl, q, ud, total);
-    if (result) return result.total;
-  }
-
-  // Fallback: original hardcoded logic for non-company entities
-  var scores = [];
-
-  if (key === 'company' && overviewData['company'] && overviewData['company'].completeness) {
-    var c = overviewData['company'].completeness;
-    var total = overviewData['company'].overview.total || 1;
-    var fields = ['orgNr', 'email', 'phone', 'address', 'webpage'];
-    var sum = 0;
-    for (var i = 0; i < fields.length; i++) {
-      sum += (c[fields[i]] || 0) / total * 100;
-    }
-    scores.push(sum / fields.length);
-  }
-
-  var ec = entityConfig[key];
-  if (ec && ec.udefId > 0 && udefData[ec.udefId]) {
-    var ud = udefData[ec.udefId];
-    if (ud.fields && ud.fields.length > 0) {
-      var udefSum = 0;
-      for (var i = 0; i < ud.fields.length; i++) {
-        udefSum += ud.fields[i].percent;
-      }
-      scores.push(udefSum / ud.fields.length);
+  // Use settings-driven computation for all entities
+  if (typeof daSettings !== 'undefined') {
+    var data = gatherEntityData(key);
+    if (data) {
+      var result = daSettings.computeDQScore(key, data.completeness, data.qualityData, data.udefData, data.total);
+      if (result) return result.total;
     }
   }
 
-  if (key === 'company' && companyDetailData && companyDetailData.quality && companyDetailData.activityHealth) {
-    var q = companyDetailData.quality;
-    var total = companyDetailData.activityHealth.total || 1;
-    var issuePct = ((q.noPerson + q.noCategory + q.unreachable) / (total * 3)) * 100;
-    scores.push(100 - issuePct);
-  }
-
-  if (scores.length === 0) return null;
-  var avg = 0;
-  for (var i = 0; i < scores.length; i++) avg += scores[i];
-  return Math.round(avg / scores.length);
+  // Fallback: simple average of available completeness data
+  var ov = overviewData[key];
+  if (!ov || !ov.completeness) return null;
+  var c = ov.completeness; var total = (ov.overview && ov.overview.total) ? ov.overview.total : 0;
+  if (total <= 0) return null;
+  var sum = 0; var cnt = 0;
+  for (var k in c) { if (c.hasOwnProperty(k) && typeof c[k] === 'number') { sum += c[k] / total * 100; cnt++; } }
+  return cnt > 0 ? Math.round(sum / cnt) : null;
 }
 
 // end of DQ score functions
