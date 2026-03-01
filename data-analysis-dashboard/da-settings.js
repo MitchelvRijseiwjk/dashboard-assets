@@ -323,6 +323,96 @@
   }
   function getPipelineType(entity) { return get(entity || 'company').pipelineType; }
 
+  // ============================================================
+  // SCORE COMPUTATION — Integrity, Adoption, Overall Health
+  // ============================================================
+
+  /**
+   * computeIntegrity(entity, checkData, total)
+   * checkData: { checkKey: affectedCount, ... }
+   * Returns { total: 0-100, details: [...] } or null
+   */
+  function computeIntegrity(entity, checkData, total) {
+    if (!total || total <= 0 || !checkData) return null;
+    var s = get(entity); var def = ENTITY_DEFS[entity];
+    if (!def) return null;
+    var checks = def.integrityChecks; var cfg = s.integrityConfig;
+    var items = []; var wItems = [];
+    for (var i = 0; i < checks.length; i++) {
+      var c = checks[i]; var cc = cfg[c.key];
+      if (!cc || !cc.enabled) continue;
+      var count = checkData[c.key];
+      if (count === undefined || count === null) continue;
+      var pct = Math.min(100, Math.round(count / total * 1000) / 10);
+      items.push({ key: c.key, label: c.label, affected: pct, weight: cc.weight });
+      wItems.push({ weight: cc.weight, enabled: true });
+    }
+    if (items.length === 0) return null;
+    var wts = calcWeightPct(wItems);
+    var score = 0;
+    for (var i = 0; i < items.length; i++) {
+      score += (100 - items[i].affected) * wts[i].pct / 100;
+    }
+    return { total: Math.round(score), details: items };
+  }
+
+  /**
+   * computeAdoption(entity, componentData, total)
+   * componentData: { componentKey: rawCount, ... }
+   * Returns { total: 0-100, details: [...] } or null
+   */
+  function computeAdoption(entity, componentData, total) {
+    if (!total || total <= 0 || !componentData) return null;
+    var s = get(entity); var def = ENTITY_DEFS[entity];
+    if (!def) return null;
+    var comps = def.engagementComponents; var cfg = s.engagementConfig;
+    var items = []; var wItems = [];
+    for (var i = 0; i < comps.length; i++) {
+      var c = comps[i]; var cc = cfg[c.key];
+      if (!cc || cc.enabled === false) continue;
+      var count = componentData[c.key];
+      if (count === undefined || count === null) continue;
+      var pct = Math.min(100, Math.round(count / total * 1000) / 10);
+      items.push({ key: c.key, label: c.label, pct: pct, weight: cc.weight });
+      wItems.push({ weight: cc.weight, enabled: true });
+    }
+    if (items.length === 0) return null;
+    var wts = calcWeightPct(wItems);
+    var score = 0;
+    for (var i = 0; i < items.length; i++) {
+      score += items[i].pct * wts[i].pct / 100;
+    }
+    return { total: Math.round(score), details: items };
+  }
+
+  /**
+   * computeHealth(entity, dqResult, intResult, adoptResult)
+   * Each result: { total: 0-100 } or null
+   * Returns { total: 0-100, components: [...] } or null
+   */
+  function computeHealth(entity, dqResult, intResult, adoptResult) {
+    var s = get(entity);
+    var hw = s.healthWeights; var he = s.healthExclude;
+    var comps = []; var wItems = [];
+    if (dqResult && dqResult.total != null) {
+      comps.push({ key: 'dq', label: 'Data Quality', score: dqResult.total, weight: hw.dq || 'high' });
+      wItems.push({ weight: hw.dq || 'high', enabled: true });
+    }
+    if (!he.integrity && intResult && intResult.total != null) {
+      comps.push({ key: 'integrity', label: 'Data Integrity', score: intResult.total, weight: hw.integrity || 'medium' });
+      wItems.push({ weight: hw.integrity || 'medium', enabled: true });
+    }
+    if (!he.adoption && adoptResult && adoptResult.total != null) {
+      comps.push({ key: 'adoption', label: 'Adoption', score: adoptResult.total, weight: hw.adoption || 'high' });
+      wItems.push({ weight: hw.adoption || 'high', enabled: true });
+    }
+    if (comps.length === 0) return null;
+    var wts = calcWeightPct(wItems);
+    var score = 0;
+    for (var i = 0; i < comps.length; i++) score += comps[i].score * wts[i].pct / 100;
+    return { total: Math.round(score), components: comps };
+  }
+
   function getCompleteness(entity) {
     var s = get(entity || 'company');
     var def = ENTITY_DEFS[entity || 'company'];
@@ -836,6 +926,9 @@
     init: init,
     getSettings: getSettings,
     computeDQScore: computeDQ,
+    computeIntegrity: computeIntegrity,
+    computeAdoption: computeAdoption,
+    computeHealth: computeHealth,
     computeEngagement: computeEngagement,
     getCompletenessValue: getCompletenessValue,
     getPipelineLabel: getPipelineLabel,
