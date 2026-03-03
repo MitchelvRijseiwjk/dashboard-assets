@@ -897,7 +897,12 @@
   function doSave() {
     readEntityFromDOM(_activeEntity);
     save();
-    if (typeof renderDQScore === 'function') renderDQScore('company');
+    // Recalculate scores for all entities that have loaded data
+    for (var i = 0; i < ENTITY_ORDER.length; i++) {
+      var ek = ENTITY_ORDER[i];
+      if (typeof renderDQScore === 'function') renderDQScore(ek);
+      if (typeof renderScoreBanner === 'function') renderScoreBanner(ek);
+    }
     if (typeof renderCrossEntityFunnel === 'function' && typeof companyDetailData !== 'undefined' && companyDetailData) renderCrossEntityFunnel(companyDetailData);
     if (typeof renderCompanyDetails === 'function' && typeof companyDetailData !== 'undefined' && companyDetailData) renderCompanyDetails(companyDetailData);
     toast('Settings applied and scores recalculated');
