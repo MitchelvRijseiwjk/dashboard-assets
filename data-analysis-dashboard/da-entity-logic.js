@@ -843,6 +843,8 @@ function renderCrossEntityFunnel(d) {
 function gatherEntityData(key) {
   var ov = overviewData[key];
   if (!ov) return null;
+  // Only compute scores for entities with settings definitions
+  if (typeof daSettings !== 'undefined' && !daSettings.ENTITY_DEFS[key]) return null;
   var o = ov.overview;
   var total = o.total || 0;
   var cpl = ov.completeness || null;
