@@ -927,7 +927,7 @@ function refreshEntityScores(key) {
 }
 
 /**
- * renderScoreBanner(key) — renders 4 score cards at top of Overview tab
+ * renderScoreBanner(key) — renders hero health + 3 sub-score cards at top of Overview tab
  */
 function renderScoreBanner(key) {
   var el = document.getElementById(key + 'OverviewContent');
@@ -939,26 +939,47 @@ function renderScoreBanner(key) {
   var existing = el.querySelector('.scores-banner');
   if (existing) existing.parentNode.removeChild(existing);
 
-  var cards = [];
-  if (scores.health) cards.push(scoreMiniCard('Overall Health', scores.health.total, true));
-  if (scores.dq) cards.push(scoreMiniCard('Data Quality', scores.dq.total, false));
-  if (scores.integrity) cards.push(scoreMiniCard('Data Integrity', scores.integrity.total, false));
-  if (scores.adoption) cards.push(scoreMiniCard('Adoption', scores.adoption.total, false));
+  var h = '<div class="scores-banner">';
 
-  if (cards.length === 0) return;
+  // Hero: Overall Health
+  if (scores.health) {
+    var hc = slColor(scores.health.total);
+    h += '<div class="sb-hero">';
+    h += '<div class="sb-hero-ring" style="--score:' + scores.health.total + ';--color:' + hc + '">';
+    h += '<span class="sb-hero-val">' + scores.health.total + '<small>%</small></span>';
+    h += '</div>';
+    h += '<div class="sb-hero-lbl">Overall Health</div>';
+    h += '<div class="sb-hero-desc">Combined score of all three metrics</div>';
+    h += '</div>';
+  }
 
-  var h = '<div class="scores-banner"><div class="scores-row">' + cards.join('') + '</div></div>';
+  // Sub-scores row
+  var subs = [];
+  if (scores.dq) subs.push({ label: 'Data Quality', desc: 'Field completeness across records', score: scores.dq.total });
+  if (scores.integrity) subs.push({ label: 'Data Integrity', desc: 'Record connectivity and structure', score: scores.integrity.total });
+  if (scores.adoption) subs.push({ label: 'Adoption', desc: 'Active CRM usage', score: scores.adoption.total });
+
+  if (subs.length > 0) {
+    h += '<div class="sb-subs">';
+    for (var i = 0; i < subs.length; i++) {
+      var s = subs[i];
+      var col = slColor(s.score);
+      h += '<div class="sb-sub">';
+      h += '<div class="sb-sub-head">';
+      h += '<span class="sb-sub-lbl">' + s.label + '</span>';
+      h += '<span class="sb-sub-val" style="color:' + col + '">' + s.score + '%</span>';
+      h += '</div>';
+      h += '<div class="sb-sub-desc">' + s.desc + '</div>';
+      h += '<div class="sb-sub-track"><div class="sb-sub-fill" style="width:' + s.score + '%;background:' + col + '"></div></div>';
+      h += '</div>';
+    }
+    h += '</div>';
+  }
+
+  h += '</div>';
+
+  if (subs.length === 0 && !scores.health) return;
   el.insertAdjacentHTML('afterbegin', h);
-}
-
-function scoreMiniCard(label, score, isMain) {
-  var color = slColor(score);
-  var cls = isMain ? 'score-mini score-mini-main' : 'score-mini';
-  return '<div class="' + cls + '">' +
-    '<div class="score-mini-ring" style="--score:' + score + ';--color:' + color + '">' +
-    '<span class="score-mini-val">' + score + '<small>%</small></span>' +
-    '</div>' +
-    '<div class="score-mini-lbl">' + label + '</div></div>';
 }
 
 // ===========================================================
