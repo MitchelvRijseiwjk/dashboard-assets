@@ -261,7 +261,8 @@
 
   function computeDQ(entity, ovCpl, qData, uData, total) {
     var s = get(entity);
-    var def = ENTITY_DEFS[entity] || ENTITY_DEFS.company;
+    var def = ENTITY_DEFS[entity];
+    if (!s || !def) return null;
     var scores = {};
     if (ovCpl && total > 0) {
       var sum = 0; var wt = 0;
@@ -335,7 +336,7 @@
   function computeIntegrity(entity, checkData, total) {
     if (!total || total <= 0 || !checkData) return null;
     var s = get(entity); var def = ENTITY_DEFS[entity];
-    if (!def) return null;
+    if (!def || !s) return null;
     var checks = def.integrityChecks; var cfg = s.integrityConfig;
     var items = []; var wItems = [];
     for (var i = 0; i < checks.length; i++) {
@@ -364,7 +365,7 @@
   function computeAdoption(entity, componentData, total) {
     if (!total || total <= 0 || !componentData) return null;
     var s = get(entity); var def = ENTITY_DEFS[entity];
-    if (!def) return null;
+    if (!def || !s) return null;
     var comps = def.engagementComponents; var cfg = s.engagementConfig;
     var items = []; var wItems = [];
     for (var i = 0; i < comps.length; i++) {
@@ -392,7 +393,8 @@
    */
   function computeHealth(entity, dqResult, intResult, adoptResult) {
     var s = get(entity);
-    var hw = s.healthWeights; var he = s.healthExclude;
+    if (!s || !s.healthWeights) return null;
+    var hw = s.healthWeights; var he = s.healthExclude || {};
     var comps = []; var wItems = [];
     if (dqResult && dqResult.total != null) {
       comps.push({ key: 'dq', label: 'Data Quality', score: dqResult.total, weight: hw.dq || 'high' });
