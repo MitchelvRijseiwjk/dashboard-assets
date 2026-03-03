@@ -935,50 +935,48 @@ function renderScoreBanner(key) {
   var scores = refreshEntityScores(key);
   if (!scores) return;
 
-  // Remove existing banner
   var existing = el.querySelector('.scores-banner');
   if (existing) existing.parentNode.removeChild(existing);
 
+  var hasAnything = scores.health || scores.dq || scores.integrity || scores.adoption;
+  if (!hasAnything) return;
+
   var h = '<div class="scores-banner">';
 
-  // Hero: Overall Health
+  // Left: Overall Health (larger ring)
   if (scores.health) {
     var hc = slColor(scores.health.total);
-    h += '<div class="sb-hero">';
-    h += '<div class="sb-hero-ring" style="--score:' + scores.health.total + ';--color:' + hc + '">';
-    h += '<span class="sb-hero-val">' + scores.health.total + '<small>%</small></span>';
+    h += '<div class="sb-main" title="Combined score of all three metrics">';
+    h += '<div class="sb-ring sb-ring-lg" style="--score:' + scores.health.total + ';--color:' + hc + '">';
+    h += '<span class="sb-val sb-val-lg">' + scores.health.total + '<small>%</small></span>';
     h += '</div>';
-    h += '<div class="sb-hero-lbl">Overall Health</div>';
-    h += '<div class="sb-hero-desc">Combined score of all three metrics</div>';
+    h += '<div class="sb-lbl">Overall Health</div>';
     h += '</div>';
   }
 
-  // Sub-scores row
+  // Divider
+  h += '<div class="sb-divider"></div>';
+
+  // Right: 3 sub-scores (smaller rings)
   var subs = [];
-  if (scores.dq) subs.push({ label: 'Data Quality', desc: 'Field completeness across records', score: scores.dq.total });
-  if (scores.integrity) subs.push({ label: 'Data Integrity', desc: 'Record connectivity and structure', score: scores.integrity.total });
-  if (scores.adoption) subs.push({ label: 'Adoption', desc: 'Active CRM usage', score: scores.adoption.total });
+  if (scores.dq) subs.push({ label: 'Data Quality', tip: 'Field completeness across records', score: scores.dq.total });
+  if (scores.integrity) subs.push({ label: 'Data Integrity', tip: 'Record connectivity and structure', score: scores.integrity.total });
+  if (scores.adoption) subs.push({ label: 'Adoption', tip: 'Active CRM usage', score: scores.adoption.total });
 
-  if (subs.length > 0) {
-    h += '<div class="sb-subs">';
-    for (var i = 0; i < subs.length; i++) {
-      var s = subs[i];
-      var col = slColor(s.score);
-      h += '<div class="sb-sub">';
-      h += '<div class="sb-sub-head">';
-      h += '<span class="sb-sub-lbl">' + s.label + '</span>';
-      h += '<span class="sb-sub-val" style="color:' + col + '">' + s.score + '%</span>';
-      h += '</div>';
-      h += '<div class="sb-sub-desc">' + s.desc + '</div>';
-      h += '<div class="sb-sub-track"><div class="sb-sub-fill" style="width:' + s.score + '%;background:' + col + '"></div></div>';
-      h += '</div>';
-    }
+  h += '<div class="sb-subs">';
+  for (var i = 0; i < subs.length; i++) {
+    var s = subs[i];
+    var col = slColor(s.score);
+    h += '<div class="sb-sub" title="' + s.tip + '">';
+    h += '<div class="sb-ring sb-ring-sm" style="--score:' + s.score + ';--color:' + col + '">';
+    h += '<span class="sb-val sb-val-sm">' + s.score + '<small>%</small></span>';
+    h += '</div>';
+    h += '<div class="sb-lbl">' + s.label + '</div>';
     h += '</div>';
   }
-
   h += '</div>';
 
-  if (subs.length === 0 && !scores.health) return;
+  h += '</div>';
   el.insertAdjacentHTML('afterbegin', h);
 }
 
@@ -1071,21 +1069,6 @@ function renderDQScore(key) {
     }
 
     if (cols === 2) h += '</div>';
-  }
-
-  // DQ Score summary card
-  var dqScore = computeDQScore(key);
-  if (dqScore !== null) {
-    var scoreColor = slColor(dqScore);
-    var scoreHtml = '<div class="dq-score-banner">';
-    scoreHtml += '<div class="dq-score-ring" style="--score:' + dqScore + ';--color:' + scoreColor + '">';
-    scoreHtml += '<span class="dq-score-value">' + dqScore + '<span style="font-size:.5em">%</span></span>';
-    scoreHtml += '</div>';
-    scoreHtml += '<div class="dq-score-info">';
-    scoreHtml += '<div class="dq-score-label">Data Quality Score</div>';
-    scoreHtml += '<div class="dq-score-desc">Based on field completeness weighted by Required/Normal/Excluded settings.</div>';
-    scoreHtml += '</div></div>';
-    h = scoreHtml + h; // prepend score to top
   }
 
   h = dateFilterNotice() + h; // filter notice always at very top
