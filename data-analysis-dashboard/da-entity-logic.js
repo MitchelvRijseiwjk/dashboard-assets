@@ -951,6 +951,7 @@ function renderScoreBanner(key) {
     h += '<span class="sb-val sb-val-lg">' + scores.health.total + '<small>%</small></span>';
     h += '</div>';
     h += '<div class="sb-lbl">Overall Health</div>';
+    h += '<div class="sb-desc">Combined score of all three metrics</div>';
     h += '</div>';
   }
 
@@ -959,19 +960,20 @@ function renderScoreBanner(key) {
 
   // Right: 3 sub-scores (smaller rings)
   var subs = [];
-  if (scores.dq) subs.push({ label: 'Data Quality', tip: 'Field completeness across records', score: scores.dq.total });
-  if (scores.integrity) subs.push({ label: 'Data Integrity', tip: 'Record connectivity and structure', score: scores.integrity.total });
-  if (scores.adoption) subs.push({ label: 'Adoption', tip: 'Active CRM usage', score: scores.adoption.total });
+  if (scores.dq) subs.push({ label: 'Data Quality', desc: 'Field completeness across records', score: scores.dq.total });
+  if (scores.integrity) subs.push({ label: 'Data Integrity', desc: 'Record connectivity and structure', score: scores.integrity.total });
+  if (scores.adoption) subs.push({ label: 'Adoption', desc: 'Active CRM usage', score: scores.adoption.total });
 
   h += '<div class="sb-subs">';
   for (var i = 0; i < subs.length; i++) {
     var s = subs[i];
     var col = slColor(s.score);
-    h += '<div class="sb-sub" title="' + s.tip + '">';
+    h += '<div class="sb-sub" title="' + s.desc + '">';
     h += '<div class="sb-ring sb-ring-sm" style="--score:' + s.score + ';--color:' + col + '">';
     h += '<span class="sb-val sb-val-sm">' + s.score + '<small>%</small></span>';
     h += '</div>';
     h += '<div class="sb-lbl">' + s.label + '</div>';
+    h += '<div class="sb-desc">' + s.desc + '</div>';
     h += '</div>';
   }
   h += '</div>';
