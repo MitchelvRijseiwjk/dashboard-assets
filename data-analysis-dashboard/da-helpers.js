@@ -570,6 +570,9 @@ function aaRunFullEntity(key, cb, markStepDone) {
       if (st2) st2.style.display = '';
       if (ab) ab.textContent = 'Re-analyze';
       if (eb) eb.style.display = '';
+      // Compute and render scores once all data is loaded
+      if (typeof renderDQScore === 'function') renderDQScore(key);
+      if (typeof renderScoreBanner === 'function') renderScoreBanner(key);
       if (cb) cb();
     }
   }
