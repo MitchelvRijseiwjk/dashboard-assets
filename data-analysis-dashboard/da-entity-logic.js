@@ -341,6 +341,7 @@ function startFullEntity(key) {
       if (headerBtn) { headerBtn.disabled = false; headerBtn.onclick = function(){ reAnalyze(key); }; }
       renderDQScore(key);
       renderScoreBanner(key);
+      renderAdoptionTab(key);
       var ov = document.getElementById(tabKey + 'LoadingOverlay');
       if (ov) {
         ov.style.opacity = '0';
@@ -1107,6 +1108,76 @@ function computeDQScore(key) {
 }
 
 // end of DQ score functions
+
+// ===========================================================
+// ADOPTION TAB — detailed breakdown for Contact/Sale/Project
+// ===========================================================
+function renderAdoptionTab(key) {
+  // Company has its own content (funnel + details) — skip
+  if (key === 'company') return;
+  var el = document.getElementById(key + 'AdoptionContent');
+  if (!el) return;
+  var scores = entityScores[key];
+  if (!scores) return;
+
+  var ov = overviewData[key];
+  var total = (ov && ov.overview) ? (ov.overview.total || 0) : 0;
+  var h = dateFilterNotice();
+
+  // --- Adoption component breakdown ---
+  if (scores.adoption && scores.adoption.details && scores.adoption.details.length > 0) {
+    var ad = scores.adoption;
+    var ac = slColor(ad.total);
+    h += '<div class="entity-card">';
+    h += '<div class="entity-header"><div class="entity-info">';
+    h += '<h3>Adoption Score</h3>';
+    h += '</div>';
+    h += '<span class="record-badge" style="background:' + ac + ';color:#fff;font-size:1.1rem;padding:4px 14px;border-radius:12px">' + ad.total + P + '</span></div>';
+    h += '<table class="data-table"><thead><tr><th>Component</th><th class="col-right">Count</th><th class="col-right">of Total</th><th class="col-right">' + P + '</th><th class="col-right">Weight</th></tr></thead><tbody>';
+    var data = gatherEntityData(key);
+    for (var i = 0; i < ad.details.length; i++) {
+      var d = ad.details[i];
+      var cnt = (data && data.componentData) ? (data.componentData[d.key] || 0) : 0;
+      var col = slColor(d.pct);
+      h += '<tr><td>' + d.label + '</td>';
+      h += '<td class="col-right">' + fmtNum(cnt) + '</td>';
+      h += '<td class="col-right">' + fmtNum(data ? data.adoptionTotal : total) + '</td>';
+      h += '<td class="col-right">' + barCell(d.pct, col) + '</td>';
+      h += '<td class="col-right" style="text-transform:capitalize">' + d.weight + '</td></tr>';
+    }
+    h += '</tbody></table></div>';
+  }
+
+  // --- Integrity check breakdown ---
+  if (scores.integrity && scores.integrity.details && scores.integrity.details.length > 0) {
+    var ig = scores.integrity;
+    var ic = slColor(ig.total);
+    h += '<div class="entity-card" style="margin-top:18px">';
+    h += '<div class="entity-header"><div class="entity-info">';
+    h += '<h3>Data Integrity</h3>';
+    h += '</div>';
+    h += '<span class="record-badge" style="background:' + ic + ';color:#fff;font-size:1.1rem;padding:4px 14px;border-radius:12px">' + ig.total + P + '</span></div>';
+    h += '<table class="data-table"><thead><tr><th>Check</th><th class="col-right">Affected</th><th class="col-right">of Total</th><th class="col-right">' + P + '</th><th class="col-right">Weight</th></tr></thead><tbody>';
+    var data2 = gatherEntityData(key);
+    for (var j = 0; j < ig.details.length; j++) {
+      var c = ig.details[j];
+      var cnt2 = (data2 && data2.checkData) ? (data2.checkData[c.key] || 0) : 0;
+      var col2 = slColorInv(c.affected);
+      h += '<tr><td>' + c.label + '</td>';
+      h += '<td class="col-right">' + fmtNum(cnt2) + '</td>';
+      h += '<td class="col-right">' + fmtNum(total) + '</td>';
+      h += '<td class="col-right">' + barCell(c.affected, col2) + '</td>';
+      h += '<td class="col-right" style="text-transform:capitalize">' + c.weight + '</td></tr>';
+    }
+    h += '</tbody></table></div>';
+  }
+
+  if (!h || h === dateFilterNotice()) {
+    h += '<div style="text-align:center;padding:40px;color:var(--so-text-muted)">Run analysis first to see adoption details</div>';
+  }
+
+  el.innerHTML = h;
+}
 
 function renderCompanyDetails(d) {
   var el = document.getElementById('companyDetailContent');
