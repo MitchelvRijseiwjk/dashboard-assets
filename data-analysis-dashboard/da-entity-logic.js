@@ -981,8 +981,8 @@ function renderScoreBanner(key) {
     var col = slColor(s.score);
     h += '<div class="sb-row">';
     h += '<div class="sb-row-info"><div class="sb-row-lbl">' + s.label + '</div><div class="sb-row-desc">' + s.desc + '</div></div>';
-    h += '<div class="sb-row-bar"><div class="sb-row-fill" style="width:' + s.score + '%;background:' + col + '"></div></div>';
     h += '<div class="sb-row-val" style="color:' + col + '">' + s.score + '%</div>';
+    h += '<div class="sb-row-bar"><div class="sb-row-fill" style="width:' + s.score + '%;background:' + col + '"></div></div>';
     h += '</div>';
   }
   h += '</div>';
