@@ -573,6 +573,7 @@ function aaRunFullEntity(key, cb, markStepDone) {
       // Compute and render scores once all data is loaded
       if (typeof renderDQScore === 'function') renderDQScore(key);
       if (typeof renderScoreBanner === 'function') renderScoreBanner(key);
+      if (typeof renderAdoptionTab === 'function') renderAdoptionTab(key);
       if (cb) cb();
     }
   }
