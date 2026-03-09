@@ -716,6 +716,7 @@ function reloadCompanyDetails() {
     renderDQScore('company');
     renderScoreBanner('company');
     loadCompanyCross(null);
+    renderAdoptionTab('company');
   });
 }
 
@@ -1110,31 +1111,27 @@ function computeDQScore(key) {
 // end of DQ score functions
 
 // ===========================================================
-// ADOPTION TAB — detailed breakdown for Contact/Sale/Project
+// ADOPTION TAB — score breakdown for all entities
 // ===========================================================
 function renderAdoptionTab(key) {
-  // Company has its own content (funnel + details) — skip
-  if (key === 'company') return;
-  var el = document.getElementById(key + 'AdoptionContent');
-  if (!el) return;
   var scores = entityScores[key];
   if (!scores) return;
 
   var ov = overviewData[key];
   var total = (ov && ov.overview) ? (ov.overview.total || 0) : 0;
-  var h = dateFilterNotice();
+  var h = '';
 
   // --- Adoption component breakdown ---
   if (scores.adoption && scores.adoption.details && scores.adoption.details.length > 0) {
     var ad = scores.adoption;
     var ac = slColor(ad.total);
+    var data = gatherEntityData(key);
     h += '<div class="entity-card">';
     h += '<div class="entity-header"><div class="entity-info">';
     h += '<h3>Adoption Score</h3>';
     h += '</div>';
     h += '<span class="record-badge" style="background:' + ac + ';color:#fff;font-size:1.1rem;padding:4px 14px;border-radius:12px">' + ad.total + P + '</span></div>';
     h += '<table class="data-table"><thead><tr><th>Component</th><th class="col-right">Count</th><th class="col-right">of Total</th><th class="col-right">' + P + '</th><th class="col-right">Weight</th></tr></thead><tbody>';
-    var data = gatherEntityData(key);
     for (var i = 0; i < ad.details.length; i++) {
       var d = ad.details[i];
       var cnt = (data && data.componentData) ? (data.componentData[d.key] || 0) : 0;
@@ -1152,13 +1149,13 @@ function renderAdoptionTab(key) {
   if (scores.integrity && scores.integrity.details && scores.integrity.details.length > 0) {
     var ig = scores.integrity;
     var ic = slColor(ig.total);
+    var data2 = gatherEntityData(key);
     h += '<div class="entity-card" style="margin-top:18px">';
     h += '<div class="entity-header"><div class="entity-info">';
     h += '<h3>Data Integrity</h3>';
     h += '</div>';
     h += '<span class="record-badge" style="background:' + ic + ';color:#fff;font-size:1.1rem;padding:4px 14px;border-radius:12px">' + ig.total + P + '</span></div>';
     h += '<table class="data-table"><thead><tr><th>Check</th><th class="col-right">Affected</th><th class="col-right">of Total</th><th class="col-right">' + P + '</th><th class="col-right">Weight</th></tr></thead><tbody>';
-    var data2 = gatherEntityData(key);
     for (var j = 0; j < ig.details.length; j++) {
       var c = ig.details[j];
       var cnt2 = (data2 && data2.checkData) ? (data2.checkData[c.key] || 0) : 0;
@@ -1172,11 +1169,25 @@ function renderAdoptionTab(key) {
     h += '</tbody></table></div>';
   }
 
-  if (!h || h === dateFilterNotice()) {
-    h += '<div style="text-align:center;padding:40px;color:var(--so-text-muted)">Run analysis first to see adoption details</div>';
-  }
+  if (!h) return;
 
-  el.innerHTML = h;
+  if (key === 'company') {
+    // Prepend score tables before the existing funnel content
+    var crossEl = document.getElementById('companyCrossContent');
+    if (crossEl) {
+      var wrapper = document.createElement('div');
+      wrapper.className = 'adoption-score-tables';
+      wrapper.style.marginBottom = '18px';
+      wrapper.innerHTML = h;
+      // Remove any previous score tables
+      var prev = crossEl.querySelector('.adoption-score-tables');
+      if (prev) prev.parentNode.removeChild(prev);
+      crossEl.insertBefore(wrapper, crossEl.firstChild);
+    }
+  } else {
+    var el = document.getElementById(key + 'AdoptionContent');
+    if (el) el.innerHTML = dateFilterNotice() + h;
+  }
 }
 
 function renderCompanyDetails(d) {
