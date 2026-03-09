@@ -860,7 +860,7 @@ function gatherEntityData(key) {
     var ah = (companyDetailData && companyDetailData.activityHealth) ? companyDetailData.activityHealth : null;
     var f = (companyDetailData && companyDetailData.funnel) ? companyDetailData.funnel : null;
     qData = q;
-    if (q) { checkData.noPerson = q.noPerson; checkData.unreachable = q.unreachable; }
+    if (q) { checkData.noPerson = q.noPerson; checkData.unreachable = q.unreachable; checkData.noOwner = q.noOwner; }
     if (ah) { checkData.noActivity12m = ah.noActivity; }
     if (f) {
       compData.withPerson = f.withPerson;
@@ -872,6 +872,7 @@ function gatherEntityData(key) {
   } else if (key === 'contact') {
     // Derive from overview stats
     if (o.withEmail !== undefined) checkData.noEmail = total - (o.withEmail || 0);
+    if (o.withCompany !== undefined) checkData.noCompany = total - (o.withCompany || 0);
     if (o.withActivities !== undefined) checkData.noActivity = total - (o.withActivities || 0);
     compData.withActivity = o.withActivities || 0;
     compData.withSales = o.withSales || 0;
@@ -882,7 +883,9 @@ function gatherEntityData(key) {
     }
   } else if (key === 'sale') {
     if (o.withPersons !== undefined) checkData.noContact = total - (o.withPersons || 0);
+    if (o.staleSale !== undefined) checkData.staleSale = o.staleSale;
     if (o.withActivities !== undefined) checkData.noActivities = total - (o.withActivities || 0);
+    if (o.withAmount !== undefined) checkData.noAmount = total - (o.withAmount || 0);
     compData.withActivity = o.withActivities || 0;
     compData.stageProgression = o.withActivities || 0; // approximate
     if (!cpl) {
@@ -1016,7 +1019,8 @@ function renderDQScore(key) {
           { key: 'noCategory',  label: 'No category', val: q.noCategory },
           { key: 'noBusiness',  label: 'No business type', val: q.noBusiness },
           { key: 'noOrgNr',     label: 'No org. number', val: q.noOrgNr },
-          { key: 'unreachable', label: 'Unreachable', val: q.unreachable }
+          { key: 'unreachable', label: 'Unreachable', val: q.unreachable },
+          { key: 'noOwner',     label: 'No owner', val: q.noOwner || 0 }
         ];
 
         h += '<div class="entity-card">';
