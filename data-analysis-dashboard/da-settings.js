@@ -186,6 +186,7 @@
       if (!s.pipelineType) s.pipelineType = d.pipelineType;
       for (var ck in d.integrityConfig) { if (!s.integrityConfig[ck]) s.integrityConfig[ck] = d.integrityConfig[ck]; }
       for (var cek in d.engagementConfig) { if (!s.engagementConfig[cek]) s.engagementConfig[cek] = d.engagementConfig[cek]; }
+      for (var sfk in d.stdFieldConfig) { if (s.stdFieldConfig[sfk] === undefined) s.stdFieldConfig[sfk] = d.stdFieldConfig[sfk]; }
     }
     return saved;
   }
