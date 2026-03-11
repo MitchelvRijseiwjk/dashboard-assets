@@ -148,6 +148,7 @@
   function allDefaults() {
     var d = {};
     for (var i = 0; i < ENTITY_ORDER.length; i++) d[ENTITY_ORDER[i]] = entityDefaults(ENTITY_ORDER[i]);
+    d._momentum = clone(MOMENTUM_DEFAULTS);
     return d;
   }
 
@@ -159,6 +160,13 @@
   var _udefFields = {};
   var _activeId = null;
   var _activeEntity = 'company';
+
+  // Momentum defaults (global, not per-entity)
+  var MOMENTUM_DEFAULTS = {
+    powerThreshold: 100,
+    regularThreshold: 25,
+    dateField: 'activeDate'
+  };
 
   function clone(o) { return JSON.parse(JSON.stringify(o)); }
 
@@ -187,6 +195,11 @@
       for (var ck in d.integrityConfig) { if (!s.integrityConfig[ck]) s.integrityConfig[ck] = d.integrityConfig[ck]; }
       for (var cek in d.engagementConfig) { if (!s.engagementConfig[cek]) s.engagementConfig[cek] = d.engagementConfig[cek]; }
       for (var sfk in d.stdFieldConfig) { if (s.stdFieldConfig[sfk] === undefined) s.stdFieldConfig[sfk] = d.stdFieldConfig[sfk]; }
+    }
+    if (!saved._momentum) saved._momentum = clone(MOMENTUM_DEFAULTS);
+    else {
+      var md = MOMENTUM_DEFAULTS;
+      for (var mk in md) { if (saved._momentum[mk] === undefined) saved._momentum[mk] = md[mk]; }
     }
     return saved;
   }
@@ -475,6 +488,9 @@
 
     h += renderEntityPanel(_activeEntity);
 
+    // Momentum settings (global, not per-entity)
+    h += renderMomentumPanel();
+
     h += '<div class="s-actions">';
     h += '<button class="btn-settings-save" onclick="daSettings.doSave()">Apply &amp; Recalculate</button>';
     h += '<button class="btn-settings-reset" onclick="daSettings.doReset()">Reset to Defaults</button>';
@@ -543,6 +559,69 @@
     h += '</div></div>';
 
     return h;
+  }
+
+  function renderMomentumPanel() {
+    var m = _s._momentum || clone(MOMENTUM_DEFAULTS);
+    var h = '';
+    h += '<div class="s-section" style="margin-top:24px;border-top:2px solid var(--so-border);padding-top:20px">';
+    h += '<div class="s-section-head" style="margin-top:0">CRM Momentum Settings</div>';
+    h += '<div class="s-grid">';
+
+    // User Level Thresholds
+    h += '<div class="s-cpl-card" style="margin:0">';
+    h += '<h4 style="font-size:.85rem;font-weight:600;color:var(--so-green);margin-bottom:8px">User Level Thresholds</h4>';
+    h += '<div style="font-size:.78rem;color:#888;margin-bottom:12px">Classify users by their average monthly activity count.</div>';
+
+    h += '<div style="display:flex;flex-direction:column;gap:8px">';
+    h += '<div style="display:flex;align-items:center;gap:10px"><span style="font-size:.82rem;min-width:100px">Power User</span>';
+    h += '<span style="font-size:.78rem;color:#888">\u2265</span>';
+    h += '<input type="number" id="mmPowerThreshold" value="' + m.powerThreshold + '" min="1" style="width:70px;padding:5px 8px;border:1px solid var(--so-border);border-radius:6px;font-size:.82rem;font-family:inherit">';
+    h += '<span style="font-size:.78rem;color:#888">activities / month (avg)</span></div>';
+
+    h += '<div style="display:flex;align-items:center;gap:10px"><span style="font-size:.82rem;min-width:100px">Regular User</span>';
+    h += '<span style="font-size:.78rem;color:#888">\u2265</span>';
+    h += '<input type="number" id="mmRegularThreshold" value="' + m.regularThreshold + '" min="1" style="width:70px;padding:5px 8px;border:1px solid var(--so-border);border-radius:6px;font-size:.82rem;font-family:inherit">';
+    h += '<span style="font-size:.78rem;color:#888">activities / month (avg)</span></div>';
+
+    h += '<div style="display:flex;align-items:center;gap:10px"><span style="font-size:.82rem;min-width:100px">Low Usage</span>';
+    h += '<span style="font-size:.78rem;color:#888">\u2265 1 activity in period</span></div>';
+
+    h += '<div style="display:flex;align-items:center;gap:10px"><span style="font-size:.82rem;min-width:100px;opacity:.5">Inactive</span>';
+    h += '<span style="font-size:.78rem;color:#888;opacity:.5">0 activities</span></div>';
+    h += '</div></div>';
+
+    // Date Field
+    h += '<div class="s-cpl-card" style="margin:0">';
+    h += '<h4 style="font-size:.85rem;font-weight:600;color:var(--so-green);margin-bottom:8px">Date Field</h4>';
+    h += '<div style="font-size:.78rem;color:#888;margin-bottom:12px">Which date field to use for activity counting.</div>';
+    h += '<label class="settings-radio' + (m.dateField === 'activeDate' ? '' : '') + '" style="margin-bottom:0">';
+    h += '<input type="radio" name="mmDateField" value="activeDate"' + (m.dateField === 'activeDate' ? ' checked' : '') + '>';
+    h += '<span><strong>Active Date</strong><span class="settings-radio-desc">When the activity takes place (recommended)</span></span></label>';
+    h += '<label class="settings-radio" style="margin-bottom:0">';
+    h += '<input type="radio" name="mmDateField" value="registered"' + (m.dateField === 'registered' ? ' checked' : '') + '>';
+    h += '<span><strong>Registered</strong><span class="settings-radio-desc">When the activity was entered in CRM</span></span></label>';
+    h += '</div>';
+
+    h += '</div></div>';
+    return h;
+  }
+
+  function readMomentumFromDOM() {
+    if (!_s._momentum) _s._momentum = clone(MOMENTUM_DEFAULTS);
+    var pEl = document.getElementById('mmPowerThreshold');
+    var rEl = document.getElementById('mmRegularThreshold');
+    if (pEl) _s._momentum.powerThreshold = Math.max(1, parseInt(pEl.value) || 100);
+    if (rEl) _s._momentum.regularThreshold = Math.max(1, parseInt(rEl.value) || 25);
+    var radios = document.querySelectorAll('input[name="mmDateField"]');
+    for (var i = 0; i < radios.length; i++) {
+      if (radios[i].checked) { _s._momentum.dateField = radios[i].value; break; }
+    }
+  }
+
+  function getMomentumSettings() {
+    if (!_s) load();
+    return _s._momentum || clone(MOMENTUM_DEFAULTS);
   }
 
   function chevSvg() {
@@ -899,6 +978,7 @@
 
   function doSave() {
     readEntityFromDOM(_activeEntity);
+    readMomentumFromDOM();
     save();
     // Recalculate scores for all entities that have loaded data
     for (var i = 0; i < ENTITY_ORDER.length; i++) {
@@ -908,6 +988,8 @@
     }
     if (typeof renderCrossEntityFunnel === 'function' && typeof companyDetailData !== 'undefined' && companyDetailData) renderCrossEntityFunnel(companyDetailData);
     if (typeof renderCompanyDetails === 'function' && typeof companyDetailData !== 'undefined' && companyDetailData) renderCompanyDetails(companyDetailData);
+    // Re-render momentum if data is available
+    if (typeof renderMomentum === 'function' && typeof momentumData !== 'undefined' && momentumData) renderMomentum('activities', momentumData);
     toast('Settings applied and scores recalculated');
   }
 
@@ -949,6 +1031,7 @@
     toggleIntegrity: toggleIntegrity, setImp: setImp, toggleUdef: toggleUdef,
     openInfo: openInfo, closeInfo: closeInfo,
     doSave: doSave, doReset: doReset,
+    getMomentumSettings: getMomentumSettings,
     ENTITY_DEFS: ENTITY_DEFS, ENTITY_ORDER: ENTITY_ORDER
   };
   load();
