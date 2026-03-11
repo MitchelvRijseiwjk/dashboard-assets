@@ -554,7 +554,15 @@ function aaRunMomentumEntity(key, cb) {
   }
 
   // Parallel 1: Momentum data
-  ajax(momentumUrl + String.fromCharCode(38) + 'dummy=1' + dfParam, function(d) {
+  var amp = String.fromCharCode(38);
+  var etParam = '';
+  if (typeof daSettings !== 'undefined') {
+    var mmS = daSettings.getMomentumSettings();
+    if (mmS.excludedTypes && mmS.excludedTypes.length > 0) {
+      etParam = amp + 'excludeTypes=' + encodeURIComponent(mmS.excludedTypes.join(','));
+    }
+  }
+  ajax(momentumUrl + amp + 'dummy=1' + dfParam + etParam, function(d) {
     momentumData = d;
     checkDone();
   });
