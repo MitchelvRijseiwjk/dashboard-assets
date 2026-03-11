@@ -1980,59 +1980,101 @@ function renderMomentumChart(monthly) {
     if (monthly[i].documents > maxAct) maxAct = monthly[i].documents;
     if (monthly[i].activeUsers > maxUsers) maxUsers = monthly[i].activeUsers;
   }
-  var actStep = mmNiceStep(maxAct), actMax = actStep * 5;
-  var userStep = mmNiceStep(maxUsers), userMax = userStep * 5;
-  var W = 800, H = 220, n = monthly.length;
-  var NS = ' vector-effect="non-scaling-stroke"';
 
+  // Nice axis max (same pattern as Company trend chart)
+  var niceMaxAct = maxAct;
+  var mag = Math.pow(10, Math.floor(Math.log10(maxAct || 1)));
+  var opts = [1, 1.5, 2, 2.5, 3, 4, 5, 8, 10];
+  for (var oi = 0; oi < opts.length; oi++) { if (opts[oi] * mag >= maxAct) { niceMaxAct = opts[oi] * mag; break; } }
+  var niceMaxUsr = maxUsers;
+  var magU = Math.pow(10, Math.floor(Math.log10(maxUsers || 1)));
+  for (var oi = 0; oi < opts.length; oi++) { if (opts[oi] * magU >= maxUsers) { niceMaxUsr = opts[oi] * magU; break; } }
+
+  // SVG dimensions with padding (matches Company chart structure)
+  var cW = 960, cH = 270, padL = 48, padR = 40, padT = 16, padB = 40;
+  var plotW = cW - padL - padR, plotH = cH - padT - padB;
+  var n = monthly.length;
+  var ySteps = 4;
+  var yStepAct = niceMaxAct / ySteps;
+  var yStepUsr = niceMaxUsr / ySteps;
+
+  // Compute line points
   var actPts = [], docPts = [], usrPts = [];
   for (var i = 0; i < n; i++) {
-    var x = n > 1 ? (i / (n - 1)) * W : W / 2;
-    var yA = actMax > 0 ? H - (monthly[i].activities / actMax) * H : H;
-    var yD = actMax > 0 ? H - (monthly[i].documents / actMax) * H : H;
-    var yU = userMax > 0 ? H - (monthly[i].activeUsers / userMax) * H : H;
-    actPts.push(Math.round(x) + ',' + Math.round(yA));
-    docPts.push(Math.round(x) + ',' + Math.round(yD));
-    usrPts.push(Math.round(x) + ',' + Math.round(yU));
+    var px = padL + (n > 1 ? (i / (n - 1)) * plotW : plotW / 2);
+    var yA = niceMaxAct > 0 ? padT + plotH - (monthly[i].activities / niceMaxAct) * plotH : padT + plotH;
+    var yD = niceMaxAct > 0 ? padT + plotH - (monthly[i].documents / niceMaxAct) * plotH : padT + plotH;
+    var yU = niceMaxUsr > 0 ? padT + plotH - (monthly[i].activeUsers / niceMaxUsr) * plotH : padT + plotH;
+    actPts.push(px.toFixed(1) + ',' + yA.toFixed(1));
+    docPts.push(px.toFixed(1) + ',' + yD.toFixed(1));
+    usrPts.push(px.toFixed(1) + ',' + yU.toFixed(1));
   }
 
-  var svg = '<svg class="mm-chart-svg" viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="none">';
-  svg += '<path d="M' + actPts[0] + ' L' + actPts.join(' ') + ' L' + W + ',' + H + ' L0,' + H + 'Z" fill="rgba(46,125,50,0.08)"/>';
-  svg += '<polyline points="' + actPts.join(' ') + '" fill="none" stroke="' + MM_GREEN + '" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"' + NS + '/>';
-  svg += '<polyline points="' + docPts.join(' ') + '" fill="none" stroke="' + MM_ORANGE + '" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="6,3"' + NS + '/>';
-  svg += '<polyline points="' + usrPts.join(' ') + '" fill="none" stroke="' + MM_BLUE + '" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"' + NS + '/>';
-  svg += '<g fill="' + MM_BLUE + '">';
+  // Build SVG — same style as Company: width:100%;height:auto
+  var svg = '<svg viewBox="0 0 ' + cW + ' ' + cH + '" style="width:100%;height:auto;display:block;max-height:280px">';
+
+  // Y grid lines + left labels (activity axis) + right labels (user axis)
+  for (var gi = 0; gi <= ySteps; gi++) {
+    var gy = padT + plotH - (gi / ySteps) * plotH;
+    var actVal = Math.round(gi * yStepAct);
+    var usrVal = Math.round(gi * yStepUsr);
+    svg += '<line x1="' + padL + '" y1="' + gy.toFixed(1) + '" x2="' + (cW - padR) + '" y2="' + gy.toFixed(1) + '" stroke="#e0dfdc" stroke-width="1"/>';
+    svg += '<text x="' + (padL - 8) + '" y="' + (gy + 4).toFixed(1) + '" text-anchor="end" fill="#999" font-size="10" font-family="DM Sans,sans-serif">' + mmFmtK(actVal) + '</text>';
+    svg += '<text x="' + (cW - padR + 8) + '" y="' + (gy + 4).toFixed(1) + '" text-anchor="start" fill="' + MM_BLUE + '" font-size="10" font-family="DM Sans,sans-serif" opacity=".6">' + usrVal + '</text>';
+  }
+
+  // Area fill under activities
+  var areaPath = 'M' + actPts[0] + ' L' + actPts.join(' L') + ' L' + (padL + plotW).toFixed(1) + ',' + (padT + plotH) + ' L' + padL + ',' + (padT + plotH) + ' Z';
+  svg += '<path d="' + areaPath + '" fill="rgba(46,125,50,0.06)"/>';
+
+  // Lines
+  svg += '<polyline points="' + actPts.join(' ') + '" fill="none" stroke="' + MM_GREEN + '" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>';
+  svg += '<polyline points="' + docPts.join(' ') + '" fill="none" stroke="' + MM_ORANGE + '" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" stroke-dasharray="6,4"/>';
+  svg += '<polyline points="' + usrPts.join(' ') + '" fill="none" stroke="' + MM_BLUE + '" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>';
+
+  // User dots (every 4th + first + last)
   for (var i = 0; i < n; i++) {
     if (i === 0 || i === n - 1 || i % 4 === 0) {
       var p = usrPts[i].split(',');
-      svg += '<circle cx="' + p[0] + '" cy="' + p[1] + '" r="3"' + NS + '/>';
+      svg += '<circle cx="' + p[0] + '" cy="' + p[1] + '" r="3" fill="' + MM_BLUE + '" stroke="#fff" stroke-width="1.5"/>';
     }
   }
-  svg += '</g></svg>';
 
-  var gridH = '';
-  for (var g = 0; g < 5; g++) {
-    gridH += '<div class="mm-chart-grid-line"><span>' + mmFmtK(actMax - g * actStep) + '</span><span class="mm-right-label">' + (userMax - g * userStep) + '</span></div>';
+  // X labels — show every ~2 months
+  var xStep = Math.max(1, Math.floor(n / 12));
+  for (var i = 0; i < n; i += xStep) {
+    var px = padL + (n > 1 ? (i / (n - 1)) * plotW : plotW / 2);
+    svg += '<text x="' + px.toFixed(1) + '" y="' + (padT + plotH + 20) + '" text-anchor="middle" fill="#999" font-size="10" font-family="DM Sans,sans-serif">' + monthly[i].label + '</text>';
   }
-  gridH += '<div class="mm-chart-grid-line"><span>0</span><span class="mm-right-label">0</span></div>';
+  if ((n - 1) % xStep !== 0) {
+    var lastPx = padL + plotW;
+    svg += '<text x="' + lastPx.toFixed(1) + '" y="' + (padT + plotH + 20) + '" text-anchor="middle" fill="#999" font-size="10" font-family="DM Sans,sans-serif">' + monthly[n - 1].label + '</text>';
+  }
 
-  var xLabels = '';
-  var ls = Math.max(1, Math.floor(n / 12));
-  for (var i = 0; i < n; i += ls) xLabels += '<span>' + monthly[i].label + '</span>';
-  if ((n - 1) % ls !== 0) xLabels += '<span>' + monthly[n - 1].label + '</span>';
+  // Invisible hover columns for tooltip
+  var colW = plotW / n;
+  for (var i = 0; i < n; i++) {
+    var cx = padL + (n > 1 ? (i / (n - 1)) * plotW : plotW / 2);
+    svg += '<rect x="' + (cx - colW / 2).toFixed(1) + '" y="' + padT + '" width="' + colW.toFixed(1) + '" height="' + plotH + '" fill="transparent" class="mm-hover-col" data-idx="' + i + '"/>';
+  }
+
+  svg += '</svg>';
+
+  // Legend (inline, same pattern as Company)
+  var legend = '<div style="display:flex;gap:16px;margin-top:4px;padding-left:' + padL + 'px">';
+  legend += '<span style="font-size:.75rem;color:#666;display:flex;align-items:center;gap:4px"><span style="width:12px;height:3px;background:' + MM_GREEN + ';border-radius:2px"></span> Activities</span>';
+  legend += '<span style="font-size:.75rem;color:#666;display:flex;align-items:center;gap:4px"><span style="width:12px;height:0;border-top:2px dashed ' + MM_ORANGE + '"></span> Documents</span>';
+  legend += '<span style="font-size:.75rem;color:#666;display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:50%;background:' + MM_BLUE + '"></span> Active Users (right axis)</span>';
+  legend += '</div>';
 
   var h = '<div class="entity-card">';
   h += '<div class="entity-header"><div class="entity-info"><h3>Activity Volume</h3>';
   h += '<span class="field-count">\u2014 based on activeDate</span></div>';
   h += '<span class="record-badge">24 months</span></div>';
-  h += '<div style="padding:20px 20px 12px 56px;padding-right:48px">';
-  h += '<div class="mm-chart-area" id="mmChartArea"><div class="mm-chart-grid">' + gridH + '</div>' + svg;
-  h += '<div class="mm-tooltip" id="mmTooltip"></div></div>';
-  h += '<div class="mm-chart-x-labels">' + xLabels + '</div></div>';
-  h += '<div class="mm-chart-legend">';
-  h += '<div class="mm-legend-item"><div class="mm-legend-line" style="background:' + MM_GREEN + '"></div> Activities</div>';
-  h += '<div class="mm-legend-item"><div class="mm-legend-line" style="background:' + MM_ORANGE + '"></div> Documents</div>';
-  h += '<div class="mm-legend-item"><div class="mm-legend-dot" style="background:' + MM_BLUE + '"></div> Active Users (right axis)</div>';
+  h += '<div style="padding:16px 20px 12px;position:relative" id="mmChartArea">';
+  h += svg;
+  h += '<div class="mm-tooltip" id="mmTooltip"></div>';
+  h += legend;
   h += '</div></div>';
   return h;
 }
@@ -2045,21 +2087,27 @@ function mmNiceStep(max) {
 function mmFmtK(n) { if (n >= 1000) return (n / 1000).toFixed(n % 1000 === 0 ? 0 : 1) + 'k'; return n.toString(); }
 
 function mmInitChartTooltip(el, monthly) {
-  var chart = el.querySelector('#mmChartArea');
+  var wrap = el.querySelector('#mmChartArea');
   var tip = el.querySelector('#mmTooltip');
-  if (!chart || !tip) return;
-  chart.addEventListener('mousemove', function(e) {
-    var rect = chart.getBoundingClientRect();
-    var x = e.clientX - rect.left;
-    var idx = Math.round((x / rect.width) * (monthly.length - 1));
-    idx = Math.max(0, Math.min(idx, monthly.length - 1));
-    var m = monthly[idx];
-    tip.innerHTML = '<strong>' + m.label + '</strong><br>Activities: ' + fmtNum(m.activities) + '<br>Documents: ' + fmtNum(m.documents) + '<br>Active Users: ' + m.activeUsers;
-    tip.classList.add('visible');
-    tip.style.left = Math.min(x + 12, rect.width - 150) + 'px';
-    tip.style.top = Math.max(e.clientY - rect.top - 60, 0) + 'px';
-  });
-  chart.addEventListener('mouseleave', function() { tip.classList.remove('visible'); });
+  if (!wrap || !tip) return;
+  var cols = wrap.querySelectorAll('.mm-hover-col');
+  for (var i = 0; i < cols.length; i++) {
+    (function(col) {
+      col.addEventListener('mouseenter', function() {
+        var idx = parseInt(col.getAttribute('data-idx'));
+        if (idx < 0 || idx >= monthly.length) return;
+        var m = monthly[idx];
+        tip.innerHTML = '<strong>' + m.label + '</strong><br>Activities: ' + fmtNum(m.activities) + '<br>Documents: ' + fmtNum(m.documents) + '<br>Active Users: ' + m.activeUsers;
+        tip.classList.add('visible');
+      });
+      col.addEventListener('mousemove', function(e) {
+        var rect = wrap.getBoundingClientRect();
+        tip.style.left = Math.min(e.clientX - rect.left + 12, rect.width - 160) + 'px';
+        tip.style.top = Math.max(e.clientY - rect.top - 60, 0) + 'px';
+      });
+      col.addEventListener('mouseleave', function() { tip.classList.remove('visible'); });
+    })(cols[i]);
+  }
 }
 
 function renderUserAdoption(users, totalUsers, grandTotal, filterMonths, filterLabel) {
