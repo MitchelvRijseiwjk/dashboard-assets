@@ -624,10 +624,6 @@
   function renderModalActivity() {
     var sec = document.getElementById('sm-mm-activity');
     if (!sec) return;
-    var h = '<div class="sm-title">Activity Types</div>';
-    h += '<div class="sm-subtitle">Choose which activity types to include in CRM Momentum analysis.</div>';
-    h += '<div class="sm-card"><h3>Include in Analysis</h3>';
-    h += '<div class="sm-desc">Uncheck types you want to exclude from activity counting and user level classification.</div>';
     // Try to get activity types from loaded overview data
     var types = null;
     if (typeof overviewData !== 'undefined' && overviewData['activities'] && overviewData['activities'].distributions) {
@@ -636,6 +632,37 @@
         if (dists[i].title === 'Activity Types') { types = dists[i].items; break; }
       }
     }
+    if (!types) {
+      // Auto-fetch activity overview data
+      sec.innerHTML = '<div class="sm-title">Activity Types</div><div class="sm-subtitle">Choose which activity types to include in CRM Momentum analysis.</div><div class="sm-card"><h3>Include in Analysis</h3><div class="sm-desc">Loading activity types...</div></div>';
+      if (typeof overviewUrl !== 'undefined' && typeof ajax === 'function') {
+        var amp = String.fromCharCode(38);
+        ajax(overviewUrl + amp + 'entity=activities', function(d) {
+          if (d) {
+            if (typeof overviewData !== 'undefined') overviewData['activities'] = d;
+            renderModalActivityContent(sec);
+          } else {
+            sec.querySelector('.sm-desc').textContent = 'Could not load activity types.';
+          }
+        });
+      }
+      return;
+    }
+    renderModalActivityContent(sec);
+  }
+
+  function renderModalActivityContent(sec) {
+    var types = null;
+    if (typeof overviewData !== 'undefined' && overviewData['activities'] && overviewData['activities'].distributions) {
+      var dists = overviewData['activities'].distributions;
+      for (var i = 0; i < dists.length; i++) {
+        if (dists[i].title === 'Activity Types') { types = dists[i].items; break; }
+      }
+    }
+    var h = '<div class="sm-title">Activity Types</div>';
+    h += '<div class="sm-subtitle">Choose which activity types to include in CRM Momentum analysis.</div>';
+    h += '<div class="sm-card"><h3>Include in Analysis</h3>';
+    h += '<div class="sm-desc">Uncheck types you want to exclude from activity counting and user level classification.</div>';
     if (types && types.length > 0) {
       var mmSettings = _s._momentum || clone(MOMENTUM_DEFAULTS);
       var excluded = mmSettings.excludedTypes || [];
@@ -653,7 +680,7 @@
       }
       h += '</div>';
     } else {
-      h += '<div style="padding:10px 0;font-size:.82rem;color:var(--so-text-muted);font-style:italic">Run an analysis on Activities first to discover available types.</div>';
+      h += '<div style="padding:10px 0;font-size:.82rem;color:var(--so-text-muted);font-style:italic">No activity types found.</div>';
     }
     h += '</div>';
     sec.innerHTML = h;
