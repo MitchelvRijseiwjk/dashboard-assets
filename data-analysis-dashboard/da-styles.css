@@ -235,7 +235,7 @@
     .main{flex:1;display:flex;flex-direction:column;overflow:hidden}
 
     /* === PAGE HEADER === */
-    .page-header{padding:22px 28px 0;background:#f8f7f5;border-bottom:1px solid var(--so-border)}
+    .page-header{padding:22px 28px 0;background:var(--so-bg);border-bottom:1px solid #d2cfcb}
     .page-header-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
     .page-title-area{display:flex;align-items:center;gap:14px}
     .header-icon{width:40px;height:40px;background:linear-gradient(135deg,var(--so-green-light),var(--so-green));border-radius:50%;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(6,66,62,.18)}
@@ -275,7 +275,7 @@
     .sub-tabs-right{margin-left:auto;display:flex;align-items:center;gap:8px;padding-right:4px}
 
     /* === CONTENT AREA === */
-    .content-area{flex:1;overflow-y:auto;padding:24px 28px;background:#ffffff}
+    .content-area{flex:1;overflow-y:auto;padding:24px 28px;background:var(--so-bg)}
     .tab-panel{display:none}
     .tab-panel.active{display:flex;flex-direction:column;flex:1;overflow:hidden}
     .sub-panel{display:none}
@@ -296,9 +296,9 @@
     .progress-detail{color:var(--so-charcoal);font-weight:500}
 
     /* === ENTITY CARD === */
-    .entity-card{background:var(--so-white);border-radius:var(--radius);border:1px solid var(--so-border);margin-bottom:20px;overflow:hidden}
+    .entity-card{background:var(--so-white);border-radius:var(--radius);border:1px solid var(--so-border);margin-bottom:20px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.03)}
     .entity-card.empty-table{opacity:.5}
-    .entity-header{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;background:var(--so-dune-dark2);border-bottom:1px solid var(--so-border)}
+    .entity-header{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;background:var(--so-white);border-bottom:1px solid var(--so-border)}
     .entity-header h4{font-size:.95rem;font-weight:600;color:var(--so-green);display:flex;align-items:center;gap:9px}
     .entity-header h4 img{width:19px;height:19px}
     .entity-header .entity-info{display:flex;align-items:center;gap:10px}
@@ -364,7 +364,7 @@
     .detail-section .stat-row{margin-bottom:0}
     .detail-section-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
     .detail-section-head h4{margin-bottom:0!important}
-    .stat-card{flex:1;background:var(--so-white);border:1px solid #eeecea;border-radius:6px;padding:12px 16px;text-align:center}
+    .stat-card{flex:1;background:var(--so-white);border:1px solid #eeecea;border-radius:6px;padding:12px 16px;text-align:center;box-shadow:0 1px 3px rgba(0,0,0,.03)}
     .stat-card .stat-value{font-size:1.25rem;font-weight:700;color:var(--so-green)}
     .stat-card .stat-label{font-size:.72rem;color:#888;margin-top:2px}
 
@@ -466,7 +466,7 @@
     .aa-status-skip{background:#eeecea;color:#aaa}
 
     /* === DQ SCORE BANNER === */
-    .dq-score-banner{display:flex;align-items:center;gap:24px;padding:24px 28px;margin-bottom:20px;background:var(--so-white);border:1px solid var(--so-border);border-radius:12px}
+    .dq-score-banner{display:flex;align-items:center;gap:24px;padding:24px 28px;margin-bottom:20px;background:var(--so-white);border:1px solid var(--so-border);border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.03)}
 
     /* === STACKED BAR (Activity Health) === */
     .stacked-bar-container{padding:4px 0 12px}
