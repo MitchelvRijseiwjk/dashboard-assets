@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap');
     :root {
       --so-green:#06423e; --so-green-light:#0f5c57; --so-green-dark:#002420;
       --so-coast:#b2c7eb; --so-coast-dark1:#6a8cb9; --so-coast-dark2:#395d9c;
@@ -509,3 +509,88 @@
     .loading-progress-wrap{width:100%;height:6px;background:var(--so-border);border-radius:3px;overflow:hidden;margin-bottom:8px}
     .loading-progress-bar{height:100%;background:var(--so-green);border-radius:3px;width:0;transition:width .4s ease}
     .loading-status{font-size:.82rem;color:var(--so-text-muted)}
+
+    /* =====================================================
+       CRM MOMENTUM STYLES
+       ===================================================== */
+
+    /* KPI Summary Cards */
+    .mm-summary-row{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:18px}
+    .mm-summary-card{background:var(--so-white);border:1px solid var(--so-border);border-radius:10px;padding:16px;text-align:center}
+    .mm-summary-value{font-size:1.6rem;font-weight:700}
+    .mm-summary-value .mm-of-total{font-size:.9rem;font-weight:400;color:var(--so-text-muted)}
+    .mm-summary-label{font-size:.72rem;color:var(--so-text-muted);margin-top:2px}
+    .mm-summary-trend{font-size:.72rem;margin-top:6px;font-weight:600}
+    .mm-trend-up{color:var(--sl-good)}
+    .mm-trend-down{color:var(--sl-bad)}
+    .mm-trend-flat{color:var(--so-text-muted)}
+
+    /* Section title */
+    .mm-section-title{font-size:.72rem;font-weight:700;color:var(--so-text-muted);letter-spacing:.06em;text-transform:uppercase;margin-bottom:12px}
+
+    /* Entity cards (chart + user adoption) */
+    .mm-card{background:var(--so-white);border:1px solid var(--so-border);border-radius:10px;overflow:hidden}
+    .mm-card+.mm-card{margin-top:18px}
+    .mm-card-header{display:flex;justify-content:space-between;align-items:center;padding:14px 20px;border-bottom:1px solid var(--so-dune)}
+    .mm-card-header h3{font-size:.92rem;font-weight:700}
+    .mm-header-subtitle{font-size:.72rem;color:var(--so-text-muted);margin-top:2px}
+    .mm-record-badge{font-size:.72rem;color:var(--so-text-muted);background:var(--so-dune);padding:3px 10px;border-radius:10px;font-weight:500}
+    .mm-badge-green{background:#e8f5e9;color:var(--sl-good);font-weight:600}
+
+    /* Chart */
+    .mm-chart-container{padding:20px}
+    .mm-chart-area{position:relative;height:220px;margin-top:8px}
+    .mm-chart-grid{position:absolute;inset:0;display:flex;flex-direction:column;justify-content:space-between}
+    .mm-chart-grid-line{border-bottom:1px solid var(--so-dune);position:relative;height:0}
+    .mm-chart-grid-line span{position:absolute;left:-40px;top:-7px;font-size:.65rem;color:var(--so-text-muted)}
+    .mm-chart-grid-line .mm-right-label{position:absolute;right:-32px;left:auto;top:-7px}
+    .mm-chart-svg{position:absolute;inset:0}
+    .mm-chart-x-labels{display:flex;justify-content:space-between;padding-top:8px}
+    .mm-chart-x-labels span{font-size:.62rem;color:var(--so-text-muted)}
+    .mm-chart-legend{display:flex;gap:20px;padding:12px 20px;border-top:1px solid var(--so-dune)}
+    .mm-legend-item{display:flex;align-items:center;gap:6px;font-size:.74rem;color:var(--so-text-muted)}
+    .mm-legend-line{width:16px;height:3px;border-radius:2px;flex-shrink:0}
+    .mm-legend-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+
+    /* Chart tooltip */
+    .mm-tooltip{position:absolute;background:var(--so-charcoal);color:#fff;padding:8px 12px;border-radius:6px;font-size:.72rem;pointer-events:none;opacity:0;transition:opacity .15s;z-index:10;white-space:nowrap}
+    .mm-tooltip.visible{opacity:1}
+
+    /* User adoption group summary */
+    .mm-user-groups{display:grid;grid-template-columns:repeat(4,1fr);gap:0}
+    .mm-user-group{padding:20px;text-align:center;border-right:1px solid var(--so-dune)}
+    .mm-user-group:last-child{border-right:none}
+    .mm-ug-count{font-size:2rem;font-weight:700}
+    .mm-ug-label{font-size:.78rem;font-weight:600;margin-top:4px}
+    .mm-ug-desc{font-size:.68rem;color:var(--so-text-muted);margin-top:2px}
+    .mm-ug-pct{font-size:.68rem;color:var(--so-text-muted);margin-top:8px}
+
+    /* User tables */
+    .mm-table{width:100%;border-collapse:collapse}
+    .mm-table th{font-size:.68rem;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:var(--so-text-muted);padding:8px 16px;text-align:left;border-bottom:2px solid var(--so-dune)}
+    .mm-table td{font-size:.82rem;padding:10px 16px;border-bottom:1px solid var(--so-dune)}
+    .mm-table tbody tr:last-child td{border-bottom:none}
+    .mm-col-right{text-align:right!important}
+    .mm-section-divider{font-size:.78rem;font-weight:600;color:var(--so-text-muted);padding:16px 16px 8px;border-top:1px solid var(--so-dune)}
+
+    /* Rank circles */
+    .mm-rank{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;font-size:.68rem;font-weight:700;color:#fff}
+
+    /* User level badges */
+    .mm-badge{display:inline-block;font-size:.6rem;font-weight:600;padding:2px 7px;border-radius:8px;color:#fff}
+
+    /* Bar cells for % column */
+    .mm-bar-cell{display:flex;align-items:center;gap:8px;justify-content:flex-end}
+    .mm-bar-track{width:80px;height:8px;background:#eee;border-radius:4px;overflow:hidden}
+    .mm-bar-fill{height:100%;border-radius:4px 0 0 4px}
+    .mm-bar-pct{font-size:.78rem;font-weight:600;width:40px;text-align:right}
+
+    /* Group header rows */
+    .mm-group-header td{background:var(--so-dune);font-weight:700;font-size:.82rem;cursor:pointer;user-select:none}
+    .mm-group-header td:first-child{padding-left:16px}
+    .mm-group-header:hover td{background:#e8e6e2}
+    .mm-group-chevron{width:10px;height:10px;margin-right:8px;transition:transform .2s;display:inline-block;vertical-align:middle}
+    .mm-group-header.collapsed .mm-group-chevron{transform:rotate(-90deg)}
+    .mm-group-header.collapsed~.mm-group-member{display:none}
+    .mm-group-member td:first-child{padding-left:32px}
+    .mm-inactive-row{opacity:.5}
