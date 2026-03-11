@@ -1867,11 +1867,21 @@ function startMomentum(key) {
     }, 500);
   }
 
-  ajax(momentumUrl + String.fromCharCode(38) + 'dummy=1' + dfParam, function(d) {
+  // Build excludeTypes param from momentum settings
+  var amp = String.fromCharCode(38);
+  var etParam = '';
+  if (typeof daSettings !== 'undefined') {
+    var mmS = daSettings.getMomentumSettings();
+    if (mmS.excludedTypes && mmS.excludedTypes.length > 0) {
+      etParam = amp + 'excludeTypes=' + encodeURIComponent(mmS.excludedTypes.join(','));
+    }
+  }
+
+  ajax(momentumUrl + amp + 'dummy=1' + dfParam + etParam, function(d) {
     momentumData = d;
     checkDone();
   });
-  ajax(overviewUrl + String.fromCharCode(38) + 'entity=' + key + dfParam, function(d) {
+  ajax(overviewUrl + amp + 'entity=' + key + dfParam, function(d) {
     if (d) renderEntityOverview(key, d);
     checkDone();
   });
@@ -2185,7 +2195,7 @@ function renderUserAdoption(users, totalUsers, grandTotal, filterMonths, filterL
   if (groups.length > 0) {
     h += '<div style="padding:16px 16px 8px;border-top:1px solid var(--so-border);font-size:.78rem;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.04em">All Users by Group</div>';
     h += '<table class="data-table"><thead><tr>';
-    h += '<th>User</th><th style="width:90px">Level</th>';
+    h += '<th style="width:40px"></th><th>User</th><th style="width:90px">Level</th><th>Group</th>';
     h += '<th class="col-right">Activities</th><th class="col-right">Documents</th>';
     h += '<th class="col-right">Total</th><th class="col-right" style="width:160px">' + P + ' of Total</th>';
     h += '</tr></thead><tbody>';
@@ -2194,15 +2204,17 @@ function renderUserAdoption(users, totalUsers, grandTotal, filterMonths, filterL
       var gPct = totalAct > 0 ? Math.round((grp.total / totalAct) * 100) : 0;
       var gInfo = grp.members.length + ' user' + (grp.members.length !== 1 ? 's' : '') + ' \u00B7 ' + fmtNum(grp.total) + ' activities';
       if (gPct > 0) gInfo += ' \u00B7 ' + gPct + P;
-      h += '<tr class="assoc-group-header" onclick="togGroup(this)"><td colspan="6">' + svgBadgeChev + ' ' + grp.name;
+      h += '<tr class="assoc-group-header" onclick="togGroup(this)"><td colspan="8">' + svgBadgeChev + ' ' + grp.name;
       h += ' <span style="color:#999;font-weight:400;font-size:.75rem;margin-left:4px">(' + gInfo + ')</span></td></tr>';
       for (var mi = 0; mi < grp.members.length; mi++) {
         var u = grp.members[mi];
         var pct = totalAct > 0 ? Math.round((u.total / totalAct) * 100) : 0;
         var isI = u.level === 'Inactive';
         h += '<tr' + (isI ? ' style="opacity:.5"' : '') + '>';
-        h += '<td style="padding-left:32px">' + (isI ? u.name : '<strong>' + u.name + '</strong>') + '</td>';
+        h += '<td></td>';
+        h += '<td style="padding-left:12px">' + (isI ? u.name : '<strong>' + u.name + '</strong>') + '</td>';
         h += '<td><span class="mm-badge" style="background:' + u.levelColor + '">' + u.level + '</span></td>';
+        h += '<td style="color:#888">' + (u.group || '\u2014') + '</td>';
         h += '<td class="col-right">' + fmtNum(u.activities) + '</td><td class="col-right">' + fmtNum(u.documents) + '</td>';
         h += '<td class="col-right"><strong>' + fmtNum(u.total) + '</strong></td>';
         h += '<td class="col-right">' + (isI ? '\u2014' : mmBarCell(pct, u.levelColor)) + '</td></tr>';
