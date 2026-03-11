@@ -147,6 +147,7 @@ function resetEntity(key) {
     companyDetailCatValue = '';
     companyCrossData = null;
   }
+  if (key === 'activities') momentumData = null;
   delete entExtra[key];
   if (typeof invalidateExtraCache === 'function') invalidateExtraCache();
 }
@@ -161,6 +162,8 @@ function reAnalyze(key) {
   if (eb) eb.style.display = 'none';
   if (entityConfig[key]) {
     startFullEntity(key);
+  } else if (key === 'activities') {
+    startMomentum(key);
   } else {
     startEntityOverview(key);
   }
@@ -525,6 +528,8 @@ function _aaLaunchEntity(key) {
   // Launch the entity (all URL construction happens synchronously here)
   if (entityConfig[key]) {
     aaRunFullEntity(key, onEntityDone, markStepDone);
+  } else if (key === 'activities') {
+    aaRunMomentumEntity(key, onEntityDone);
   } else {
     aaRunSimpleEntity(key, onEntityDone);
   }
@@ -540,6 +545,40 @@ function aaRunSimpleEntity(key, cb) {
     if (ab) ab.textContent = 'Re-analyze';
     if (eb) eb.style.display = '';
     if (cb) cb();
+  });
+}
+
+function aaRunMomentumEntity(key, cb) {
+  var dfParam = getDateFilterParam();
+  var loadsDone = 0;
+  var totalLoads = 2;
+
+  function checkDone() {
+    loadsDone++;
+    if (loadsDone < totalLoads) return;
+    // Render momentum
+    if (typeof renderMomentum === 'function') renderMomentum(key, momentumData);
+    var rs = document.getElementById(key + 'Results');
+    var st = document.getElementById(key + 'SubTabs');
+    var ab = document.getElementById(key + 'AnalyzeBtn');
+    var eb = document.getElementById(key + 'ExportBtn');
+    if (rs) rs.style.display = '';
+    if (st) st.style.display = '';
+    if (ab) ab.textContent = 'Re-analyze';
+    if (eb) eb.style.display = '';
+    if (cb) cb();
+  }
+
+  // Parallel 1: Momentum data
+  ajax(momentumUrl + String.fromCharCode(38) + 'dummy=1' + dfParam, function(d) {
+    momentumData = d;
+    checkDone();
+  });
+
+  // Parallel 2: Overview (for Overview sub-tab)
+  ajax(overviewUrl + String.fromCharCode(38) + 'entity=' + key + dfParam, function(d) {
+    if (d) renderEntityOverview(key, d);
+    checkDone();
   });
 }
 
