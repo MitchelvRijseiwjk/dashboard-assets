@@ -519,20 +519,6 @@
     .mm-trend-down{color:var(--sl-bad)}
     .mm-trend-flat{color:var(--so-text-muted)}
 
-    /* Chart */
-    .mm-chart-area{position:relative;height:220px;margin-top:8px}
-    .mm-chart-grid{position:absolute;inset:0;display:flex;flex-direction:column;justify-content:space-between}
-    .mm-chart-grid-line{border-bottom:1px solid var(--so-dune);position:relative;height:0}
-    .mm-chart-grid-line span{position:absolute;left:-40px;top:-7px;font-size:.65rem;color:var(--so-text-muted)}
-    .mm-chart-grid-line .mm-right-label{position:absolute;right:-32px;left:auto;top:-7px}
-    .mm-chart-svg{position:absolute;inset:0}
-    .mm-chart-x-labels{display:flex;justify-content:space-between;padding-top:8px}
-    .mm-chart-x-labels span{font-size:.62rem;color:var(--so-text-muted)}
-    .mm-chart-legend{display:flex;gap:20px;padding:12px 20px;border-top:1px solid var(--so-border)}
-    .mm-legend-item{display:flex;align-items:center;gap:6px;font-size:.74rem;color:var(--so-text-muted)}
-    .mm-legend-line{width:16px;height:3px;border-radius:2px;flex-shrink:0}
-    .mm-legend-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
-
     /* Chart tooltip */
     .mm-tooltip{position:absolute;background:var(--so-charcoal);color:#fff;padding:8px 12px;border-radius:6px;font-size:.72rem;pointer-events:none;opacity:0;transition:opacity .15s;z-index:10;white-space:nowrap}
     .mm-tooltip.visible{opacity:1}
