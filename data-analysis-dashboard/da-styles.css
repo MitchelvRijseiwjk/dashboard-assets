@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap');
     :root {
       --so-green:#06423e; --so-green-light:#0f5c57; --so-green-dark:#002420;
       --so-coast:#b2c7eb; --so-coast-dark1:#6a8cb9; --so-coast-dark2:#395d9c;
@@ -325,7 +325,7 @@
     .badge-chevron.collapsed{transform:rotate(180deg)}
     .data-table tbody td{padding:10px 16px;font-size:.88rem;border-bottom:1px solid #f0efec;vertical-align:middle}
     .data-table tbody tr:last-child td{border-bottom:none}
-    .data-table tbody tr:hover{background:var(--so-bg)}
+    .data-table tbody tr:hover{background:#f8f7f5}
     .data-table tbody tr.assoc-group-header:hover{background:var(--so-dune-dark1)}
     .data-table .col-right{text-align:right}
     .data-table tbody tr.unused td{opacity:.4;text-decoration:line-through}
@@ -360,11 +360,11 @@
 
     /* === STAT CARDS === */
     .stat-row{display:flex;gap:12px;margin-bottom:16px}
-    .detail-section{background:#f8f7f5;border-radius:var(--radius);padding:20px 22px;margin-bottom:20px}
+    .detail-section{background:var(--so-white);border-radius:var(--radius);padding:20px 22px;margin-bottom:20px;border:1px solid var(--so-border)}
     .detail-section .stat-row{margin-bottom:0}
     .detail-section-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
     .detail-section-head h4{margin-bottom:0!important}
-    .stat-card{flex:1;background:var(--so-white);border:1px solid #eeecea;border-radius:6px;padding:12px 16px;text-align:center;box-shadow:0 1px 3px rgba(0,0,0,.03)}
+    .stat-card{flex:1;background:var(--so-white);border:1px solid #d2cfcb;border-radius:6px;padding:12px 16px;text-align:center;box-shadow:0 1px 3px rgba(0,0,0,.03)}
     .stat-card .stat-value{font-size:1.25rem;font-weight:700;color:var(--so-green)}
     .stat-card .stat-label{font-size:.72rem;color:#888;margin-top:2px}
 
