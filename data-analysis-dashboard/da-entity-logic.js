@@ -1891,8 +1891,14 @@ function mmLevelColor(level) {
 
 function mmUserLevel(total, months) {
   var avg = months > 0 ? total / months : total;
-  if (avg >= 100) return 'Power';
-  if (avg >= 25) return 'Regular';
+  var powerT = 100, regT = 25;
+  if (typeof daSettings !== 'undefined' && daSettings.getMomentumSettings) {
+    var ms = daSettings.getMomentumSettings();
+    powerT = ms.powerThreshold || 100;
+    regT = ms.regularThreshold || 25;
+  }
+  if (avg >= powerT) return 'Power';
+  if (avg >= regT) return 'Regular';
   if (total > 0) return 'Low';
   return 'Inactive';
 }
@@ -1903,8 +1909,10 @@ function renderMomentum(key, d) {
   var monthly = d.monthly || [];
   var users = d.users || [];
   var totalUsers = d.totalUsers || 0;
-  var lastMonth = monthly.length > 0 ? monthly[monthly.length - 1] : null;
-  var prevMonth = monthly.length > 1 ? monthly[monthly.length - 2] : null;
+  // KPI: compare last 2 FULL months (skip current incomplete month)
+  // monthly[n-1] = current month (incomplete), monthly[n-2] = last full, monthly[n-3] = previous full
+  var lastFullMonth = monthly.length > 1 ? monthly[monthly.length - 2] : null;
+  var prevFullMonth = monthly.length > 2 ? monthly[monthly.length - 3] : null;
   var filterMonths = monthly.length;
   var filterLabel = 'All data';
   var dfVal = activeFilterValue['activities'] || '';
@@ -1917,25 +1925,25 @@ function renderMomentum(key, d) {
     var yr = filterDate.getFullYear();
     filterLabel = 'Since ' + yr + '-' + (mo < 10 ? '0' : '') + mo;
   }
-  var monthName = lastMonth ? lastMonth.label.split("'")[0].trim() : '';
+  var monthName = lastFullMonth ? lastFullMonth.label.split("'")[0].trim() : '';
   var h = '';
 
   // KPI cards — reuse detail-section + stat-row + stat-card
   h += '<div class="detail-section">';
   h += '<div class="detail-section-head">' + secHead('CRM Momentum \u2014 Last 24 Months') + '</div>';
   h += '<div class="stat-row">';
-  h += mmKpiCard(lastMonth ? fmtNum(lastMonth.activities) : '0', 'Activities ' + monthName,
-    lastMonth && prevMonth ? mmTrend(lastMonth.activities, prevMonth.activities) : null);
-  h += mmKpiCard(lastMonth ? fmtNum(lastMonth.documents) : '0', 'Documents ' + monthName,
-    lastMonth && prevMonth ? mmTrend(lastMonth.documents, prevMonth.documents) : null);
-  var auVal = lastMonth ? lastMonth.activeUsers : 0;
+  h += mmKpiCard(lastFullMonth ? fmtNum(lastFullMonth.activities) : '0', 'Activities ' + monthName,
+    lastFullMonth && prevFullMonth ? mmTrend(lastFullMonth.activities, prevFullMonth.activities) : null);
+  h += mmKpiCard(lastFullMonth ? fmtNum(lastFullMonth.documents) : '0', 'Documents ' + monthName,
+    lastFullMonth && prevFullMonth ? mmTrend(lastFullMonth.documents, prevFullMonth.documents) : null);
+  var auVal = lastFullMonth ? lastFullMonth.activeUsers : 0;
   h += mmKpiCard(auVal + ' <span style="font-size:.7em;color:#888;font-weight:400">/ ' + totalUsers + '</span>',
     'Active Users ' + monthName,
-    lastMonth && prevMonth ? mmTrendAbs(lastMonth.activeUsers, prevMonth.activeUsers) : null);
-  var avgAct = (auVal > 0 && lastMonth) ? Math.round((lastMonth.activities + lastMonth.documents) / auVal) : 0;
-  var prevAvg = (prevMonth && prevMonth.activeUsers > 0) ? Math.round((prevMonth.activities + prevMonth.documents) / prevMonth.activeUsers) : 0;
+    lastFullMonth && prevFullMonth ? mmTrendAbs(lastFullMonth.activeUsers, prevFullMonth.activeUsers) : null);
+  var avgAct = (auVal > 0 && lastFullMonth) ? Math.round((lastFullMonth.activities + lastFullMonth.documents) / auVal) : 0;
+  var prevAvg = (prevFullMonth && prevFullMonth.activeUsers > 0) ? Math.round((prevFullMonth.activities + prevFullMonth.documents) / prevFullMonth.activeUsers) : 0;
   h += mmKpiCard(fmtNum(avgAct), 'Avg per User ' + monthName,
-    lastMonth && prevMonth ? mmTrend(avgAct, prevAvg) : null);
+    lastFullMonth && prevFullMonth ? mmTrend(avgAct, prevAvg) : null);
   h += '</div></div>';
 
   h += renderMomentumChart(monthly);
@@ -2137,10 +2145,17 @@ function renderUserAdoption(users, totalUsers, grandTotal, filterMonths, filterL
   h += '<span class="record-badge" style="background:#e8f5e9;color:' + MM_GREEN + ';font-weight:600">' + filterLabel + '</span>';
   h += '<span class="record-badge">' + totalUsers + ' total users</span></div></div>';
 
+  var powerT = 100, regT = 25;
+  if (typeof daSettings !== 'undefined' && daSettings.getMomentumSettings) {
+    var ms = daSettings.getMomentumSettings();
+    powerT = ms.powerThreshold || 100;
+    regT = ms.regularThreshold || 25;
+  }
+
   h += '<div class="mm-user-groups">';
-  h += mmGroupCard(power.length, 'Power Users', '100+ activities / month (avg)', totalUsers, totalAct, pAct, MM_GREEN);
-  h += mmGroupCard(regular.length, 'Regular Users', '25\u201399 activities / month (avg)', totalUsers, totalAct, rAct, MM_BLUE);
-  h += mmGroupCard(low.length, 'Low Usage', '1\u201324 activities / month (avg)', totalUsers, totalAct, lAct, MM_ORANGE);
+  h += mmGroupCard(power.length, 'Power Users', powerT + '+ activities / month (avg)', totalUsers, totalAct, pAct, MM_GREEN);
+  h += mmGroupCard(regular.length, 'Regular Users', regT + '\u2013' + (powerT - 1) + ' activities / month (avg)', totalUsers, totalAct, rAct, MM_BLUE);
+  h += mmGroupCard(low.length, 'Low Usage', '1\u2013' + (regT - 1) + ' activities / month (avg)', totalUsers, totalAct, lAct, MM_ORANGE);
   h += mmGroupCardInactive(inactive.length, 'Inactive', '0 activities in period', totalUsers, MM_RED);
   h += '</div>';
 
