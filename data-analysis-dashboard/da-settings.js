@@ -488,8 +488,7 @@
     sale: '<svg viewBox="0 0 32 32" fill="none"><path d="M16 3a13 13 0 1 0 13 13A13.013 13.013 0 0 0 16 3m0 24a11 11 0 1 1 11-11 11.01 11.01 0 0 1-11 11m5-8.5a3.5 3.5 0 0 1-3.5 3.5H17v1a1 1 0 0 1-2 0v-1h-2a1 1 0 0 1 0-2h4.5a1.5 1.5 0 1 0 0-3h-3a3.5 3.5 0 1 1 0-7h.5V9a1 1 0 0 1 2 0v1h2a1 1 0 0 1 0 2h-4.5a1.5 1.5 0 1 0 0 3h3a3.5 3.5 0 0 1 3.5 3.5" fill="currentColor"/></svg>',
     project: '<svg viewBox="0 0 32 32" fill="none"><path d="M21 19a1 1 0 0 1-1 1h-8a1 1 0 0 1 0-2h8a1 1 0 0 1 1 1m-1-5h-8a1 1 0 0 0 0 2h8a1 1 0 0 0 0-2m7-8v21a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h4.533a5.99 5.99 0 0 1 8.935 0H25a2 2 0 0 1 2 2M12 8h8a4 4 0 1 0-8 0m13-2h-3.344A6 6 0 0 1 22 8v1a1 1 0 0 1-1 1H11a1 1 0 0 1-1-1V8c0-.681.116-1.358.344-2H7v21h18z" fill="currentColor"/></svg>',
     levels: '<svg viewBox="0 0 32 32" fill="none"><path d="M5 11h4.125a4 4 0 0 0 7.75 0H27a1 1 0 0 0 0-2H16.875a4 4 0 0 0-7.75 0H5a1 1 0 0 0 0 2m8-3a2 2 0 1 1 0 4 2 2 0 0 1 0-4m14 13h-2.125a4 4 0 0 0-7.75 0H5a1 1 0 0 0 0 2h12.125a4 4 0 0 0 7.75 0H27a1 1 0 0 0 0-2m-6 3a2 2 0 1 1 0-4 2 2 0 0 1 0 4" fill="currentColor"/></svg>',
-    activity: '<svg viewBox="0 0 32 32" fill="none"><path d="M28.707 9.707 12.707 25.707a1 1 0 0 1-1.414 0l-7-7a1 1 0 1 1 1.414-1.414L12 23.586 27.293 8.293a1 1 0 1 1 1.414 1.414z" fill="currentColor"/></svg>',
-    date: '<svg viewBox="0 0 32 32" fill="none"><path d="M26 4h-3V3a1 1 0 0 0-2 0v1H11V3a1 1 0 0 0-2 0v1H6a2 2 0 0 0-2 2v20a2 2 0 0 0 2 2h20a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2M9 6v1a1 1 0 0 0 2 0V6h10v1a1 1 0 0 0 2 0V6h3v4H6V6zm17 20H6V12h20z" fill="currentColor"/></svg>'
+    activity: '<svg viewBox="0 0 32 32" fill="none"><path d="M28.707 9.707 12.707 25.707a1 1 0 0 1-1.414 0l-7-7a1 1 0 1 1 1.414-1.414L12 23.586 27.293 8.293a1 1 0 1 1 1.414 1.414z" fill="currentColor"/></svg>'
   };
 
   function openSettings() {
@@ -532,8 +531,6 @@
     h += '<div class="sm-sb-label">CRM Momentum</div>';
     h += '<div class="sm-sb-item" onclick="daSettings.showSection(\'mm-thresholds\',this)">' + SM_ICONS.levels + ' User Levels</div>';
     h += '<div class="sm-sb-item" onclick="daSettings.showSection(\'mm-activity\',this)">' + SM_ICONS.activity + ' Activity Types</div>';
-    h += '<div class="sm-sb-label">General</div>';
-    h += '<div class="sm-sb-item" onclick="daSettings.showSection(\'general\',this)">' + SM_ICONS.date + ' Date Range</div>';
     h += '</div>';
     // Content
     h += '<div class="sm-content" id="smContent">';
@@ -542,7 +539,6 @@
     }
     h += '<div class="sm-section" id="sm-mm-thresholds"></div>';
     h += '<div class="sm-section" id="sm-mm-activity"></div>';
-    h += '<div class="sm-section" id="sm-general"></div>';
     h += '</div></div>';
     // Footer
     h += '<div class="sm-footer">';
@@ -580,7 +576,6 @@
     // Momentum sections
     renderModalMomentum();
     renderModalActivity();
-    renderModalGeneral();
   }
 
   function renderModalMomentum() {
@@ -630,27 +625,6 @@
     sec.innerHTML = h;
   }
 
-  function renderModalGeneral() {
-    var sec = document.getElementById('sm-general');
-    if (!sec) return;
-    var h = '<div class="sm-title">Date Range</div>';
-    h += '<div class="sm-subtitle">Default date range when opening the dashboard.</div>';
-    h += '<div class="sm-card"><h3>Default Date Range</h3>';
-    h += '<div class="sm-desc">Starting date range for new analysis runs. Changing this will affect all entities.</div>';
-    h += '<select class="sm-select" id="smDateRange" onchange="daSettings.onDateRangeChange()">';
-    h += '<option value="">All data</option>';
-    h += '<option value="thisyear">This year</option>';
-    h += '<option value="12m">Last 12 months</option>';
-    h += '<option value="24m" selected>Last 24 months</option>';
-    h += '</select>';
-    h += '<div class="sm-rerun" id="smRerun">';
-    h += '<svg viewBox="0 0 32 32" fill="none"><path d="M16 4A12 12 0 1 0 28 16h-2A10 10 0 1 1 16 6v4l6-5-6-5z" fill="currentColor"/></svg>';
-    h += '<div class="sm-rerun-text">Date range changed. Re-run analysis to apply.</div>';
-    h += '<button class="sm-rerun-btn" onclick="daSettings.closeSettings();if(typeof startAnalyzeAll===\'function\')startAnalyzeAll()">Re-run All</button>';
-    h += '</div></div>';
-    sec.innerHTML = h;
-  }
-
   function selectRadio(el, name, value) {
     var radios = document.querySelectorAll('input[name="' + name + '"]');
     for (var i = 0; i < radios.length; i++) {
@@ -660,12 +634,6 @@
     var radio = el.querySelector('input[type="radio"]');
     if (radio) { radio.checked = true; radio.value = value; }
     el.classList.add('selected');
-    markUnsaved();
-  }
-
-  function onDateRangeChange() {
-    var banner = document.getElementById('smRerun');
-    if (banner) banner.classList.add('show');
     markUnsaved();
   }
 
@@ -1184,7 +1152,6 @@
     toggleHealthComp: toggleHealthComp, toggleEngComp: toggleEngComp,
     toggleIntegrity: toggleIntegrity, setImp: setImp, toggleUdef: toggleUdef,
     selectRadio: selectRadio, markUnsaved: markUnsaved,
-    onDateRangeChange: onDateRangeChange,
     openInfo: openInfo, closeInfo: closeInfo,
     doSave: doSave, doReset: doReset,
     getMomentumSettings: getMomentumSettings,
