@@ -1811,6 +1811,7 @@ function renderTicket() {
   return h;
 }
 
+
 // =====================================================
 // CRM MOMENTUM
 // =====================================================
@@ -1855,10 +1856,7 @@ function startMomentum(key) {
     if (progressBar) { progressBar.style.width = '100' + P; progressBar.classList.remove('loading'); }
     if (progressPercent) progressPercent.textContent = '100' + P;
     if (progressStatus) progressStatus.textContent = 'Complete!';
-
-    // Render momentum content
     renderMomentum(key, momentumData);
-
     setTimeout(function() {
       if (progressScreen) progressScreen.style.display = 'none';
       if (subTabs) subTabs.style.display = '';
@@ -1869,20 +1867,16 @@ function startMomentum(key) {
     }, 500);
   }
 
-  // Parallel load 1: Momentum data
   ajax(momentumUrl + String.fromCharCode(38) + 'dummy=1' + dfParam, function(d) {
     momentumData = d;
     checkDone();
   });
-
-  // Parallel load 2: Overview data (for the Overview sub-tab)
   ajax(overviewUrl + String.fromCharCode(38) + 'entity=' + key + dfParam, function(d) {
     if (d) renderEntityOverview(key, d);
     checkDone();
   });
 }
 
-// Color constants for momentum
 var MM_GREEN = '#2e7d32';
 var MM_BLUE = '#1565c0';
 var MM_ORANGE = '#f57c00';
@@ -1906,16 +1900,11 @@ function mmUserLevel(total, months) {
 function renderMomentum(key, d) {
   var el = document.getElementById(key + 'MomentumContent');
   if (!el || !d) return;
-
   var monthly = d.monthly || [];
   var users = d.users || [];
   var totalUsers = d.totalUsers || 0;
-
-  // Last 2 full months for KPI cards
   var lastMonth = monthly.length > 0 ? monthly[monthly.length - 1] : null;
   var prevMonth = monthly.length > 1 ? monthly[monthly.length - 2] : null;
-
-  // Determine filter months for user level calculation
   var filterMonths = monthly.length;
   var filterLabel = 'All data';
   var dfVal = activeFilterValue['activities'] || '';
@@ -1928,71 +1917,39 @@ function renderMomentum(key, d) {
     var yr = filterDate.getFullYear();
     filterLabel = 'Since ' + yr + '-' + (mo < 10 ? '0' : '') + mo;
   }
-
+  var monthName = lastMonth ? lastMonth.label.split("'")[0].trim() : '';
   var h = '';
 
-  // ====== SECTION 1: KPI Summary Cards ======
-  h += '<div class="mm-section-title">CRM Momentum \u2014 Last 24 Months</div>';
-  h += '<div class="mm-summary-row">';
-  h += mmKpiCard(
-    lastMonth ? fmtNum(lastMonth.activities) : '0',
-    'Activities ' + (lastMonth ? lastMonth.label.split("'")[0].trim() : ''),
-    lastMonth && prevMonth ? mmTrend(lastMonth.activities, prevMonth.activities) : null
-  );
-  h += mmKpiCard(
-    lastMonth ? fmtNum(lastMonth.documents) : '0',
-    'Documents ' + (lastMonth ? lastMonth.label.split("'")[0].trim() : ''),
-    lastMonth && prevMonth ? mmTrend(lastMonth.documents, prevMonth.documents) : null
-  );
+  // KPI cards — reuse detail-section + stat-row + stat-card
+  h += '<div class="detail-section">';
+  h += '<div class="detail-section-head">' + secHead('CRM Momentum \u2014 Last 24 Months') + '</div>';
+  h += '<div class="stat-row">';
+  h += mmKpiCard(lastMonth ? fmtNum(lastMonth.activities) : '0', 'Activities ' + monthName,
+    lastMonth && prevMonth ? mmTrend(lastMonth.activities, prevMonth.activities) : null);
+  h += mmKpiCard(lastMonth ? fmtNum(lastMonth.documents) : '0', 'Documents ' + monthName,
+    lastMonth && prevMonth ? mmTrend(lastMonth.documents, prevMonth.documents) : null);
   var auVal = lastMonth ? lastMonth.activeUsers : 0;
-  h += mmKpiCard(
-    auVal + ' <span class="mm-of-total">/ ' + totalUsers + '</span>',
-    'Active Users ' + (lastMonth ? lastMonth.label.split("'")[0].trim() : ''),
-    lastMonth && prevMonth ? mmTrendAbs(lastMonth.activeUsers, prevMonth.activeUsers) : null
-  );
+  h += mmKpiCard(auVal + ' <span style="font-size:.7em;color:#888;font-weight:400">/ ' + totalUsers + '</span>',
+    'Active Users ' + monthName,
+    lastMonth && prevMonth ? mmTrendAbs(lastMonth.activeUsers, prevMonth.activeUsers) : null);
   var avgAct = (auVal > 0 && lastMonth) ? Math.round((lastMonth.activities + lastMonth.documents) / auVal) : 0;
   var prevAvg = (prevMonth && prevMonth.activeUsers > 0) ? Math.round((prevMonth.activities + prevMonth.documents) / prevMonth.activeUsers) : 0;
-  h += mmKpiCard(
-    fmtNum(avgAct),
-    'Avg per User ' + (lastMonth ? lastMonth.label.split("'")[0].trim() : ''),
-    lastMonth && prevMonth ? mmTrend(avgAct, prevAvg) : null
-  );
-  h += '</div>';
+  h += mmKpiCard(fmtNum(avgAct), 'Avg per User ' + monthName,
+    lastMonth && prevMonth ? mmTrend(avgAct, prevAvg) : null);
+  h += '</div></div>';
 
-  // ====== SECTION 2: Activity Volume Chart ======
   h += renderMomentumChart(monthly);
-
-  // ====== SECTION 3: User Adoption ======
   h += renderUserAdoption(users, totalUsers, d.totalActivities + d.totalDocuments, filterMonths, filterLabel);
 
   el.innerHTML = h;
-
-  // Wire up group collapse toggles
-  var gHeaders = el.querySelectorAll('.mm-group-header');
-  for (var gi = 0; gi < gHeaders.length; gi++) {
-    (function(hdr) {
-      hdr.addEventListener('click', function() {
-        hdr.classList.toggle('collapsed');
-        var next = hdr.nextElementSibling;
-        while (next && next.classList.contains('mm-group-member')) {
-          next.style.display = hdr.classList.contains('collapsed') ? 'none' : '';
-          next = next.nextElementSibling;
-        }
-      });
-    })(gHeaders[gi]);
-  }
-
-  // Wire up chart tooltip
   mmInitChartTooltip(el, monthly);
 }
 
 function mmKpiCard(value, label, trend) {
-  var h = '<div class="mm-summary-card">';
-  h += '<div class="mm-summary-value">' + value + '</div>';
-  h += '<div class="mm-summary-label">' + label + '</div>';
-  if (trend) {
-    h += '<div class="mm-summary-trend ' + trend.cls + '">' + trend.text + '</div>';
-  }
+  var h = '<div class="stat-card">';
+  h += '<div class="stat-value" style="color:var(--so-charcoal)">' + value + '</div>';
+  h += '<div class="stat-label">' + label + '</div>';
+  if (trend) h += '<div style="font-size:.72rem;margin-top:6px;font-weight:600" class="' + trend.cls + '">' + trend.text + '</div>';
   h += '</div>';
   return h;
 }
@@ -2015,316 +1972,206 @@ function mmTrendAbs(curr, prev) {
   return { cls: 'mm-trend-flat', text: '\u2014 same as previous month' };
 }
 
-// ====== CHART RENDERING ======
-
 function renderMomentumChart(monthly) {
   if (!monthly || monthly.length === 0) return '';
-
-  var maxAct = 0;
-  var maxUsers = 0;
+  var maxAct = 0, maxUsers = 0;
   for (var i = 0; i < monthly.length; i++) {
-    var m = monthly[i];
-    if (m.activities > maxAct) maxAct = m.activities;
-    if (m.documents > maxAct) maxAct = m.documents;
-    if (m.activeUsers > maxUsers) maxUsers = m.activeUsers;
+    if (monthly[i].activities > maxAct) maxAct = monthly[i].activities;
+    if (monthly[i].documents > maxAct) maxAct = monthly[i].documents;
+    if (monthly[i].activeUsers > maxUsers) maxUsers = monthly[i].activeUsers;
   }
+  var actStep = mmNiceStep(maxAct), actMax = actStep * 5;
+  var userStep = mmNiceStep(maxUsers), userMax = userStep * 5;
+  var W = 800, H = 220, n = monthly.length;
+  var NS = ' vector-effect="non-scaling-stroke"';
 
-  var actStep = mmNiceStep(maxAct);
-  var actMax = actStep * 5;
-  var userStep = mmNiceStep(maxUsers);
-  var userMax = userStep * 5;
-
-  var W = 800;
-  var H = 220;
-  var n = monthly.length;
-
-  var actPoints = [];
-  var docPoints = [];
-  var userPoints = [];
-
+  var actPts = [], docPts = [], usrPts = [];
   for (var i = 0; i < n; i++) {
     var x = n > 1 ? (i / (n - 1)) * W : W / 2;
-    var yAct = actMax > 0 ? H - (monthly[i].activities / actMax) * H : H;
-    var yDoc = actMax > 0 ? H - (monthly[i].documents / actMax) * H : H;
-    var yUsr = userMax > 0 ? H - (monthly[i].activeUsers / userMax) * H : H;
-    actPoints.push(Math.round(x) + ',' + Math.round(yAct));
-    docPoints.push(Math.round(x) + ',' + Math.round(yDoc));
-    userPoints.push(Math.round(x) + ',' + Math.round(yUsr));
+    var yA = actMax > 0 ? H - (monthly[i].activities / actMax) * H : H;
+    var yD = actMax > 0 ? H - (monthly[i].documents / actMax) * H : H;
+    var yU = userMax > 0 ? H - (monthly[i].activeUsers / userMax) * H : H;
+    actPts.push(Math.round(x) + ',' + Math.round(yA));
+    docPts.push(Math.round(x) + ',' + Math.round(yD));
+    usrPts.push(Math.round(x) + ',' + Math.round(yU));
   }
 
   var svg = '<svg class="mm-chart-svg" viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="none">';
-  // Area fill under activities line
-  svg += '<path d="M' + actPoints[0] + ' L' + actPoints.join(' ') + ' L' + W + ',' + H + ' L0,' + H + 'Z" fill="rgba(46,125,50,0.08)"/>';
-  // Activities line (green solid)
-  svg += '<polyline points="' + actPoints.join(' ') + '" fill="none" stroke="' + MM_GREEN + '" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>';
-  // Documents line (orange dashed)
-  svg += '<polyline points="' + docPoints.join(' ') + '" fill="none" stroke="' + MM_ORANGE + '" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="6,3"/>';
-  // Active users line (blue with dots)
-  svg += '<polyline points="' + userPoints.join(' ') + '" fill="none" stroke="' + MM_BLUE + '" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>';
-  // User dots
+  svg += '<path d="M' + actPts[0] + ' L' + actPts.join(' ') + ' L' + W + ',' + H + ' L0,' + H + 'Z" fill="rgba(46,125,50,0.08)"/>';
+  svg += '<polyline points="' + actPts.join(' ') + '" fill="none" stroke="' + MM_GREEN + '" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"' + NS + '/>';
+  svg += '<polyline points="' + docPts.join(' ') + '" fill="none" stroke="' + MM_ORANGE + '" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="6,3"' + NS + '/>';
+  svg += '<polyline points="' + usrPts.join(' ') + '" fill="none" stroke="' + MM_BLUE + '" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"' + NS + '/>';
   svg += '<g fill="' + MM_BLUE + '">';
   for (var i = 0; i < n; i++) {
     if (i === 0 || i === n - 1 || i % 4 === 0) {
-      var pts = userPoints[i].split(',');
-      svg += '<circle cx="' + pts[0] + '" cy="' + pts[1] + '" r="3"/>';
+      var p = usrPts[i].split(',');
+      svg += '<circle cx="' + p[0] + '" cy="' + p[1] + '" r="3"' + NS + '/>';
     }
-  }
-  svg += '</g>';
-  // Hover zones
-  var colW = W / n;
-  svg += '<g class="mm-hover-zones">';
-  for (var i = 0; i < n; i++) {
-    var cx = n > 1 ? (i / (n - 1)) * W : W / 2;
-    svg += '<rect x="' + Math.round(cx - colW / 2) + '" y="0" width="' + Math.round(colW) + '" height="' + H + '" fill="transparent" data-idx="' + i + '"/>';
   }
   svg += '</g></svg>';
 
-  // Grid labels
   var gridH = '';
   for (var g = 0; g < 5; g++) {
-    var actVal = actMax - (g * actStep);
-    var usrVal = userMax - (g * userStep);
-    gridH += '<div class="mm-chart-grid-line"><span>' + mmFmtK(actVal) + '</span><span class="mm-right-label">' + usrVal + '</span></div>';
+    gridH += '<div class="mm-chart-grid-line"><span>' + mmFmtK(actMax - g * actStep) + '</span><span class="mm-right-label">' + (userMax - g * userStep) + '</span></div>';
   }
   gridH += '<div class="mm-chart-grid-line"><span>0</span><span class="mm-right-label">0</span></div>';
 
-  // X-axis labels
   var xLabels = '';
-  var labelStep = Math.max(1, Math.floor(n / 12));
-  for (var i = 0; i < n; i += labelStep) {
-    xLabels += '<span>' + monthly[i].label + '</span>';
-  }
-  if ((n - 1) % labelStep !== 0) {
-    xLabels += '<span>' + monthly[n - 1].label + '</span>';
-  }
+  var ls = Math.max(1, Math.floor(n / 12));
+  for (var i = 0; i < n; i += ls) xLabels += '<span>' + monthly[i].label + '</span>';
+  if ((n - 1) % ls !== 0) xLabels += '<span>' + monthly[n - 1].label + '</span>';
 
-  var h = '<div class="mm-card">';
-  h += '<div class="mm-card-header"><div><h3>Activity Volume</h3>';
-  h += '<div class="mm-header-subtitle">Activities and documents per month \u2014 based on activeDate</div>';
-  h += '</div><span class="mm-record-badge">24 months</span></div>';
-  h += '<div class="mm-chart-container" style="padding-left:56px;padding-right:48px">';
-  h += '<div class="mm-chart-area" id="mmChartArea">';
-  h += '<div class="mm-chart-grid">' + gridH + '</div>';
-  h += svg;
-  h += '<div class="mm-tooltip" id="mmTooltip"></div>';
-  h += '</div>';
-  h += '<div class="mm-chart-x-labels">' + xLabels + '</div>';
-  h += '</div>';
+  var h = '<div class="entity-card">';
+  h += '<div class="entity-header"><div class="entity-info"><h3>Activity Volume</h3>';
+  h += '<span class="field-count">\u2014 based on activeDate</span></div>';
+  h += '<span class="record-badge">24 months</span></div>';
+  h += '<div style="padding:20px 20px 12px 56px;padding-right:48px">';
+  h += '<div class="mm-chart-area" id="mmChartArea"><div class="mm-chart-grid">' + gridH + '</div>' + svg;
+  h += '<div class="mm-tooltip" id="mmTooltip"></div></div>';
+  h += '<div class="mm-chart-x-labels">' + xLabels + '</div></div>';
   h += '<div class="mm-chart-legend">';
   h += '<div class="mm-legend-item"><div class="mm-legend-line" style="background:' + MM_GREEN + '"></div> Activities</div>';
   h += '<div class="mm-legend-item"><div class="mm-legend-line" style="background:' + MM_ORANGE + '"></div> Documents</div>';
   h += '<div class="mm-legend-item"><div class="mm-legend-dot" style="background:' + MM_BLUE + '"></div> Active Users (right axis)</div>';
   h += '</div></div>';
-
   return h;
 }
 
 function mmNiceStep(max) {
   if (max <= 0) return 1;
-  var rough = max / 4;
-  var mag = Math.pow(10, Math.floor(Math.log10(rough)));
-  var norm = rough / mag;
-  if (norm <= 1) return mag;
-  if (norm <= 2) return 2 * mag;
-  if (norm <= 5) return 5 * mag;
-  return 10 * mag;
+  var r = max / 4, mag = Math.pow(10, Math.floor(Math.log10(r))), n = r / mag;
+  if (n <= 1) return mag; if (n <= 2) return 2 * mag; if (n <= 5) return 5 * mag; return 10 * mag;
 }
-
-function mmFmtK(n) {
-  if (n >= 1000) return (n / 1000).toFixed(n % 1000 === 0 ? 0 : 1) + 'k';
-  return n.toString();
-}
+function mmFmtK(n) { if (n >= 1000) return (n / 1000).toFixed(n % 1000 === 0 ? 0 : 1) + 'k'; return n.toString(); }
 
 function mmInitChartTooltip(el, monthly) {
   var chart = el.querySelector('#mmChartArea');
   var tip = el.querySelector('#mmTooltip');
   if (!chart || !tip) return;
-
   chart.addEventListener('mousemove', function(e) {
     var rect = chart.getBoundingClientRect();
     var x = e.clientX - rect.left;
-    var pctX = x / rect.width;
-    var idx = Math.round(pctX * (monthly.length - 1));
-    if (idx < 0) idx = 0;
-    if (idx >= monthly.length) idx = monthly.length - 1;
-
+    var idx = Math.round((x / rect.width) * (monthly.length - 1));
+    idx = Math.max(0, Math.min(idx, monthly.length - 1));
     var m = monthly[idx];
     tip.innerHTML = '<strong>' + m.label + '</strong><br>Activities: ' + fmtNum(m.activities) + '<br>Documents: ' + fmtNum(m.documents) + '<br>Active Users: ' + m.activeUsers;
     tip.classList.add('visible');
-    var tipX = Math.min(x + 12, rect.width - 150);
-    var tipY = Math.max(e.clientY - rect.top - 60, 0);
-    tip.style.left = tipX + 'px';
-    tip.style.top = tipY + 'px';
+    tip.style.left = Math.min(x + 12, rect.width - 150) + 'px';
+    tip.style.top = Math.max(e.clientY - rect.top - 60, 0) + 'px';
   });
-
-  chart.addEventListener('mouseleave', function() {
-    tip.classList.remove('visible');
-  });
+  chart.addEventListener('mouseleave', function() { tip.classList.remove('visible'); });
 }
-
-// ====== USER ADOPTION RENDERING ======
 
 function renderUserAdoption(users, totalUsers, grandTotal, filterMonths, filterLabel) {
   if (!users || users.length === 0) return '';
-
-  var power = [], regular = [], low = [], inactive = [];
-  var totalAct = 0;
-
+  var power = [], regular = [], low = [], inactive = [], totalAct = 0;
   for (var i = 0; i < users.length; i++) {
-    var u = users[i];
-    u.level = mmUserLevel(u.total, filterMonths);
-    u.levelColor = mmLevelColor(u.level);
-    totalAct += u.total;
+    users[i].level = mmUserLevel(users[i].total, filterMonths);
+    users[i].levelColor = mmLevelColor(users[i].level);
+    totalAct += users[i].total;
   }
   for (var i = 0; i < users.length; i++) {
-    var u = users[i];
-    if (u.level === 'Power') power.push(u);
-    else if (u.level === 'Regular') regular.push(u);
-    else if (u.level === 'Low') low.push(u);
-    else inactive.push(u);
+    if (users[i].level === 'Power') power.push(users[i]);
+    else if (users[i].level === 'Regular') regular.push(users[i]);
+    else if (users[i].level === 'Low') low.push(users[i]);
+    else inactive.push(users[i]);
   }
-
   users.sort(function(a, b) { return b.total - a.total; });
+  var pAct = 0, rAct = 0, lAct = 0;
+  for (var i = 0; i < power.length; i++) pAct += power[i].total;
+  for (var i = 0; i < regular.length; i++) rAct += regular[i].total;
+  for (var i = 0; i < low.length; i++) lAct += low[i].total;
 
-  var powerAct = 0, regAct = 0, lowAct = 0;
-  for (var i = 0; i < power.length; i++) powerAct += power[i].total;
-  for (var i = 0; i < regular.length; i++) regAct += regular[i].total;
-  for (var i = 0; i < low.length; i++) lowAct += low[i].total;
+  var h = '<div class="entity-card">';
+  h += '<div class="entity-header"><div class="entity-info"><h3>User Adoption</h3>';
+  h += '<span class="field-count">\u2014 based on date filter</span></div>';
+  h += '<div style="display:flex;gap:8px;align-items:center">';
+  h += '<span class="record-badge" style="background:#e8f5e9;color:' + MM_GREEN + ';font-weight:600">' + filterLabel + '</span>';
+  h += '<span class="record-badge">' + totalUsers + ' total users</span></div></div>';
 
-  var h = '<div class="mm-card" style="margin-top:18px">';
-  h += '<div class="mm-card-header"><div><h3>User Adoption</h3>';
-  h += '<div class="mm-header-subtitle">Activity distribution across users \u2014 based on date filter</div>';
-  h += '</div><div style="display:flex;gap:8px;align-items:center">';
-  h += '<span class="mm-record-badge mm-badge-green">' + filterLabel + '</span>';
-  h += '<span class="mm-record-badge">' + totalUsers + ' total users</span>';
-  h += '</div></div>';
-
-  // Group summary cards
   h += '<div class="mm-user-groups">';
-  h += mmGroupCard(power.length, 'Power Users', '100+ activities / month (avg)', totalUsers, totalAct, powerAct, MM_GREEN);
-  h += mmGroupCard(regular.length, 'Regular Users', '25\u201399 activities / month (avg)', totalUsers, totalAct, regAct, MM_BLUE);
-  h += mmGroupCard(low.length, 'Low Usage', '1\u201324 activities / month (avg)', totalUsers, totalAct, lowAct, MM_ORANGE);
+  h += mmGroupCard(power.length, 'Power Users', '100+ activities / month (avg)', totalUsers, totalAct, pAct, MM_GREEN);
+  h += mmGroupCard(regular.length, 'Regular Users', '25\u201399 activities / month (avg)', totalUsers, totalAct, rAct, MM_BLUE);
+  h += mmGroupCard(low.length, 'Low Usage', '1\u201324 activities / month (avg)', totalUsers, totalAct, lAct, MM_ORANGE);
   h += mmGroupCardInactive(inactive.length, 'Inactive', '0 activities in period', totalUsers, MM_RED);
   h += '</div>';
 
-  // Top 10
   var top10 = users.slice(0, Math.min(10, users.length));
   if (top10.length > 0 && top10[0].total > 0) {
-    h += '<div class="mm-section-divider">TOP 10 MOST ACTIVE USERS</div>';
-    h += '<table class="mm-table"><thead><tr>';
-    h += '<th style="width:40px">#</th><th style="width:200px">User</th><th style="width:90px">Level</th>';
-    h += '<th>Group</th><th class="mm-col-right">Activities</th><th class="mm-col-right">Documents</th>';
-    h += '<th class="mm-col-right">Total</th><th class="mm-col-right" style="width:160px">' + P + ' of Total</th>';
+    h += '<div style="padding:16px 16px 8px;border-top:1px solid var(--so-border);font-size:.78rem;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.04em">Top 10 Most Active Users</div>';
+    h += '<table class="data-table"><thead><tr>';
+    h += '<th style="width:40px">#</th><th>User</th><th style="width:90px">Level</th>';
+    h += '<th>Group</th><th class="col-right">Activities</th><th class="col-right">Documents</th>';
+    h += '<th class="col-right">Total</th><th class="col-right" style="width:160px">' + P + ' of Total</th>';
     h += '</tr></thead><tbody>';
     for (var i = 0; i < top10.length; i++) {
-      var u = top10[i];
-      if (u.total === 0) break;
+      var u = top10[i]; if (u.total === 0) break;
       var pct = totalAct > 0 ? Math.round((u.total / totalAct) * 100) : 0;
-      h += '<tr>';
-      h += '<td><span class="mm-rank" style="background:' + u.levelColor + '">' + (i + 1) + '</span></td>';
+      h += '<tr><td><span class="mm-rank" style="background:' + u.levelColor + '">' + (i + 1) + '</span></td>';
       h += '<td><strong>' + u.name + '</strong></td>';
       h += '<td><span class="mm-badge" style="background:' + u.levelColor + '">' + u.level + '</span></td>';
-      h += '<td style="color:var(--so-text-muted)">' + (u.group || '\u2014') + '</td>';
-      h += '<td class="mm-col-right">' + fmtNum(u.activities) + '</td>';
-      h += '<td class="mm-col-right">' + fmtNum(u.documents) + '</td>';
-      h += '<td class="mm-col-right"><strong>' + fmtNum(u.total) + '</strong></td>';
-      h += '<td class="mm-col-right">' + mmBarCell(pct, u.levelColor) + '</td>';
-      h += '</tr>';
+      h += '<td style="color:#888">' + (u.group || '\u2014') + '</td>';
+      h += '<td class="col-right">' + fmtNum(u.activities) + '</td><td class="col-right">' + fmtNum(u.documents) + '</td>';
+      h += '<td class="col-right"><strong>' + fmtNum(u.total) + '</strong></td>';
+      h += '<td class="col-right">' + mmBarCell(pct, u.levelColor) + '</td></tr>';
     }
     h += '</tbody></table>';
   }
 
-  // All Users by Group
   var groups = mmGroupUsers(users);
   if (groups.length > 0) {
-    h += '<div class="mm-section-divider">ALL USERS BY GROUP</div>';
-    h += '<table class="mm-table"><thead><tr>';
-    h += '<th style="width:220px">User</th><th style="width:90px">Level</th>';
-    h += '<th class="mm-col-right">Activities</th><th class="mm-col-right">Documents</th>';
-    h += '<th class="mm-col-right">Total</th><th class="mm-col-right" style="width:160px">' + P + ' of Total</th>';
+    h += '<div style="padding:16px 16px 8px;border-top:1px solid var(--so-border);font-size:.78rem;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.04em">All Users by Group</div>';
+    h += '<table class="data-table"><thead><tr>';
+    h += '<th>User</th><th style="width:90px">Level</th>';
+    h += '<th class="col-right">Activities</th><th class="col-right">Documents</th>';
+    h += '<th class="col-right">Total</th><th class="col-right" style="width:160px">' + P + ' of Total</th>';
     h += '</tr></thead><tbody>';
-
     for (var gi = 0; gi < groups.length; gi++) {
       var grp = groups[gi];
-      var grpPct = totalAct > 0 ? Math.round((grp.total / totalAct) * 100) : 0;
-      var grpInfo = grp.members.length + ' user' + (grp.members.length !== 1 ? 's' : '') + ' \u00B7 ' + fmtNum(grp.total) + ' activities';
-      if (grpPct > 0) grpInfo += ' \u00B7 ' + grpPct + P;
-
-      var chevSvg = '<svg class="mm-group-chevron" viewBox="0 0 10 6" fill="none"><path d="M1 1l4 4 4-4" stroke="#333" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>';
-
-      h += '<tr class="mm-group-header">';
-      h += '<td colspan="6">' + chevSvg + grp.name + ' <span style="color:#999;font-weight:400;font-size:.75rem;margin-left:4px">(' + grpInfo + ')</span></td>';
-      h += '</tr>';
-
+      var gPct = totalAct > 0 ? Math.round((grp.total / totalAct) * 100) : 0;
+      var gInfo = grp.members.length + ' user' + (grp.members.length !== 1 ? 's' : '') + ' \u00B7 ' + fmtNum(grp.total) + ' activities';
+      if (gPct > 0) gInfo += ' \u00B7 ' + gPct + P;
+      h += '<tr class="assoc-group-header" onclick="togGroup(this)"><td colspan="6">' + svgBadgeChev + ' ' + grp.name;
+      h += ' <span style="color:#999;font-weight:400;font-size:.75rem;margin-left:4px">(' + gInfo + ')</span></td></tr>';
       for (var mi = 0; mi < grp.members.length; mi++) {
         var u = grp.members[mi];
         var pct = totalAct > 0 ? Math.round((u.total / totalAct) * 100) : 0;
-        var isInactive = u.level === 'Inactive';
-        var rowCls = 'mm-group-member' + (isInactive ? ' mm-inactive-row' : '');
-        h += '<tr class="' + rowCls + '">';
-        h += '<td style="padding-left:32px">' + (isInactive ? u.name : '<strong>' + u.name + '</strong>') + '</td>';
+        var isI = u.level === 'Inactive';
+        h += '<tr' + (isI ? ' style="opacity:.5"' : '') + '>';
+        h += '<td style="padding-left:32px">' + (isI ? u.name : '<strong>' + u.name + '</strong>') + '</td>';
         h += '<td><span class="mm-badge" style="background:' + u.levelColor + '">' + u.level + '</span></td>';
-        h += '<td class="mm-col-right">' + fmtNum(u.activities) + '</td>';
-        h += '<td class="mm-col-right">' + fmtNum(u.documents) + '</td>';
-        h += '<td class="mm-col-right">' + (isInactive ? '<strong>0</strong>' : '<strong>' + fmtNum(u.total) + '</strong>') + '</td>';
-        h += '<td class="mm-col-right">' + (isInactive ? '\u2014' : mmBarCell(pct, u.levelColor)) + '</td>';
-        h += '</tr>';
+        h += '<td class="col-right">' + fmtNum(u.activities) + '</td><td class="col-right">' + fmtNum(u.documents) + '</td>';
+        h += '<td class="col-right"><strong>' + fmtNum(u.total) + '</strong></td>';
+        h += '<td class="col-right">' + (isI ? '\u2014' : mmBarCell(pct, u.levelColor)) + '</td></tr>';
       }
     }
     h += '</tbody></table>';
   }
-
   h += '</div>';
   return h;
 }
 
-function mmGroupCard(count, label, desc, totalUsers, totalAct, groupAct, color) {
-  var userPct = totalUsers > 0 ? Math.round((count / totalUsers) * 100) : 0;
-  var actPct = totalAct > 0 ? Math.round((groupAct / totalAct) * 100) : 0;
-  var h = '<div class="mm-user-group">';
-  h += '<div class="mm-ug-count" style="color:' + color + '">' + count + '</div>';
-  h += '<div class="mm-ug-label">' + label + '</div>';
-  h += '<div class="mm-ug-desc">' + desc + '</div>';
-  h += '<div class="mm-ug-pct">' + userPct + P + ' of users \u00B7 ' + actPct + P + ' of activities</div>';
-  h += '</div>';
-  return h;
+function mmGroupCard(cnt, label, desc, totalUsers, totalAct, groupAct, color) {
+  var uP = totalUsers > 0 ? Math.round((cnt / totalUsers) * 100) : 0;
+  var aP = totalAct > 0 ? Math.round((groupAct / totalAct) * 100) : 0;
+  return '<div class="mm-user-group"><div class="mm-ug-count" style="color:' + color + '">' + cnt + '</div><div class="mm-ug-label">' + label + '</div><div class="mm-ug-desc">' + desc + '</div><div class="mm-ug-pct">' + uP + P + ' of users \u00B7 ' + aP + P + ' of activities</div></div>';
 }
-
-function mmGroupCardInactive(count, label, desc, totalUsers, color) {
-  var userPct = totalUsers > 0 ? Math.round((count / totalUsers) * 100) : 0;
-  var h = '<div class="mm-user-group">';
-  h += '<div class="mm-ug-count" style="color:' + color + '">' + count + '</div>';
-  h += '<div class="mm-ug-label">' + label + '</div>';
-  h += '<div class="mm-ug-desc">' + desc + '</div>';
-  h += '<div class="mm-ug-pct">' + userPct + P + ' of users</div>';
-  h += '</div>';
-  return h;
+function mmGroupCardInactive(cnt, label, desc, totalUsers, color) {
+  var uP = totalUsers > 0 ? Math.round((cnt / totalUsers) * 100) : 0;
+  return '<div class="mm-user-group"><div class="mm-ug-count" style="color:' + color + '">' + cnt + '</div><div class="mm-ug-label">' + label + '</div><div class="mm-ug-desc">' + desc + '</div><div class="mm-ug-pct">' + uP + P + ' of users</div></div>';
 }
-
 function mmBarCell(pct, color) {
-  return '<div class="mm-bar-cell"><div class="mm-bar-pct" style="color:' + color + '">' + pct + P + '</div><div class="mm-bar-track"><div class="mm-bar-fill" style="width:' + pct + P + ';background:' + color + '"></div></div></div>';
+  return '<div class="bar-cell"><div style="width:80px;height:8px;background:#eee;border-radius:4px;overflow:hidden"><div style="height:100%;width:' + pct + P + ';background:' + color + ';border-radius:4px 0 0 4px"></div></div><span class="pct-text" style="color:' + color + '">' + pct + P + '</span></div>';
 }
-
 function mmGroupUsers(users) {
-  var groupMap = {};
-  var groupOrder = [];
+  var gm = {}, go = [];
   for (var i = 0; i < users.length; i++) {
-    var u = users[i];
-    var gName = u.group || 'No Group';
-    if (!groupMap[gName]) {
-      groupMap[gName] = { name: gName, members: [], total: 0 };
-      groupOrder.push(gName);
-    }
-    groupMap[gName].members.push(u);
-    groupMap[gName].total += u.total;
+    var gn = users[i].group || 'No Group';
+    if (!gm[gn]) { gm[gn] = { name: gn, members: [], total: 0 }; go.push(gn); }
+    gm[gn].members.push(users[i]); gm[gn].total += users[i].total;
   }
-  var result = [];
-  for (var i = 0; i < groupOrder.length; i++) {
-    result.push(groupMap[groupOrder[i]]);
-  }
-  result.sort(function(a, b) { return b.total - a.total; });
-  for (var i = 0; i < result.length; i++) {
-    result[i].members.sort(function(a, b) { return b.total - a.total; });
-  }
-  return result;
+  var r = []; for (var i = 0; i < go.length; i++) r.push(gm[go[i]]);
+  r.sort(function(a, b) { return b.total - a.total; });
+  for (var i = 0; i < r.length; i++) r[i].members.sort(function(a, b) { return b.total - a.total; });
+  return r;
 }
