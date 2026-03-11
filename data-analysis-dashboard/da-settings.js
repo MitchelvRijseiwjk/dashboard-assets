@@ -241,9 +241,18 @@
       var f = data.fields[i];
       _udefFields[eKey].push({ progId: f.progId || f.label || ('f' + i), label: f.label, type: f.type, percent: f.percent });
     }
-    if (_activeEntity === eKey && _activeId) {
-      var el = document.getElementById(_activeId);
-      if (el && el.offsetParent !== null) renderPanel(el, 'full');
+    if (_activeEntity === eKey) {
+      // Re-render entity section in modal if open
+      var overlay = document.getElementById('smOverlay');
+      if (overlay && overlay.classList.contains('open')) {
+        var sec = document.getElementById('sm-' + eKey);
+        if (sec) {
+          var h = '<div class="sm-title">' + ENTITY_DEFS[eKey].label + ' Scoring</div>';
+          h += '<div class="sm-subtitle">Configure how the ' + ENTITY_DEFS[eKey].label + ' health score is calculated.</div>';
+          h += renderEntityPanel(eKey);
+          sec.innerHTML = h;
+        }
+      }
     }
   }
 
@@ -468,37 +477,201 @@
   }
 
   // ============================================================
-  // RENDER
+  // SETTINGS MODAL — Discord-style overlay
   // ============================================================
-  function renderPanel(el, mode) {
-    _mode = mode || 'full';
-    var h = '';
+  var _smActiveSection = 'company';
 
-    // Entity tabs
-    h += '<div class="s-entity-tabs">';
+  // SVG icons for modal sidebar
+  var SM_ICONS = {
+    company: '<svg viewBox="0 0 32 32" fill="none"><path d="M30 26h-2V12a2 2 0 0 0-2-2h-8V4a2 2 0 0 0-3.11-1.665L4.89 9A2 2 0 0 0 4 10.668V26H2a1 1 0 0 0 0 2h28a1 1 0 0 0 0-2m-4-14v14h-8V12zM6 10.668 16 4v22H6z" fill="currentColor"/></svg>',
+    contact: '<svg viewBox="0 0 32 32" fill="none"><path d="M28.865 26.5c-1.904-3.291-4.837-5.651-8.261-6.77a9 9 0 1 0-9.208 0c-3.424 1.117-6.357 3.477-8.261 6.77a1 1 0 1 0 1.731 1C7.221 23.43 11.384 21 16 21s8.779 2.43 11.134 6.5a.999.999 0 1 0 1.731-1M9 12a7 7 0 1 1 7 7 7.01 7.01 0 0 1-7-7" fill="currentColor"/></svg>',
+    sale: '<svg viewBox="0 0 32 32" fill="none"><path d="M16 3a13 13 0 1 0 13 13A13.013 13.013 0 0 0 16 3m0 24a11 11 0 1 1 11-11 11.01 11.01 0 0 1-11 11m5-8.5a3.5 3.5 0 0 1-3.5 3.5H17v1a1 1 0 0 1-2 0v-1h-2a1 1 0 0 1 0-2h4.5a1.5 1.5 0 1 0 0-3h-3a3.5 3.5 0 1 1 0-7h.5V9a1 1 0 0 1 2 0v1h2a1 1 0 0 1 0 2h-4.5a1.5 1.5 0 1 0 0 3h3a3.5 3.5 0 0 1 3.5 3.5" fill="currentColor"/></svg>',
+    project: '<svg viewBox="0 0 32 32" fill="none"><path d="M21 19a1 1 0 0 1-1 1h-8a1 1 0 0 1 0-2h8a1 1 0 0 1 1 1m-1-5h-8a1 1 0 0 0 0 2h8a1 1 0 0 0 0-2m7-8v21a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h4.533a5.99 5.99 0 0 1 8.935 0H25a2 2 0 0 1 2 2M12 8h8a4 4 0 1 0-8 0m13-2h-3.344A6 6 0 0 1 22 8v1a1 1 0 0 1-1 1H11a1 1 0 0 1-1-1V8c0-.681.116-1.358.344-2H7v21h18z" fill="currentColor"/></svg>',
+    levels: '<svg viewBox="0 0 32 32" fill="none"><path d="M5 11h4.125a4 4 0 0 0 7.75 0H27a1 1 0 0 0 0-2H16.875a4 4 0 0 0-7.75 0H5a1 1 0 0 0 0 2m8-3a2 2 0 1 1 0 4 2 2 0 0 1 0-4m14 13h-2.125a4 4 0 0 0-7.75 0H5a1 1 0 0 0 0 2h12.125a4 4 0 0 0 7.75 0H27a1 1 0 0 0 0-2m-6 3a2 2 0 1 1 0-4 2 2 0 0 1 0 4" fill="currentColor"/></svg>',
+    activity: '<svg viewBox="0 0 32 32" fill="none"><path d="M28.707 9.707 12.707 25.707a1 1 0 0 1-1.414 0l-7-7a1 1 0 1 1 1.414-1.414L12 23.586 27.293 8.293a1 1 0 1 1 1.414 1.414z" fill="currentColor"/></svg>',
+    date: '<svg viewBox="0 0 32 32" fill="none"><path d="M26 4h-3V3a1 1 0 0 0-2 0v1H11V3a1 1 0 0 0-2 0v1H6a2 2 0 0 0-2 2v20a2 2 0 0 0 2 2h20a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2M9 6v1a1 1 0 0 0 2 0V6h10v1a1 1 0 0 0 2 0V6h3v4H6V6zm17 20H6V12h20z" fill="currentColor"/></svg>'
+  };
+
+  function openSettings() {
+    var overlay = document.getElementById('smOverlay');
+    if (!overlay) {
+      overlay = document.createElement('div');
+      overlay.id = 'smOverlay';
+      overlay.className = 'sm-overlay';
+      overlay.onclick = function(e) { if (e.target === overlay) closeSettings(); };
+      overlay.innerHTML = buildModalHTML();
+      document.body.appendChild(overlay);
+    }
+    renderAllSections();
+    _smActiveSection = 'company';
+    showSettingsSection('company');
+    var unsaved = document.getElementById('smUnsaved');
+    if (unsaved) unsaved.classList.remove('show');
+    setTimeout(function() { overlay.classList.add('open'); }, 10);
+  }
+
+  function closeSettings() {
+    var overlay = document.getElementById('smOverlay');
+    if (overlay) overlay.classList.remove('open');
+  }
+
+  function buildModalHTML() {
+    var h = '<div class="sm-modal">';
+    // Header
+    h += '<div class="sm-header"><h2>Settings</h2>';
+    h += '<button class="sm-close" onclick="daSettings.closeSettings()"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M12 4L4 12M4 4l8 8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></button></div>';
+    // Body
+    h += '<div class="sm-body">';
+    // Sidebar
+    h += '<div class="sm-sidebar">';
+    h += '<div class="sm-sb-label">Scoring</div>';
     for (var i = 0; i < ENTITY_ORDER.length; i++) {
       var ek = ENTITY_ORDER[i];
-      var def = ENTITY_DEFS[ek];
-      var active = ek === _activeEntity ? ' active' : '';
-      var icoAttr = el.getAttribute('data-ico-' + ek);
-      var ico = icoAttr ? '<img class="s-entity-ico" src="data:image/svg+xml;base64,' + icoAttr + '">' : '';
-      h += '<button class="s-entity-tab' + active + '" onclick="daSettings.switchEntity(\'' + ek + '\')">' + ico + def.label + '</button>';
+      h += '<div class="sm-sb-item' + (i === 0 ? ' active' : '') + '" onclick="daSettings.showSection(\'' + ek + '\',this)">' + SM_ICONS[ek] + ' ' + ENTITY_DEFS[ek].label + '</div>';
     }
+    h += '<div class="sm-sb-label">CRM Momentum</div>';
+    h += '<div class="sm-sb-item" onclick="daSettings.showSection(\'mm-thresholds\',this)">' + SM_ICONS.levels + ' User Levels</div>';
+    h += '<div class="sm-sb-item" onclick="daSettings.showSection(\'mm-activity\',this)">' + SM_ICONS.activity + ' Activity Types</div>';
+    h += '<div class="sm-sb-label">General</div>';
+    h += '<div class="sm-sb-item" onclick="daSettings.showSection(\'general\',this)">' + SM_ICONS.date + ' Date Range</div>';
     h += '</div>';
-
-    h += renderEntityPanel(_activeEntity);
-
-    // Momentum settings (global, not per-entity)
-    h += renderMomentumPanel();
-
-    h += '<div class="s-actions">';
+    // Content
+    h += '<div class="sm-content" id="smContent">';
+    for (var i = 0; i < ENTITY_ORDER.length; i++) {
+      h += '<div class="sm-section" id="sm-' + ENTITY_ORDER[i] + '"></div>';
+    }
+    h += '<div class="sm-section" id="sm-mm-thresholds"></div>';
+    h += '<div class="sm-section" id="sm-mm-activity"></div>';
+    h += '<div class="sm-section" id="sm-general"></div>';
+    h += '</div></div>';
+    // Footer
+    h += '<div class="sm-footer">';
     h += '<button class="btn-settings-save" onclick="daSettings.doSave()">Apply &amp; Recalculate</button>';
     h += '<button class="btn-settings-reset" onclick="daSettings.doReset()">Reset to Defaults</button>';
+    h += '<div class="sm-unsaved" id="smUnsaved">\u25CF Unsaved changes</div>';
     h += '</div>';
+    h += '</div>';
+    return h;
+  }
 
-    el.innerHTML = h;
-    el.setAttribute('data-mode', _mode);
-    _activeId = el.id;
+  function showSettingsSection(id, el) {
+    _smActiveSection = id;
+    var secs = document.querySelectorAll('.sm-section');
+    for (var i = 0; i < secs.length; i++) secs[i].classList.remove('active');
+    var items = document.querySelectorAll('.sm-sb-item');
+    for (var i = 0; i < items.length; i++) items[i].classList.remove('active');
+    var sec = document.getElementById('sm-' + id);
+    if (sec) sec.classList.add('active');
+    if (el) el.classList.add('active');
+  }
+
+  function renderAllSections() {
+    // Entity scoring sections
+    for (var i = 0; i < ENTITY_ORDER.length; i++) {
+      var ek = ENTITY_ORDER[i];
+      var sec = document.getElementById('sm-' + ek);
+      if (sec) {
+        var h = '<div class="sm-title">' + ENTITY_DEFS[ek].label + ' Scoring</div>';
+        h += '<div class="sm-subtitle">Configure how the ' + ENTITY_DEFS[ek].label + ' health score is calculated.</div>';
+        h += renderEntityPanel(ek);
+        sec.innerHTML = h;
+      }
+    }
+    // Momentum sections
+    renderModalMomentum();
+    renderModalActivity();
+    renderModalGeneral();
+  }
+
+  function renderModalMomentum() {
+    var m = _s._momentum || clone(MOMENTUM_DEFAULTS);
+    var sec = document.getElementById('sm-mm-thresholds');
+    if (!sec) return;
+    var h = '<div class="sm-title">User Levels</div>';
+    h += '<div class="sm-subtitle">Classify users by their average monthly activity count.</div>';
+    h += '<div class="sm-card"><h3>Level Thresholds</h3>';
+    h += '<div class="sm-desc">Users are classified based on their average activities per month in the selected period.</div>';
+    h += '<div class="sm-threshold-row"><div class="sm-threshold-label" style="color:#2e7d32;font-weight:600">Power User</div>';
+    h += '<span style="color:var(--so-text-muted)">\u2265</span>';
+    h += '<input type="number" class="sm-threshold-input" id="mmPowerThreshold" value="' + m.powerThreshold + '" min="1" onchange="daSettings.markUnsaved()">';
+    h += '<div class="sm-threshold-desc">activities / month (avg)</div></div>';
+    h += '<div class="sm-threshold-row"><div class="sm-threshold-label" style="color:#1565c0;font-weight:600">Regular User</div>';
+    h += '<span style="color:var(--so-text-muted)">\u2265</span>';
+    h += '<input type="number" class="sm-threshold-input" id="mmRegularThreshold" value="' + m.regularThreshold + '" min="1" onchange="daSettings.markUnsaved()">';
+    h += '<div class="sm-threshold-desc">activities / month (avg)</div></div>';
+    h += '<div class="sm-threshold-row"><div class="sm-threshold-label" style="color:#f57c00;font-weight:600">Low Usage</div>';
+    h += '<span style="color:var(--so-text-muted)">\u2265 1 activity in period</span></div>';
+    h += '<div class="sm-threshold-row"><div class="sm-threshold-label dim" style="color:#c62828">Inactive</div>';
+    h += '<span class="sm-threshold-desc" style="opacity:.5">0 activities</span></div>';
+    h += '</div>';
+    // Date field
+    h += '<div class="sm-card"><h3>Date Field</h3>';
+    h += '<div class="sm-desc">Which date field to use for counting activities.</div>';
+    h += '<div class="sm-radio' + (m.dateField === 'activeDate' ? ' selected' : '') + '" onclick="daSettings.selectRadio(this,\'mmDateField\',\'activeDate\')">';
+    h += '<input type="radio" name="mmDateField" value="activeDate"' + (m.dateField === 'activeDate' ? ' checked' : '') + '>';
+    h += '<div><strong>Active Date</strong><div class="sm-radio-desc">When the activity takes place (recommended)</div></div></div>';
+    h += '<div class="sm-radio' + (m.dateField === 'registered' ? ' selected' : '') + '" onclick="daSettings.selectRadio(this,\'mmDateField\',\'registered\')">';
+    h += '<input type="radio" name="mmDateField" value="registered"' + (m.dateField === 'registered' ? ' checked' : '') + '>';
+    h += '<div><strong>Registered</strong><div class="sm-radio-desc">When the activity was entered in CRM</div></div></div>';
+    h += '</div>';
+    sec.innerHTML = h;
+  }
+
+  function renderModalActivity() {
+    var sec = document.getElementById('sm-mm-activity');
+    if (!sec) return;
+    var h = '<div class="sm-title">Activity Types</div>';
+    h += '<div class="sm-subtitle">Choose which activity types to include in CRM Momentum analysis.</div>';
+    h += '<div class="sm-card"><h3>Include in Analysis</h3>';
+    h += '<div class="sm-desc">Uncheck types you want to exclude from activity counting and user level classification.</div>';
+    h += '<div class="sm-check-list">';
+    h += '<div style="padding:10px 0;font-size:.82rem;color:var(--so-text-muted);font-style:italic">Activity types will be available after running a Momentum analysis.</div>';
+    h += '</div></div>';
+    sec.innerHTML = h;
+  }
+
+  function renderModalGeneral() {
+    var sec = document.getElementById('sm-general');
+    if (!sec) return;
+    var h = '<div class="sm-title">Date Range</div>';
+    h += '<div class="sm-subtitle">Default date range when opening the dashboard.</div>';
+    h += '<div class="sm-card"><h3>Default Date Range</h3>';
+    h += '<div class="sm-desc">Starting date range for new analysis runs. Changing this will affect all entities.</div>';
+    h += '<select class="sm-select" id="smDateRange" onchange="daSettings.onDateRangeChange()">';
+    h += '<option value="">All data</option>';
+    h += '<option value="thisyear">This year</option>';
+    h += '<option value="12m">Last 12 months</option>';
+    h += '<option value="24m" selected>Last 24 months</option>';
+    h += '</select>';
+    h += '<div class="sm-rerun" id="smRerun">';
+    h += '<svg viewBox="0 0 32 32" fill="none"><path d="M16 4A12 12 0 1 0 28 16h-2A10 10 0 1 1 16 6v4l6-5-6-5z" fill="currentColor"/></svg>';
+    h += '<div class="sm-rerun-text">Date range changed. Re-run analysis to apply.</div>';
+    h += '<button class="sm-rerun-btn" onclick="daSettings.closeSettings();if(typeof startAnalyzeAll===\'function\')startAnalyzeAll()">Re-run All</button>';
+    h += '</div></div>';
+    sec.innerHTML = h;
+  }
+
+  function selectRadio(el, name, value) {
+    var radios = document.querySelectorAll('input[name="' + name + '"]');
+    for (var i = 0; i < radios.length; i++) {
+      radios[i].checked = false;
+      radios[i].closest('.sm-radio').classList.remove('selected');
+    }
+    var radio = el.querySelector('input[type="radio"]');
+    if (radio) { radio.checked = true; radio.value = value; }
+    el.classList.add('selected');
+    markUnsaved();
+  }
+
+  function onDateRangeChange() {
+    var banner = document.getElementById('smRerun');
+    if (banner) banner.classList.add('show');
+    markUnsaved();
+  }
+
+  function markUnsaved() {
+    var el = document.getElementById('smUnsaved');
+    if (el) el.classList.add('show');
   }
 
   function renderEntityPanel(entityKey) {
@@ -561,51 +734,7 @@
     return h;
   }
 
-  function renderMomentumPanel() {
-    var m = _s._momentum || clone(MOMENTUM_DEFAULTS);
-    var h = '';
-    h += '<div class="s-section" style="margin-top:24px;border-top:2px solid var(--so-border);padding-top:20px">';
-    h += '<div class="s-section-head" style="margin-top:0">CRM Momentum Settings</div>';
-    h += '<div class="s-grid">';
-
-    // User Level Thresholds
-    h += '<div class="s-cpl-card" style="margin:0">';
-    h += '<h4 style="font-size:.85rem;font-weight:600;color:var(--so-green);margin-bottom:8px">User Level Thresholds</h4>';
-    h += '<div style="font-size:.78rem;color:#888;margin-bottom:12px">Classify users by their average monthly activity count.</div>';
-
-    h += '<div style="display:flex;flex-direction:column;gap:8px">';
-    h += '<div style="display:flex;align-items:center;gap:10px"><span style="font-size:.82rem;min-width:100px">Power User</span>';
-    h += '<span style="font-size:.78rem;color:#888">\u2265</span>';
-    h += '<input type="number" id="mmPowerThreshold" value="' + m.powerThreshold + '" min="1" style="width:70px;padding:5px 8px;border:1px solid var(--so-border);border-radius:6px;font-size:.82rem;font-family:inherit">';
-    h += '<span style="font-size:.78rem;color:#888">activities / month (avg)</span></div>';
-
-    h += '<div style="display:flex;align-items:center;gap:10px"><span style="font-size:.82rem;min-width:100px">Regular User</span>';
-    h += '<span style="font-size:.78rem;color:#888">\u2265</span>';
-    h += '<input type="number" id="mmRegularThreshold" value="' + m.regularThreshold + '" min="1" style="width:70px;padding:5px 8px;border:1px solid var(--so-border);border-radius:6px;font-size:.82rem;font-family:inherit">';
-    h += '<span style="font-size:.78rem;color:#888">activities / month (avg)</span></div>';
-
-    h += '<div style="display:flex;align-items:center;gap:10px"><span style="font-size:.82rem;min-width:100px">Low Usage</span>';
-    h += '<span style="font-size:.78rem;color:#888">\u2265 1 activity in period</span></div>';
-
-    h += '<div style="display:flex;align-items:center;gap:10px"><span style="font-size:.82rem;min-width:100px;opacity:.5">Inactive</span>';
-    h += '<span style="font-size:.78rem;color:#888;opacity:.5">0 activities</span></div>';
-    h += '</div></div>';
-
-    // Date Field
-    h += '<div class="s-cpl-card" style="margin:0">';
-    h += '<h4 style="font-size:.85rem;font-weight:600;color:var(--so-green);margin-bottom:8px">Date Field</h4>';
-    h += '<div style="font-size:.78rem;color:#888;margin-bottom:12px">Which date field to use for activity counting.</div>';
-    h += '<label class="settings-radio' + (m.dateField === 'activeDate' ? '' : '') + '" style="margin-bottom:0">';
-    h += '<input type="radio" name="mmDateField" value="activeDate"' + (m.dateField === 'activeDate' ? ' checked' : '') + '>';
-    h += '<span><strong>Active Date</strong><span class="settings-radio-desc">When the activity takes place (recommended)</span></span></label>';
-    h += '<label class="settings-radio" style="margin-bottom:0">';
-    h += '<input type="radio" name="mmDateField" value="registered"' + (m.dateField === 'registered' ? ' checked' : '') + '>';
-    h += '<span><strong>Registered</strong><span class="settings-radio-desc">When the activity was entered in CRM</span></span></label>';
-    h += '</div>';
-
-    h += '</div></div>';
-    return h;
-  }
+  // renderMomentumPanel removed — now rendered inside modal by renderModalMomentum()
 
   function readMomentumFromDOM() {
     if (!_s._momentum) _s._momentum = clone(MOMENTUM_DEFAULTS);
@@ -811,10 +940,8 @@
   // EVENT HANDLERS
   // ============================================================
   function switchEntity(ek) {
-    // Save current entity DOM state before switching
-    readEntityFromDOM(_activeEntity);
     _activeEntity = ek;
-    if (_activeId) { var el = document.getElementById(_activeId); if (el) renderPanel(el, _mode); }
+    markUnsaved();
   }
 
 
@@ -827,6 +954,7 @@
     if (row) row.setAttribute('data-level', level);
     if (group === 'health') recalcWeightGroup('health', ek);
     else if (group === 'eng') recalcWeightGroup('eng', ek);
+    markUnsaved();
   }
 
   function recalcWeightGroup(group, ek) {
@@ -852,6 +980,7 @@
     if (cb.checked) { row.classList.remove('s-wrow-excl'); row.setAttribute('data-enabled', 'true'); }
     else { row.classList.add('s-wrow-excl'); row.setAttribute('data-enabled', 'false'); }
     recalcWeightGroup('health', ek);
+    markUnsaved();
   }
 
   function toggleEngComp(cb, ek, key) {
@@ -859,12 +988,14 @@
     if (cb.checked) { row.classList.remove('s-wrow-excl'); row.setAttribute('data-enabled', 'true'); }
     else { row.classList.add('s-wrow-excl'); row.setAttribute('data-enabled', 'false'); }
     recalcWeightGroup('eng', ek);
+    markUnsaved();
   }
 
   function toggleIntegrity(cb, ek, key) {
     var row = cb.closest('.s-integrity-row');
     if (cb.checked) { row.classList.remove('s-introw-disabled'); row.setAttribute('data-enabled', 'true'); }
     else { row.classList.add('s-introw-disabled'); row.setAttribute('data-enabled', 'false'); }
+    markUnsaved();
   }
 
   function setImp(group, key, imp, btn) {
@@ -873,6 +1004,7 @@
     btn.className = 's-imp-btn ' + (imp === 'required' ? 'act-req' : (imp === 'normal' ? 'act-norm' : 'act-excl'));
     var row = btn.closest('.s-fld-row');
     if (row) { if (imp === 'excluded') row.classList.add('s-fld-excl'); else row.classList.remove('s-fld-excl'); }
+    markUnsaved();
   }
 
   function toggleUdef(ek) {
@@ -977,7 +1109,10 @@
   }
 
   function doSave() {
-    readEntityFromDOM(_activeEntity);
+    // Read ALL entity settings from modal DOM
+    for (var i = 0; i < ENTITY_ORDER.length; i++) {
+      readEntityFromDOM(ENTITY_ORDER[i]);
+    }
     readMomentumFromDOM();
     save();
     // Recalculate scores for all entities that have loaded data
@@ -990,12 +1125,22 @@
     if (typeof renderCompanyDetails === 'function' && typeof companyDetailData !== 'undefined' && companyDetailData) renderCompanyDetails(companyDetailData);
     // Re-render momentum if data is available
     if (typeof renderMomentum === 'function' && typeof momentumData !== 'undefined' && momentumData) renderMomentum('activities', momentumData);
+    var unsaved = document.getElementById('smUnsaved');
+    if (unsaved) unsaved.classList.remove('show');
+    closeSettings();
     toast('Settings applied and scores recalculated');
   }
 
   function doReset() {
     _s = allDefaults(); save();
-    if (_activeId) { var el = document.getElementById(_activeId); if (el) renderPanel(el, _mode); }
+    // Re-render modal sections if open
+    var overlay = document.getElementById('smOverlay');
+    if (overlay && overlay.classList.contains('open')) {
+      renderAllSections();
+      showSettingsSection(_smActiveSection);
+    }
+    var unsaved = document.getElementById('smUnsaved');
+    if (unsaved) unsaved.classList.remove('show');
     toast('Settings reset to defaults');
   }
 
@@ -1007,13 +1152,22 @@
     setTimeout(function(){ t.classList.remove('show'); setTimeout(function(){ t.remove(); }, 300); }, 2500);
   }
 
-  function init() { load(); var p = document.getElementById('settings-quality'); if (p) renderPanel(p, 'full'); }
+  function init() { load(); }
+
+  // Escape key handler
+  function _onEscKey(e) {
+    if (e.key === 'Escape') closeSettings();
+  }
+  document.addEventListener('keydown', _onEscKey);
 
   // ============================================================
   // PUBLIC API
   // ============================================================
   window.daSettings = {
     init: init,
+    openSettings: openSettings,
+    closeSettings: closeSettings,
+    showSection: showSettingsSection,
     getSettings: getSettings,
     computeDQScore: computeDQ,
     computeIntegrity: computeIntegrity,
@@ -1029,6 +1183,8 @@
     switchEntity: switchEntity, toggleAcc: toggleAcc, setHML: setHML,
     toggleHealthComp: toggleHealthComp, toggleEngComp: toggleEngComp,
     toggleIntegrity: toggleIntegrity, setImp: setImp, toggleUdef: toggleUdef,
+    selectRadio: selectRadio, markUnsaved: markUnsaved,
+    onDateRangeChange: onDateRangeChange,
     openInfo: openInfo, closeInfo: closeInfo,
     doSave: doSave, doReset: doReset,
     getMomentumSettings: getMomentumSettings,
