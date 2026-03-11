@@ -165,7 +165,8 @@
   var MOMENTUM_DEFAULTS = {
     powerThreshold: 100,
     regularThreshold: 25,
-    dateField: 'activeDate'
+    dateField: 'activeDate',
+    excludedTypes: []
   };
 
   function clone(o) { return JSON.parse(JSON.stringify(o)); }
@@ -558,6 +559,14 @@
     for (var i = 0; i < items.length; i++) items[i].classList.remove('active');
     var sec = document.getElementById('sm-' + id);
     if (sec) sec.classList.add('active');
+    // If no el passed (e.g. from openSettings), find matching sidebar item
+    if (!el) {
+      for (var i = 0; i < items.length; i++) {
+        if (items[i].getAttribute('onclick') && items[i].getAttribute('onclick').indexOf("'" + id + "'") >= 0) {
+          el = items[i]; break;
+        }
+      }
+    }
     if (el) el.classList.add('active');
   }
 
@@ -619,9 +628,34 @@
     h += '<div class="sm-subtitle">Choose which activity types to include in CRM Momentum analysis.</div>';
     h += '<div class="sm-card"><h3>Include in Analysis</h3>';
     h += '<div class="sm-desc">Uncheck types you want to exclude from activity counting and user level classification.</div>';
-    h += '<div class="sm-check-list">';
-    h += '<div style="padding:10px 0;font-size:.82rem;color:var(--so-text-muted);font-style:italic">Activity types will be available after running a Momentum analysis.</div>';
-    h += '</div></div>';
+    // Try to get activity types from loaded overview data
+    var types = null;
+    if (typeof overviewData !== 'undefined' && overviewData['activities'] && overviewData['activities'].distributions) {
+      var dists = overviewData['activities'].distributions;
+      for (var i = 0; i < dists.length; i++) {
+        if (dists[i].title === 'Activity Types') { types = dists[i].items; break; }
+      }
+    }
+    if (types && types.length > 0) {
+      var mmSettings = _s._momentum || clone(MOMENTUM_DEFAULTS);
+      var excluded = mmSettings.excludedTypes || [];
+      h += '<div class="sm-check-list">';
+      for (var i = 0; i < types.length; i++) {
+        var t = types[i];
+        var isExcluded = excluded.indexOf(t.name) >= 0;
+        var isOutlook = t.name.toLowerCase().indexOf('outlook') >= 0;
+        var checked = isExcluded ? '' : (isOutlook && excluded.length === 0 ? '' : ' checked');
+        // Default: exclude Outlook types on first run (when no excludedTypes saved yet)
+        if (excluded.length === 0 && !isOutlook) checked = ' checked';
+        h += '<label class="sm-check-item"><input type="checkbox"' + checked + ' data-type="' + t.name.replace(/"/g, '&quot;') + '" onchange="daSettings.markUnsaved()"> ' + t.name;
+        if (t.count !== undefined) h += ' <span class="sm-check-note">(' + t.count.toLocaleString() + ')</span>';
+        h += '</label>';
+      }
+      h += '</div>';
+    } else {
+      h += '<div style="padding:10px 0;font-size:.82rem;color:var(--so-text-muted);font-style:italic">Run an analysis on Activities first to discover available types.</div>';
+    }
+    h += '</div>';
     sec.innerHTML = h;
   }
 
@@ -713,6 +747,15 @@
     var radios = document.querySelectorAll('input[name="mmDateField"]');
     for (var i = 0; i < radios.length; i++) {
       if (radios[i].checked) { _s._momentum.dateField = radios[i].value; break; }
+    }
+    // Read activity type exclusions
+    var checks = document.querySelectorAll('.sm-check-item input[data-type]');
+    if (checks.length > 0) {
+      var excluded = [];
+      for (var i = 0; i < checks.length; i++) {
+        if (!checks[i].checked) excluded.push(checks[i].getAttribute('data-type'));
+      }
+      _s._momentum.excludedTypes = excluded;
     }
   }
 
