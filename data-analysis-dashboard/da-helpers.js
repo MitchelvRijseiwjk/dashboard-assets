@@ -9,23 +9,7 @@ function swSetupTab(panel, el) {
   if (el) el.classList.add('active');
 }
 
-function swSettings(panel, el) {
-  var panels = document.querySelectorAll('.settings-panel');
-  for (var i = 0; i < panels.length; i++) {
-    panels[i].classList.remove('active');
-  }
-  var target = document.getElementById('settings-' + panel);
-  if (target) target.classList.add('active');
-  var tabs = document.querySelectorAll('.settings-tab');
-  for (var j = 0; j < tabs.length; j++) {
-    tabs[j].classList.remove('active');
-  }
-  if (el) el.classList.add('active');
-  // Init settings panel when quality tab is shown
-  if (panel === 'quality' && typeof daSettings !== 'undefined') {
-    daSettings.init();
-  }
-}
+// swSettings removed — Settings modal (daSettings.openSettings) replaces sub-tab switching
 
 // === DATE FILTER (per-entity) ===
 var activeFilterValue = {};
