@@ -789,7 +789,7 @@ function exportHealthReport() {
     doc.setFontSize(12); doc.setTextColor.apply(doc, HR_COLORS.muted);
     doc.text(String(ch.page), HR_PAGE_W - HR_MR, tocY, {align:'right'});
     // Clickable link to page
-    doc.link(HR_ML, tocY - 4, HR_CW, 8, {pageNumber: ch.page});
+    // doc.link(HR_ML, tocY - 4, HR_CW, 8, {pageNumber: ch.page}); // disabled: crashes jsPDF 2.5.1
     // Dotted line
     doc.setDrawColor.apply(doc, HR_COLORS.border);
     doc.setLineDashPattern([0.5, 1.5], 0);
