@@ -556,7 +556,7 @@ function pdfSectionTitle(doc, y, title, badge) {
     // Badge background
     var bw = doc.getTextWidth(badge) + 6;
     doc.setFillColor(242, 239, 234);
-    doc.roundedRect(PDF_ML + tw + 4, y - 3.5, bw, 5, 1.5, 1.5, 'F');
+    pdfRRect(doc, PDF_ML + tw + 4, y - 3.5, bw, 5, 1.5, 1.5, 'F');
     doc.text(badge, PDF_ML + tw + 7, y - 0.5);
   }
   // Line below
@@ -582,7 +582,7 @@ function pdfEntityHeader(doc, title, subtitle, scoreText) {
   // Score badge
   var sw = doc.getTextWidth(scoreText) + 10;
   doc.setFillColor(26, 89, 85);
-  doc.roundedRect(PDF_W - PDF_MR - sw, hY + 4, sw, 14, 2, 2, 'F');
+  pdfRRect(doc, PDF_W - PDF_MR - sw, hY + 4, sw, 14, 2, 2, 'F');
   doc.setFontSize(22);
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(255, 255, 255);
@@ -694,7 +694,7 @@ function pdfBuildToc(doc, chapters, reportDate) {
   // Config note
   y += 10;
   doc.setFillColor(242, 239, 234);
-  doc.roundedRect(PDF_ML, y, PDF_CW, 16, 2, 2, 'F');
+  pdfRRect(doc, PDF_ML, y, PDF_CW, 16, 2, 2, 'F');
   doc.setFontSize(9);
   doc.setFont('helvetica', 'italic');
   doc.setTextColor(96, 94, 92);
@@ -754,7 +754,7 @@ function pdfBuildExecutiveSummary(doc, scores, overview, momentum, reportDate) {
   y = y + ringMM + 14;
   var summaryText = pdfGenerateSummary(scores, overview, momentum);
   doc.setFillColor(242, 239, 234);
-  doc.roundedRect(PDF_ML, y, PDF_CW, 22, 2, 2, 'F');
+  pdfRRect(doc, PDF_ML, y, PDF_CW, 22, 2, 2, 'F');
   doc.setFontSize(11);
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(28, 28, 30);
@@ -767,7 +767,7 @@ function pdfBuildExecutiveSummary(doc, scores, overview, momentum, reportDate) {
   var boxH = Math.max(22, 8 + lines.length * 4);
   // Redraw box at correct height
   doc.setFillColor(242, 239, 234);
-  doc.roundedRect(PDF_ML, y, PDF_CW, boxH, 2, 2, 'F');
+  pdfRRect(doc, PDF_ML, y, PDF_CW, boxH, 2, 2, 'F');
   doc.setFontSize(11);
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(28, 28, 30);
@@ -882,7 +882,7 @@ function pdfBuildExecutiveSummary(doc, scores, overview, momentum, reportDate) {
       var mc = mCards[mi];
       var mcX = PDF_ML + mi * (cardW + 3);
       doc.setFillColor(242, 239, 234);
-      doc.roundedRect(mcX, y, cardW, 16, 2, 2, 'F');
+      pdfRRect(doc, mcX, y, cardW, 16, 2, 2, 'F');
       // Value
       doc.setFontSize(16);
       doc.setFont('helvetica', 'bold');
@@ -1204,7 +1204,7 @@ function hrDrawEntityHeader(doc, title, subtitle, scoreText) {
   doc.text(subtitle, HR_ML, y + 14);
   // Score badge
   doc.setFillColor(26,89,85);
-  doc.roundedRect(HR_PAGE_W - HR_MR - 32, y + 4, 32, 14, 2, 2, 'F');
+  pdfRRect(doc, HR_PAGE_W - HR_MR - 32, y + 4, 32, 14, 2, 2, 'F');
   doc.setFontSize(22); doc.setFont('helvetica','bold');
   doc.setTextColor.apply(doc, HR_COLORS.white);
   doc.text(scoreText, HR_PAGE_W - HR_MR - 16, y + 13, {align:'center'});
@@ -1221,7 +1221,7 @@ function hrSectionTitle(doc, y, title, badge) {
     doc.setTextColor.apply(doc, HR_COLORS.charcoal);
     doc.setFillColor.apply(doc, HR_COLORS.dune);
     var bw = doc.getTextWidth(badge) + 6;
-    doc.roundedRect(HR_ML + tw + 4, y - 3, bw, 4.5, 1, 1, 'F');
+    pdfRRect(doc, HR_ML + tw + 4, y - 3, bw, 4.5, 1, 1, 'F');
     doc.text(badge, HR_ML + tw + 7, y);
   }
   doc.setDrawColor.apply(doc, HR_COLORS.border);
@@ -1286,7 +1286,7 @@ function hrDrawScoreCards(doc, y, scores) {
   for (var i = 0; i < 3; i++) {
     var x = HR_ML + i * (cardW + 3);
     doc.setFillColor.apply(doc, HR_COLORS.dune);
-    doc.roundedRect(x, y, cardW, 16, 2, 2, 'F');
+    pdfRRect(doc, x, y, cardW, 16, 2, 2, 'F');
     doc.setFontSize(7); doc.setFont('helvetica','bold');
     doc.setTextColor.apply(doc, HR_COLORS.muted);
     doc.text(items[i].label, x + 3, y + 4);
@@ -1297,9 +1297,9 @@ function hrDrawScoreCards(doc, y, scores) {
     doc.text(pct + '%', x + 3, y + 11);
     // Mini progress bar
     doc.setFillColor(224,223,220);
-    doc.roundedRect(x + 3, y + 13, cardW - 6, 1.5, 0.5, 0.5, 'F');
+    pdfRRect(doc, x + 3, y + 13, cardW - 6, 1.5, 0.5, 0.5, 'F');
     doc.setFillColor.apply(doc, col);
-    doc.roundedRect(x + 3, y + 13, Math.max(1, (cardW - 6) * pct / 100), 1.5, 0.5, 0.5, 'F');
+    pdfRRect(doc, x + 3, y + 13, Math.max(1, (cardW - 6) * pct / 100), 1.5, 0.5, 0.5, 'F');
   }
   return y + 20;
 }
@@ -1311,7 +1311,7 @@ function hrDrawMetricCards(doc, y, metrics) {
     var m = metrics[i];
     var x = HR_ML + i * (cardW + 3);
     doc.setFillColor.apply(doc, HR_COLORS.dune);
-    doc.roundedRect(x, y, cardW, 18, 2, 2, 'F');
+    pdfRRect(doc, x, y, cardW, 18, 2, 2, 'F');
     var midX = x + cardW / 2;
     // Value
     doc.setFontSize(16); doc.setFont('helvetica','bold');
@@ -1341,7 +1341,7 @@ function hrDrawSummaryBox(doc, y, text) {
   doc.setFillColor.apply(doc, HR_COLORS.dune);
   var lines = doc.splitTextToSize(text, HR_CW - 8);
   var boxH = lines.length * 4.5 + 6;
-  doc.roundedRect(HR_ML, y, HR_CW, boxH, 2, 2, 'F');
+  pdfRRect(doc, HR_ML, y, HR_CW, boxH, 2, 2, 'F');
   doc.setFontSize(10); doc.setFont('helvetica','normal');
   doc.setTextColor.apply(doc, HR_COLORS.gray);
   doc.text(lines, HR_ML + 4, y + 5);
@@ -1518,7 +1518,7 @@ function exportHealthReport() {
   var sumLines = doc.splitTextToSize(summaryText, HR_CW - 8);
   var sumBoxH = sumLines.length * 4.2 + 10;
   doc.setFillColor.apply(doc, HR_COLORS.dune);
-  doc.roundedRect(HR_ML, ey, HR_CW, sumBoxH, 2, 2, 'F');
+  pdfRRect(doc, HR_ML, ey, HR_CW, sumBoxH, 2, 2, 'F');
   doc.setFontSize(11); doc.setFont('helvetica','bold');
   doc.setTextColor.apply(doc, HR_COLORS.charcoal);
   doc.text('Executive Summary', HR_ML + 4, ey + 5);
@@ -1617,7 +1617,7 @@ function exportHealthReport() {
       var mc = mmCards[mi];
       var mx = HR_ML + mi * (mmCardW + 3);
       doc.setFillColor.apply(doc, HR_COLORS.dune);
-      doc.roundedRect(mx, ey, mmCardW, 16, 2, 2, 'F');
+      pdfRRect(doc, mx, ey, mmCardW, 16, 2, 2, 'F');
       var mmCx = mx + mmCardW / 2;
       doc.setFontSize(18); doc.setFont('helvetica','bold');
       doc.setTextColor.apply(doc, mc.color);
@@ -1713,6 +1713,12 @@ var PDF_W = 210, PDF_H = 297;
 var PDF_ML = 22, PDF_MR = 22, PDF_MT = 20, PDF_MB = 18;
 var PDF_CW = PDF_W - PDF_ML - PDF_MR; // 166mm content width
 
+// Safe roundedRect wrapper — falls back to rect if roundedRect fails
+function pdfRRect(doc, x, y, w, h, rx, ry, style) {
+  try { pdfRRect(doc, x, y, w, h, rx, ry, style); }
+  catch(e) { doc.rect(x, y, w, h, style); }
+}
+
 var PDF_COLORS = {
   soGreen:'#06423E', soGreenLight:'#0f5c57', soGreenDark:'#03201E',
   soDune:'#F2EFEA', charcoal:'#1C1C1E', muted:'#898991',
@@ -1785,7 +1791,7 @@ function pdfDrawEntityHeader(doc, title, subtitle, scoreText) {
   var tw = doc.getTextWidth(scoreText);
   var bw = tw + 10;
   doc.setFillColor(26,89,85); // soGreen + alpha
-  doc.roundedRect(PDF_W - PDF_MR - bw, y + 4, bw, 14, 2, 2, 'F');
+  pdfRRect(doc, PDF_W - PDF_MR - bw, y + 4, bw, 14, 2, 2, 'F');
   doc.setFontSize(22); doc.setFont('helvetica','bold');
   doc.setTextColor(255,255,255);
   doc.text(scoreText, PDF_W - PDF_MR - bw/2, y + 13, {align:'center'});
@@ -1802,7 +1808,7 @@ function pdfDrawSectionTitle(doc, y, title, badge) {
     var tx = PDF_ML + doc.getTextWidth(title) + 4;
     doc.setFillColor.apply(doc, pdfHex(PDF_COLORS.soDune));
     var bw = doc.getTextWidth(badge) + 6;
-    doc.roundedRect(tx, y - 3, bw, 5, 1, 1, 'F');
+    pdfRRect(doc, tx, y - 3, bw, 5, 1, 1, 'F');
     doc.text(badge, tx + 3, y);
   }
   doc.setDrawColor.apply(doc, pdfHex(PDF_COLORS.border));
@@ -1853,7 +1859,7 @@ function pdfDrawScoreCards(doc, y, scores) {
     var x = PDF_ML + i * (cw + 3);
     var c = pdfScoreColor(vals[i]);
     doc.setFillColor.apply(doc, pdfHex(PDF_COLORS.soDune));
-    doc.roundedRect(x, y, cw, 14, 1.5, 1.5, 'F');
+    pdfRRect(doc, x, y, cw, 14, 1.5, 1.5, 'F');
     doc.setFontSize(7); doc.setFont('helvetica','bold');
     doc.setTextColor.apply(doc, pdfHex(PDF_COLORS.muted));
     doc.text(labels[i].toUpperCase(), x + 3, y + 4);
@@ -1862,9 +1868,9 @@ function pdfDrawScoreCards(doc, y, scores) {
     doc.text(vals[i] + '%', x + 3, y + 10);
     // Progress bar
     doc.setFillColor(224,223,220);
-    doc.roundedRect(x + 3, y + 11.5, cw - 6, 1.5, 0.5, 0.5, 'F');
+    pdfRRect(doc, x + 3, y + 11.5, cw - 6, 1.5, 0.5, 0.5, 'F');
     doc.setFillColor.apply(doc, pdfHex(c));
-    doc.roundedRect(x + 3, y + 11.5, Math.max(1, (cw-6)*vals[i]/100), 1.5, 0.5, 0.5, 'F');
+    pdfRRect(doc, x + 3, y + 11.5, Math.max(1, (cw-6)*vals[i]/100), 1.5, 0.5, 0.5, 'F');
   }
   return y + 17;
 }
@@ -1878,7 +1884,7 @@ function pdfDrawMetricCards(doc, y, metrics) {
     var pct = m.total > 0 ? Math.round(m.value / m.total * 100) : 0;
     var c = pdfScoreColor(pct);
     doc.setFillColor.apply(doc, pdfHex(PDF_COLORS.soDune));
-    doc.roundedRect(x, y, cw, 16, 1.5, 1.5, 'F');
+    pdfRRect(doc, x, y, cw, 16, 1.5, 1.5, 'F');
     // Value
     doc.setFontSize(14); doc.setFont('helvetica','bold');
     doc.setTextColor.apply(doc, pdfHex(PDF_COLORS.charcoal));
@@ -2183,7 +2189,7 @@ function _pdfGenerate() {
   var summaryText = pdfGenerateSummary();
   var splitSum = doc.splitTextToSize(summaryText, PDF_CW - 8);
   var boxH = splitSum.length * 4.5 + 8;
-  doc.roundedRect(PDF_ML, cy, PDF_CW, boxH, 2, 2, 'F');
+  pdfRRect(doc, PDF_ML, cy, PDF_CW, boxH, 2, 2, 'F');
   doc.setFontSize(10); doc.setFont('helvetica','bold');
   doc.setTextColor.apply(doc, pdfHex(PDF_COLORS.charcoal));
   doc.text('Executive Summary', PDF_ML + 4, cy + 5);
@@ -2283,7 +2289,7 @@ function _pdfGenerate() {
       var mc = mmCards[mi];
       var mx = PDF_ML + mi * (mcw + 2);
       doc.setFillColor.apply(doc, pdfHex(PDF_COLORS.soDune));
-      doc.roundedRect(mx, cy, mcw, 14, 1.5, 1.5, 'F');
+      pdfRRect(doc, mx, cy, mcw, 14, 1.5, 1.5, 'F');
       doc.setFontSize(16); doc.setFont('helvetica','bold');
       doc.setTextColor.apply(doc, pdfHex(mc.color));
       doc.text(String(mc.value), mx + mcw/2, cy + 6, {align:'center'});
