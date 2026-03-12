@@ -536,15 +536,15 @@
     .mm-rank{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;font-size:.68rem;font-weight:700;color:#fff}
     .mm-badge{display:inline-block;font-size:.6rem;font-weight:600;padding:2px 7px;border-radius:8px;color:#fff}
 
-    /* Momentum user tables — fixed column widths for alignment */
+    /* Momentum user tables — fixed layout with % widths for alignment */
     .mm-user-table{table-layout:fixed;width:100%}
-    .mm-col-rank{width:40px}
-    .mm-col-user{width:auto}
-    .mm-col-level{width:80px}
-    .mm-col-group{width:120px}
-    .mm-col-num{width:100px}
-    .mm-col-total{width:80px}
-    .mm-col-pct{width:150px}
+    .mm-col-rank{width:3%}
+    .mm-col-user{width:22%}
+    .mm-col-level{width:8%}
+    .mm-col-group{width:12%}
+    .mm-col-num{width:13%}
+    .mm-col-total{width:10%}
+    .mm-col-pct{width:19%}
 
     /* =========================================================
        SETTINGS MODAL — Discord-style overlay
