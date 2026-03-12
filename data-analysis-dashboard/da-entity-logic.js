@@ -1172,7 +1172,7 @@ function renderAdoptionTab(key) {
   if (!h) return;
 
   if (key === 'company') {
-    // Prepend score tables before the existing funnel content
+    // Insert score tables AFTER filter elements (dateFilterNotice + cat-filter-bar)
     var crossEl = document.getElementById('companyCrossContent');
     if (crossEl) {
       var wrapper = document.createElement('div');
@@ -1182,7 +1182,15 @@ function renderAdoptionTab(key) {
       // Remove any previous score tables
       var prev = crossEl.querySelector('.adoption-score-tables');
       if (prev) prev.parentNode.removeChild(prev);
-      crossEl.insertBefore(wrapper, crossEl.firstChild);
+      // Find the last filter element and insert after it
+      var catBar = crossEl.querySelector('.cat-filter-bar');
+      var filterNotice = crossEl.querySelector('.filter-notice');
+      var insertAfter = catBar || filterNotice;
+      if (insertAfter) {
+        crossEl.insertBefore(wrapper, insertAfter.nextSibling);
+      } else {
+        crossEl.insertBefore(wrapper, crossEl.firstChild);
+      }
     }
   } else {
     var el = document.getElementById(key + 'AdoptionContent');
@@ -2172,10 +2180,10 @@ function renderUserAdoption(users, totalUsers, grandTotal, filterMonths, filterL
   var top10 = users.slice(0, Math.min(10, users.length));
   if (top10.length > 0 && top10[0].total > 0) {
     h += '<div style="padding:16px 16px 8px;border-top:1px solid var(--so-border);font-size:.78rem;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.04em">Top 10 Most Active Users</div>';
-    h += '<table class="data-table"><thead><tr>';
-    h += '<th style="width:40px">#</th><th>User</th><th style="width:90px">Level</th>';
-    h += '<th>Group</th><th class="col-right">Activities</th><th class="col-right">Documents</th>';
-    h += '<th class="col-right">Total</th><th class="col-right" style="width:160px">' + P + ' of Total</th>';
+    h += '<table class="data-table mm-user-table"><thead><tr>';
+    h += '<th class="mm-col-rank">#</th><th class="mm-col-user">User</th><th class="mm-col-level">Level</th>';
+    h += '<th class="mm-col-group">Group</th><th class="col-right mm-col-num">Activities</th><th class="col-right mm-col-num">Documents</th>';
+    h += '<th class="col-right mm-col-total">Total</th><th class="col-right mm-col-pct">' + P + ' of Total</th>';
     h += '</tr></thead><tbody>';
     for (var i = 0; i < top10.length; i++) {
       var u = top10[i]; if (u.total === 0) break;
@@ -2194,10 +2202,10 @@ function renderUserAdoption(users, totalUsers, grandTotal, filterMonths, filterL
   var groups = mmGroupUsers(users);
   if (groups.length > 0) {
     h += '<div style="padding:16px 16px 8px;border-top:1px solid var(--so-border);font-size:.78rem;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.04em">All Users by Group</div>';
-    h += '<table class="data-table"><thead><tr>';
-    h += '<th style="width:40px"></th><th>User</th><th style="width:90px">Level</th><th>Group</th>';
-    h += '<th class="col-right">Activities</th><th class="col-right">Documents</th>';
-    h += '<th class="col-right">Total</th><th class="col-right" style="width:160px">' + P + ' of Total</th>';
+    h += '<table class="data-table mm-user-table"><thead><tr>';
+    h += '<th class="mm-col-rank"></th><th class="mm-col-user">User</th><th class="mm-col-level">Level</th><th class="mm-col-group">Group</th>';
+    h += '<th class="col-right mm-col-num">Activities</th><th class="col-right mm-col-num">Documents</th>';
+    h += '<th class="col-right mm-col-total">Total</th><th class="col-right mm-col-pct">' + P + ' of Total</th>';
     h += '</tr></thead><tbody>';
     for (var gi = 0; gi < groups.length; gi++) {
       var grp = groups[gi];
