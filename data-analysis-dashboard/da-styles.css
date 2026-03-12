@@ -1,4 +1,4 @@
-    @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap');
     :root {
       --so-green:#06423e; --so-green-light:#0f5c57; --so-green-dark:#002420;
       --so-coast:#b2c7eb; --so-coast-dark1:#6a8cb9; --so-coast-dark2:#395d9c;
@@ -6,7 +6,7 @@
       --so-meadow:#b7dea9; --so-meadow-dark1:#61974e; --so-meadow-dark2:#286712;
       --so-plum:#712f4a; --so-coral:#f48a6d; --so-coral-dark:#da6849; --so-mango:#f5a623;
       --so-charcoal:#1c1c1e; --so-white:#ffffff; --so-bg:#f2efea;
-      --so-border:#eeecea; --so-text-muted:#888; --radius:8px;
+      --so-border:#ddd9d4; --so-text-muted:#888; --radius:8px;
       --sl-good:#2e7d32; --sl-ok:#f9a825; --sl-warn:#ef6c00; --sl-bad:#c62828;
     }
 
@@ -296,7 +296,7 @@
     .progress-detail{color:var(--so-charcoal);font-weight:500}
 
     /* === ENTITY CARD === */
-    .entity-card{background:var(--so-white);border-radius:var(--radius);border:1px solid var(--so-border);margin-bottom:20px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.03)}
+    .entity-card{background:var(--so-white);border-radius:var(--radius);border:1px solid var(--so-border);margin-bottom:20px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,.06)}
     .entity-card.empty-table{opacity:.5}
     .entity-header{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;background:var(--so-white);border-bottom:1px solid var(--so-border)}
     .entity-header h4{font-size:.95rem;font-weight:600;color:var(--so-green);display:flex;align-items:center;gap:9px}
@@ -360,11 +360,11 @@
 
     /* === STAT CARDS === */
     .stat-row{display:flex;gap:12px;margin-bottom:16px}
-    .detail-section{background:var(--so-white);border-radius:var(--radius);padding:20px 22px;margin-bottom:20px;border:1px solid var(--so-border)}
+    .detail-section{background:var(--so-white);border-radius:var(--radius);padding:20px 22px;margin-bottom:20px;border:1px solid var(--so-border);box-shadow:0 1px 4px rgba(0,0,0,.06)}
     .detail-section .stat-row{margin-bottom:0}
     .detail-section-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
     .detail-section-head h4{margin-bottom:0!important}
-    .stat-card{flex:1;background:var(--so-white);border:1px solid #d2cfcb;border-radius:6px;padding:12px 16px;text-align:center;box-shadow:0 1px 3px rgba(0,0,0,.03)}
+    .stat-card{flex:1;background:var(--so-white);border:1px solid var(--so-border);border-radius:6px;padding:12px 16px;text-align:center;box-shadow:0 1px 4px rgba(0,0,0,.06)}
     .stat-card .stat-value{font-size:1.25rem;font-weight:700;color:var(--so-green)}
     .stat-card .stat-label{font-size:.72rem;color:#888;margin-top:2px}
 
@@ -466,7 +466,7 @@
     .aa-status-skip{background:#eeecea;color:#aaa}
 
     /* === DQ SCORE BANNER === */
-    .dq-score-banner{display:flex;align-items:center;gap:24px;padding:24px 28px;margin-bottom:20px;background:var(--so-white);border:1px solid var(--so-border);border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.03)}
+    .dq-score-banner{display:flex;align-items:center;gap:24px;padding:24px 28px;margin-bottom:20px;background:var(--so-white);border:1px solid var(--so-border);border-radius:12px;box-shadow:0 1px 4px rgba(0,0,0,.06)}
 
     /* === STACKED BAR (Activity Health) === */
     .stacked-bar-container{padding:4px 0 12px}
