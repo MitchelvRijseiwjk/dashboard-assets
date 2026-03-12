@@ -903,7 +903,7 @@ function gatherEntityData(key) {
     }
   }
 
-  return { total: total, completeness: cpl, qualityData: qData, udefData: ud, checkData: checkData, componentData: compData, adoptionTotal: adoptionTotal };
+  return { total: total, completeness: cpl, qualityData: qData, udefData: ud, checkData: checkData, componentData: compData, adoptionTotal: adoptionTotal, integrityTotal: adoptionTotal };
 }
 
 /**
@@ -916,7 +916,7 @@ function computeEntityScores(key) {
   if (!data) return null;
 
   var dq = daSettings.computeDQScore(key, data.completeness, data.qualityData, data.udefData, data.total);
-  var integrity = daSettings.computeIntegrity(key, data.checkData, data.total);
+  var integrity = daSettings.computeIntegrity(key, data.checkData, data.integrityTotal);
   var adoption = daSettings.computeAdoption(key, data.componentData, data.adoptionTotal);
   var health = daSettings.computeHealth(key, dq, integrity, adoption);
 
@@ -1160,9 +1160,10 @@ function renderAdoptionTab(key) {
       var c = ig.details[j];
       var cnt2 = (data2 && data2.checkData) ? (data2.checkData[c.key] || 0) : 0;
       var col2 = slColorInv(c.affected);
+      var iTotal = (data2 && data2.integrityTotal) ? data2.integrityTotal : total;
       h += '<tr><td>' + c.label + '</td>';
       h += '<td class="col-right">' + fmtNum(cnt2) + '</td>';
-      h += '<td class="col-right">' + fmtNum(total) + '</td>';
+      h += '<td class="col-right">' + fmtNum(iTotal) + '</td>';
       h += '<td class="col-right">' + barCell(c.affected, col2) + '</td>';
       h += '<td class="col-right" style="text-transform:capitalize">' + c.weight + '</td></tr>';
     }
