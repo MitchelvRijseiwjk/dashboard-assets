@@ -562,7 +562,7 @@ function hrSectionTitle(doc, y, title, badge) {
 // --- Donut ring via canvas ---
 function hrDrawDonut(doc, cx, cy, radius, pct, label, subLabel) {
   var canvas = document.createElement('canvas');
-  var size = 200; // px
+  var size = 400; // px — high res for print
   canvas.width = size; canvas.height = size;
   var ctx = canvas.getContext('2d');
   var ctr = size / 2, r = size * 0.4, lw = size * 0.08;
