@@ -2013,6 +2013,10 @@ function _pdfLoadAssets(callback) {
 }
 
 function _pdfGenerate() {
+  if (!window.jspdf || !window.jspdf.jsPDF) {
+    alert('jsPDF library not loaded. Check that cdnjs.cloudflare.com is accessible and refresh the page.');
+    return;
+  }
   var jsPDF = window.jspdf.jsPDF;
   var doc = new jsPDF({ unit:'mm', format:'a4', orientation:'portrait' });
 
