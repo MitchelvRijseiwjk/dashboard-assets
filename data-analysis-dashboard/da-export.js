@@ -485,6 +485,9 @@ function hrScoreHex(pct) {
   return '#' + c.map(function(v){ return ('0'+v.toString(16)).slice(-2); }).join('');
 }
 
+// Score objects from daSettings are {total: N, ...} — extract the number safely
+function _st(v) { return (v && typeof v === 'object' && v.total != null) ? Math.round(v.total) : (typeof v === 'number' ? Math.round(v) : 0); }
+
 function hrScoreLabel(pct) {
   if (pct >= 70) return 'Good';
   if (pct >= 50) return 'Moderate';
@@ -605,9 +608,9 @@ function hrDrawDonut(doc, cx, cy, radius, pct, label, subLabel) {
 function hrDrawScoreCards(doc, y, scores) {
   var cardW = (HR_CW - 6) / 3;
   var items = [
-    {label:'DATA QUALITY', val: scores.dq},
-    {label:'DATA INTEGRITY', val: scores.integrity},
-    {label:'ADOPTION', val: scores.adoption}
+    {label:'DATA QUALITY', val: _st(scores.dq)},
+    {label:'DATA INTEGRITY', val: _st(scores.integrity)},
+    {label:'ADOPTION', val: _st(scores.adoption)}
   ];
   for (var i = 0; i < 3; i++) {
     var x = HR_ML + i * (cardW + 3);
@@ -714,7 +717,7 @@ function exportHealthReport() {
       title: ek.charAt(0).toUpperCase() + ek.slice(1),
       page: pageCounter,
       records: ov.total,
-      health: s ? Math.round(s.health) : 0
+      health: s ? _st(s.health) : 0
     });
     pageCounter++;
   }
@@ -809,7 +812,6 @@ function exportHealthReport() {
   // ===== PAGE 3: EXECUTIVE SUMMARY =====
   doc.addPage();
   hrDrawPageHeader(doc);
-  hrDrawPageFooter(doc, 3, totalPages);
   var ey = 16;
 
   // Title
@@ -829,7 +831,7 @@ function exportHealthReport() {
     var rs = scores[rk];
     var rOv = overviewData[rk].overview;
     var rCx = HR_ML + ringSpacing * ri + ringSpacing / 2;
-    hrDrawDonut(doc, rCx, ringY, ringR, rs ? Math.round(rs.health) : 0, ringLabels[ri], fmtNum(rOv.total) + ' records');
+    hrDrawDonut(doc, rCx, ringY, ringR, rs ? _st(rs.health) : 0, ringLabels[ri], fmtNum(rOv.total) + ' records');
   }
   ey = ringY + ringR + 12;
 
@@ -865,10 +867,10 @@ function exportHealthReport() {
     sbBody.push([
       sk.charAt(0).toUpperCase() + sk.slice(1),
       fmtNum(so.total),
-      ss ? Math.round(ss.dq) + '%' : '-',
-      ss ? Math.round(ss.integrity) + '%' : '-',
-      ss ? Math.round(ss.adoption) + '%' : '-',
-      ss ? Math.round(ss.health) + '%' : '-'
+      ss ? _st(ss.dq) + '%' : '-',
+      ss ? _st(ss.integrity) + '%' : '-',
+      ss ? _st(ss.adoption) + '%' : '-',
+      ss ? _st(ss.health) + '%' : '-'
     ]);
   }
   doc.autoTable({
@@ -957,6 +959,39 @@ function exportHealthReport() {
     }
   }
 
+  hrDrawPageFooter(doc, 3, totalPages);
+
+  // ===== PAGES 4-N: ENTITY PLACEHOLDERS =====
+  for (var pi = 0; pi < entities.length; pi++) {
+    var pk = entities[pi];
+    var pOv = overviewData[pk].overview;
+    var pSc = scores[pk];
+    doc.addPage();
+    hrDrawPageHeader(doc);
+    var pSub = fmtNum(pOv.total) + ' records \u00b7 All data';
+    var pScore = pSc ? _st(pSc.health) + '%' : '-';
+    var pTitle = pk.charAt(0).toUpperCase() + pk.slice(1);
+    var pY = hrDrawEntityHeader(doc, pTitle, pSub, pScore);
+    // Score cards
+    if (pSc) pY = hrDrawScoreCards(doc, pY + 2, pSc);
+    // Placeholder text
+    doc.setFontSize(10); doc.setFont('helvetica','normal');
+    doc.setTextColor.apply(doc, HR_COLORS.muted);
+    doc.text('Detailed entity analysis will be added in Phase 4.', HR_ML, pY + 8);
+    hrDrawPageFooter(doc, 4 + pi, totalPages);
+  }
+
+  // ===== LAST PAGE: CRM MOMENTUM PLACEHOLDER =====
+  doc.addPage();
+  hrDrawPageHeader(doc);
+  var mmSub = 'Activity trends & user engagement \u00b7 Last 24 months';
+  var mmScore = (momentumData.totalUsers || 0) + ' users';
+  var mmY = hrDrawEntityHeader(doc, 'CRM Momentum', mmSub, mmScore);
+  doc.setFontSize(10); doc.setFont('helvetica','normal');
+  doc.setTextColor.apply(doc, HR_COLORS.muted);
+  doc.text('Detailed CRM Momentum analysis will be added in Phase 5.', HR_ML, mmY + 8);
+  hrDrawPageFooter(doc, totalPages, totalPages);
+
   // ===== SAVE =====
   doc.save('CRM_Health_Report_' + new Date().toISOString().split('T')[0] + '.pdf');
 }
@@ -967,7 +1002,7 @@ function hrGenerateSummary(scores, entities) {
   var vals = [];
   for (var i = 0; i < entities.length; i++) {
     var s = scores[entities[i]];
-    if (s) vals.push({key: entities[i], health: Math.round(s.health)});
+    if (s) vals.push({key: entities[i], health: _st(s.health)});
   }
   vals.sort(function(a,b){ return b.health - a.health; });
 
