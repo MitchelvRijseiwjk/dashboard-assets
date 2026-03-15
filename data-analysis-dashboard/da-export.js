@@ -779,7 +779,11 @@ function hrDrawTwoColumnSection(doc, y, entity, scores, data) {
   var leftCfg = hrTableConfig(doc, leftY, leftX, HR_PAGE_W - leftX - colW, colW);
   leftCfg.head = issHead;
   leftCfg.body = issBody;
-  leftCfg.columnStyles = {1:{halign:'right'}, 2:{halign:'right'}};
+  leftCfg.columnStyles = {
+    0:{cellWidth:'auto'},
+    1:{halign:'right', cellWidth:16},
+    2:{halign:'right', cellWidth:16}
+  };
   doc.autoTable(leftCfg);
   var leftFinalY = doc.lastAutoTable.finalY;
 
@@ -810,7 +814,11 @@ function hrDrawTwoColumnSection(doc, y, entity, scores, data) {
   var rightCfg = hrTableConfig(doc, rightY, rightX, HR_MR, colW);
   rightCfg.head = cplHead;
   rightCfg.body = cplBody.map(function(r) { return [r[0], r[1], r[2]]; });
-  rightCfg.columnStyles = {1:{halign:'right'}, 2:{halign:'right'}};
+  rightCfg.columnStyles = {
+    0:{cellWidth:'auto'},
+    1:{halign:'right', cellWidth:16},
+    2:{halign:'right', cellWidth:24}
+  };
   // Progress bars in % column
   rightCfg.didDrawCell = function(dd) {
     // horizontal lines
@@ -868,7 +876,13 @@ function hrDrawIntegrityTable(doc, y, entity, scores, data) {
   var cfg = hrTableConfig(doc, y);
   cfg.head = tHead;
   cfg.body = tBody;
-  cfg.columnStyles = {1:{halign:'right'}, 2:{halign:'right'}, 3:{halign:'right'}, 4:{halign:'right'}};
+  cfg.columnStyles = {
+    0:{cellWidth:'auto'},
+    1:{halign:'right', cellWidth:22},
+    2:{halign:'right', cellWidth:22},
+    3:{halign:'right', cellWidth:20},
+    4:{halign:'right', cellWidth:20}
+  };
   doc.autoTable(cfg);
   return doc.lastAutoTable.finalY + 8;
 }
@@ -894,7 +908,12 @@ function hrDrawPipelineTable(doc, y, cd) {
   var cfg = hrTableConfig(doc, y);
   cfg.head = tHead;
   cfg.body = tBody;
-  cfg.columnStyles = {1:{halign:'right'}, 2:{halign:'right'}, 3:{halign:'right'}};
+  cfg.columnStyles = {
+    0:{cellWidth:'auto'},
+    1:{halign:'right', cellWidth:28},
+    2:{halign:'right', cellWidth:22},
+    3:{halign:'right', cellWidth:28}
+  };
   doc.autoTable(cfg);
   return doc.lastAutoTable.finalY + 8;
 }
@@ -919,7 +938,13 @@ function hrDrawAdoptionTable(doc, y, entity, scores, data) {
   var cfg = hrTableConfig(doc, y);
   cfg.head = tHead;
   cfg.body = tBody;
-  cfg.columnStyles = {1:{halign:'right'}, 2:{halign:'right'}, 3:{halign:'right'}, 4:{halign:'right'}};
+  cfg.columnStyles = {
+    0:{cellWidth:'auto'},
+    1:{halign:'right', cellWidth:22},
+    2:{halign:'right', cellWidth:22},
+    3:{halign:'right', cellWidth:20},
+    4:{halign:'right', cellWidth:20}
+  };
   doc.autoTable(cfg);
   return doc.lastAutoTable.finalY + 8;
 }
@@ -1140,11 +1165,12 @@ function exportHealthReport() {
     styles:{font:'helvetica', fontSize:9.5, cellPadding:{top:2.2,bottom:2.2,left:3,right:3}},
     headStyles:{fillColor:HR_COLORS.white, textColor:HR_COLORS.muted, fontSize:7.5, fontStyle:'bold', cellPadding:{top:2.2,bottom:2.2,left:3,right:3}},
     columnStyles:{
-      0:{fontStyle:'bold'},
-      2:{halign:'right'},
-      3:{halign:'right'},
-      4:{halign:'right'},
-      5:{halign:'right', fontStyle:'bold'}
+      0:{fontStyle:'bold', cellWidth:'auto'},
+      1:{cellWidth:22},
+      2:{halign:'right', cellWidth:24},
+      3:{halign:'right', cellWidth:24},
+      4:{halign:'right', cellWidth:24},
+      5:{halign:'right', fontStyle:'bold', cellWidth:24}
     },
     tableWidth: HR_CW,
     theme:'plain',
@@ -1189,9 +1215,11 @@ function exportHealthReport() {
     styles:{font:'helvetica', fontSize:9.5, cellPadding:{top:2.2,bottom:2.2,left:3,right:3}},
     headStyles:{fillColor:HR_COLORS.white, textColor:HR_COLORS.muted, fontSize:7.5, fontStyle:'bold', cellPadding:{top:2.2,bottom:2.2,left:3,right:3}},
     columnStyles:{
-      2:{halign:'right'},
-      3:{halign:'right'},
-      4:{halign:'right'}
+      0:{cellWidth:'auto'},
+      1:{cellWidth:24},
+      2:{halign:'right', cellWidth:22},
+      3:{halign:'right', cellWidth:22},
+      4:{halign:'right', cellWidth:20}
     },
     tableWidth: HR_CW,
     theme:'plain',
