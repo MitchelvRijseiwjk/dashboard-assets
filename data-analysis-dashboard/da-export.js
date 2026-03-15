@@ -543,6 +543,7 @@ function hrDrawEntityHeader(doc, title, subtitle, scoreText) {
 }
 
 function hrSectionTitle(doc, y, title, badge) {
+  y += 2; // breathing room above
   doc.setFontSize(12); doc.setFont('helvetica','bold');
   doc.setTextColor.apply(doc, HR_COLORS.soGreen);
   doc.text(title, HR_ML, y);
@@ -558,7 +559,7 @@ function hrSectionTitle(doc, y, title, badge) {
   doc.setDrawColor.apply(doc, HR_COLORS.border);
   doc.setLineWidth(0.15);
   doc.line(HR_ML, y + 2, HR_PAGE_W - HR_MR, y + 2);
-  return y + 6;
+  return y + 8; // more space below line before content
 }
 
 // --- Donut ring via canvas ---
@@ -636,7 +637,7 @@ function hrDrawScoreCards(doc, y, scores) {
     doc.setFillColor.apply(doc, col);
     pdfRRect(doc, x + 3, y + 13, Math.max(1, (cardW - 6) * pct / 100), 1.5, 0.5, 0.5, 'F');
   }
-  return y + 20;
+  return y + 22;
 }
 
 // --- Metric cards grid (4 cards) ---
@@ -668,7 +669,7 @@ function hrDrawMetricCards(doc, y, metrics) {
     doc.setTextColor.apply(doc, HR_COLORS.muted);
     doc.text(m.label, midX, y + 16, {align:'center'});
   }
-  return y + 22;
+  return y + 24;
 }
 
 // --- Summary box ---
@@ -688,8 +689,8 @@ function hrTableConfig(doc, startY, marginL, marginR, cw) {
   return {
     startY: startY,
     margin: {left: marginL || HR_ML, right: marginR || HR_MR},
-    styles: {font:'helvetica', fontSize:9, cellPadding:{top:1.8,bottom:1.8,left:2.5,right:2.5}},
-    headStyles: {fillColor:HR_COLORS.white, textColor:HR_COLORS.muted, fontSize:7.5, fontStyle:'bold'},
+    styles: {font:'helvetica', fontSize:9, cellPadding:{top:2.2,bottom:2.2,left:3,right:3}},
+    headStyles: {fillColor:HR_COLORS.white, textColor:HR_COLORS.muted, fontSize:7.5, fontStyle:'bold', cellPadding:{top:2.2,bottom:2.2,left:3,right:3}},
     tableWidth: cw || HR_CW,
     theme: 'plain',
     didDrawCell: function(data) {
@@ -748,6 +749,8 @@ function hrDrawTwoColumnSection(doc, y, entity, scores, data) {
   var leftX = HR_ML;
   var rightX = HR_ML + colW + 4;
 
+  y += 2; // breathing room above
+
   // --- LEFT: Data Quality / Integrity Issues ---
   var leftTitle = (entity === 'company') ? 'Data Quality Issues' : 'Data Integrity Issues';
   doc.setFontSize(10); doc.setFont('helvetica','bold');
@@ -755,8 +758,8 @@ function hrDrawTwoColumnSection(doc, y, entity, scores, data) {
   doc.text(leftTitle, leftX, y);
   doc.setDrawColor.apply(doc, HR_COLORS.border);
   doc.setLineWidth(0.15);
-  doc.line(leftX, y + 1.5, leftX + colW, y + 1.5);
-  var leftY = y + 4;
+  doc.line(leftX, y + 2, leftX + colW, y + 2);
+  var leftY = y + 5;
 
   var checkData = data ? data.checkData : {};
   var total = data ? data.total : 0;
@@ -786,8 +789,8 @@ function hrDrawTwoColumnSection(doc, y, entity, scores, data) {
   doc.text('Standard Field Completeness', rightX, y);
   doc.setDrawColor.apply(doc, HR_COLORS.border);
   doc.setLineWidth(0.15);
-  doc.line(rightX, y + 1.5, rightX + colW, y + 1.5);
-  var rightY = y + 4;
+  doc.line(rightX, y + 2, rightX + colW, y + 2);
+  var rightY = y + 5;
 
   var cpl = data ? data.completeness : null;
   var cplHead = [['Field','Filled','%']];
@@ -842,7 +845,7 @@ function hrDrawTwoColumnSection(doc, y, entity, scores, data) {
   doc.autoTable(rightCfg);
   var rightFinalY = doc.lastAutoTable.finalY;
 
-  return Math.max(leftFinalY, rightFinalY) + 6;
+  return Math.max(leftFinalY, rightFinalY) + 8;
 }
 
 // --- Data Integrity table ---
@@ -867,7 +870,7 @@ function hrDrawIntegrityTable(doc, y, entity, scores, data) {
   cfg.body = tBody;
   cfg.columnStyles = {1:{halign:'right'}, 2:{halign:'right'}, 3:{halign:'right'}, 4:{halign:'right'}};
   doc.autoTable(cfg);
-  return doc.lastAutoTable.finalY + 6;
+  return doc.lastAutoTable.finalY + 8;
 }
 
 // --- Company Pipeline table ---
@@ -878,22 +881,22 @@ function hrDrawPipelineTable(doc, y, cd) {
   var total = f.total || 0;
   var stages = [
     {label:'Total Companies', value: total, pctTotal: 100, conv: null},
-    {label:'\u2192 With Contact Person', value: f.withPerson || 0, pctTotal: total > 0 ? (f.withPerson||0)/total*100 : 0, conv: total > 0 ? (f.withPerson||0)/total*100 : 0},
-    {label:'\u2192 With Activity (12m)', value: f.withPersonActivity || 0, pctTotal: total > 0 ? (f.withPersonActivity||0)/total*100 : 0, conv: (f.withPerson||0) > 0 ? (f.withPersonActivity||0)/(f.withPerson||1)*100 : 0},
-    {label:'\u2192 With Open Sale', value: f.withPersonActivitySale || 0, pctTotal: total > 0 ? (f.withPersonActivitySale||0)/total*100 : 0, conv: (f.withPersonActivity||0) > 0 ? (f.withPersonActivitySale||0)/(f.withPersonActivity||1)*100 : 0}
+    {label:'  > With Contact Person', value: f.withPerson || 0, pctTotal: total > 0 ? (f.withPerson||0)/total*100 : 0, conv: total > 0 ? (f.withPerson||0)/total*100 : 0},
+    {label:'  > With Activity (12m)', value: f.withPersonActivity || 0, pctTotal: total > 0 ? (f.withPersonActivity||0)/total*100 : 0, conv: (f.withPerson||0) > 0 ? (f.withPersonActivity||0)/(f.withPerson||1)*100 : 0},
+    {label:'  > With Open Sale', value: f.withPersonActivitySale || 0, pctTotal: total > 0 ? (f.withPersonActivitySale||0)/total*100 : 0, conv: (f.withPersonActivity||0) > 0 ? (f.withPersonActivitySale||0)/(f.withPersonActivity||1)*100 : 0}
   ];
   var tHead = [['Stage','Companies','%','Conversion']];
   var tBody = [];
   for (var i = 0; i < stages.length; i++) {
     var s = stages[i];
-    tBody.push([s.label, fmtNum(s.value), s.pctTotal.toFixed(1) + '%', s.conv !== null ? s.conv.toFixed(1) + '%' : '\u2014']);
+    tBody.push([s.label, fmtNum(s.value), s.pctTotal.toFixed(1) + '%', s.conv !== null ? s.conv.toFixed(1) + '%' : '-']);
   }
   var cfg = hrTableConfig(doc, y);
   cfg.head = tHead;
   cfg.body = tBody;
   cfg.columnStyles = {1:{halign:'right'}, 2:{halign:'right'}, 3:{halign:'right'}};
   doc.autoTable(cfg);
-  return doc.lastAutoTable.finalY + 6;
+  return doc.lastAutoTable.finalY + 8;
 }
 
 // --- Adoption table (for entities that have it) ---
@@ -918,7 +921,7 @@ function hrDrawAdoptionTable(doc, y, entity, scores, data) {
   cfg.body = tBody;
   cfg.columnStyles = {1:{halign:'right'}, 2:{halign:'right'}, 3:{halign:'right'}, 4:{halign:'right'}};
   doc.autoTable(cfg);
-  return doc.lastAutoTable.finalY + 6;
+  return doc.lastAutoTable.finalY + 8;
 }
 
 // --- Page overflow check ---
@@ -988,6 +991,13 @@ function exportHealthReport() {
   var rptDate = new Date().toLocaleDateString('en-GB', {year:'numeric', month:'long', day:'numeric'});
   var rptMonth = new Date().toLocaleDateString('en-GB', {year:'numeric', month:'long'});
 
+  // Company name: from cfgData data attribute (set by CRMScript), or derive from DOM
+  var reportCompanyName = '[Company Name]';
+  var cfgEl = document.getElementById('cfgData');
+  if (cfgEl && cfgEl.getAttribute('data-company-name')) {
+    reportCompanyName = cfgEl.getAttribute('data-company-name');
+  }
+
   // ===== PAGE 1: COVER =====
   doc.addImage(HR_COVER_B64, 'JPEG', 0, 0, HR_PAGE_W, HR_PAGE_H);
   // Logo top-right
@@ -1000,7 +1010,7 @@ function exportHealthReport() {
   ty += 6;
   doc.setFontSize(18); doc.setFont('helvetica','bold');
   doc.setTextColor.apply(doc, HR_COLORS.soGreen);
-  doc.text('[Company Name]', HR_ML, ty);
+  doc.text(reportCompanyName, HR_ML, ty);
   ty += 12;
   doc.setFontSize(38); doc.setFont('helvetica','bold');
   doc.setTextColor.apply(doc, HR_COLORS.soGreen);
@@ -1127,8 +1137,8 @@ function exportHealthReport() {
   doc.autoTable({
     startY: ey, margin:{left:HR_ML, right:HR_MR},
     head: sbHead, body: sbBody,
-    styles:{font:'helvetica', fontSize:9.5, cellPadding:{top:2,bottom:2,left:3,right:3}},
-    headStyles:{fillColor:HR_COLORS.white, textColor:HR_COLORS.muted, fontSize:7.5, fontStyle:'bold'},
+    styles:{font:'helvetica', fontSize:9.5, cellPadding:{top:2.2,bottom:2.2,left:3,right:3}},
+    headStyles:{fillColor:HR_COLORS.white, textColor:HR_COLORS.muted, fontSize:7.5, fontStyle:'bold', cellPadding:{top:2.2,bottom:2.2,left:3,right:3}},
     columnStyles:{
       0:{fontStyle:'bold'},
       2:{halign:'right'},
@@ -1176,8 +1186,8 @@ function exportHealthReport() {
   doc.autoTable({
     startY: ey, margin:{left:HR_ML, right:HR_MR},
     head: issHead, body: issBody,
-    styles:{font:'helvetica', fontSize:9.5, cellPadding:{top:2,bottom:2,left:3,right:3}},
-    headStyles:{fillColor:HR_COLORS.white, textColor:HR_COLORS.muted, fontSize:7.5, fontStyle:'bold'},
+    styles:{font:'helvetica', fontSize:9.5, cellPadding:{top:2.2,bottom:2.2,left:3,right:3}},
+    headStyles:{fillColor:HR_COLORS.white, textColor:HR_COLORS.muted, fontSize:7.5, fontStyle:'bold', cellPadding:{top:2.2,bottom:2.2,left:3,right:3}},
     columnStyles:{
       2:{halign:'right'},
       3:{halign:'right'},
@@ -1260,11 +1270,12 @@ function exportHealthReport() {
     var pY = hrDrawEntityHeader(doc, pTitle, pSub, pScore);
 
     // Score cards
-    if (pSc) pY = hrDrawScoreCards(doc, pY + 2, pSc);
+    if (pSc) pY = hrDrawScoreCards(doc, pY + 4, pSc);
 
     // Key Metrics
     var pMetrics = hrGetEntityMetrics(pk, pOv, companyDetailData);
-    pY = hrSectionTitle(doc, pY, 'Key Metrics', fmtNum(pOv.total) + ' ' + pk + (pOv.total !== 1 ? 's' : ''));
+    var pPlural = pk === 'company' ? 'companies' : pk + 's';
+    pY = hrSectionTitle(doc, pY, 'Key Metrics', fmtNum(pOv.total) + ' ' + pPlural);
     pY = hrDrawMetricCards(doc, pY, pMetrics);
 
     // Gather entity data for tables
@@ -1350,16 +1361,16 @@ function exportHealthReport() {
     doc.text(fmtNum(ac.value), aCx, mmY + 6, {align:'center'});
     // Delta indicator
     if (ac.delta !== 0) {
-      var dSign = ac.delta > 0 ? '\u25B2 ' : '\u25BC ';
+      var dSign = ac.delta > 0 ? '+' : '';
       doc.setFontSize(7.5); doc.setFont('helvetica','normal');
       doc.setTextColor.apply(doc, ac.delta > 0 ? HR_COLORS.good : HR_COLORS.bad);
-      doc.text(dSign + Math.abs(ac.delta), aCx, mmY + 10, {align:'center'});
+      doc.text(dSign + ac.delta, aCx, mmY + 10, {align:'center'});
     }
     doc.setFontSize(8); doc.setFont('helvetica','bold');
     doc.setTextColor.apply(doc, HR_COLORS.muted);
     doc.text(ac.label, aCx, mmY + 13.5, {align:'center'});
   }
-  mmY += 20;
+  mmY += 22;
 
   // User Adoption Levels
   mmY = hrSectionTitle(doc, mmY, 'User Adoption Levels');
@@ -1386,7 +1397,7 @@ function exportHealthReport() {
     doc.setTextColor.apply(doc, HR_COLORS.muted);
     doc.text(lc.sub, lCx, mmY + 13.5, {align:'center'});
   }
-  mmY += 20;
+  mmY += 22;
 
   // Top 10 Most Active Users table
   mmY = hrSectionTitle(doc, mmY, 'Top 10 Most Active Users');
