@@ -443,6 +443,7 @@
     var s = get(entity || 'company');
     var def = ENTITY_DEFS[entity || 'company'];
     var fields = [];
+    if (!def || !def.stdFields) return fields;
     for (var i = 0; i < def.stdFields.length; i++) {
       var imp = s.stdFieldConfig[def.stdFields[i].key] || 'excluded';
       if (imp !== 'excluded') fields.push(def.stdFields[i].key);
