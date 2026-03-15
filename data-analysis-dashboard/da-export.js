@@ -683,6 +683,255 @@ function hrDrawSummaryBox(doc, y, text) {
   return y + boxH + 3;
 }
 
+// --- Standard autoTable config for horizontal-lines-only tables ---
+function hrTableConfig(doc, startY, marginL, marginR, cw) {
+  return {
+    startY: startY,
+    margin: {left: marginL || HR_ML, right: marginR || HR_MR},
+    styles: {font:'helvetica', fontSize:9, cellPadding:{top:1.8,bottom:1.8,left:2.5,right:2.5}},
+    headStyles: {fillColor:HR_COLORS.white, textColor:HR_COLORS.muted, fontSize:7.5, fontStyle:'bold'},
+    tableWidth: cw || HR_CW,
+    theme: 'plain',
+    didDrawCell: function(data) {
+      if (data.section === 'head') {
+        data.doc.setDrawColor.apply(data.doc, HR_COLORS.border);
+        data.doc.setLineWidth(0.3);
+        data.doc.line(data.cell.x, data.cell.y + data.cell.height, data.cell.x + data.cell.width, data.cell.y + data.cell.height);
+      }
+      if (data.section === 'body') {
+        data.doc.setDrawColor.apply(data.doc, HR_COLORS.tblBorder);
+        data.doc.setLineWidth(0.1);
+        data.doc.line(data.cell.x, data.cell.y + data.cell.height, data.cell.x + data.cell.width, data.cell.y + data.cell.height);
+      }
+    }
+  };
+}
+
+// --- Entity-specific key metrics ---
+function hrGetEntityMetrics(entity, ov, cd) {
+  if (entity === 'company') {
+    var f = (cd && cd.funnel) ? cd.funnel : {};
+    return [
+      {label:'With Contact Person', value: f.withPerson || ov.withPersons || 0, total: ov.total},
+      {label:'With Activities', value: ov.withActivities || 0, total: ov.total},
+      {label:'With Tickets', value: ov.withTickets || 0, total: ov.total},
+      {label:'With Open Sale', value: f.withPersonActivitySale || ov.withSale || 0, total: ov.total}
+    ];
+  } else if (entity === 'contact') {
+    return [
+      {label:'With Company', value: ov.withCompany || 0, total: ov.total},
+      {label:'With Email', value: ov.withEmail || 0, total: ov.total},
+      {label:'With Activities', value: ov.withActivities || 0, total: ov.total},
+      {label:'With Sales', value: ov.withSales || 0, total: ov.total}
+    ];
+  } else if (entity === 'sale') {
+    return [
+      {label:'With Contact', value: ov.withPersons || 0, total: ov.total},
+      {label:'With Amount', value: ov.withAmount || 0, total: ov.total},
+      {label:'With Activities', value: ov.withActivities || 0, total: ov.total},
+      {label:'Stale Sales', value: ov.staleSale || 0, total: ov.total}
+    ];
+  } else if (entity === 'project') {
+    return [
+      {label:'With Members', value: ov.withMembers || 0, total: ov.total},
+      {label:'With Activities', value: ov.withActivities || 0, total: ov.total},
+      {label:'With Type', value: ov.withType || ov.total, total: ov.total},
+      {label:'With End Date', value: ov.withEndDate || ov.total, total: ov.total}
+    ];
+  }
+  return [];
+}
+
+// --- Two-column section: DQ Issues (left) + Field Completeness (right) ---
+function hrDrawTwoColumnSection(doc, y, entity, scores, data) {
+  var colW = (HR_CW - 4) / 2;
+  var leftX = HR_ML;
+  var rightX = HR_ML + colW + 4;
+
+  // --- LEFT: Data Quality / Integrity Issues ---
+  var leftTitle = (entity === 'company') ? 'Data Quality Issues' : 'Data Integrity Issues';
+  doc.setFontSize(10); doc.setFont('helvetica','bold');
+  doc.setTextColor.apply(doc, HR_COLORS.soGreen);
+  doc.text(leftTitle, leftX, y);
+  doc.setDrawColor.apply(doc, HR_COLORS.border);
+  doc.setLineWidth(0.15);
+  doc.line(leftX, y + 1.5, leftX + colW, y + 1.5);
+  var leftY = y + 4;
+
+  var checkData = data ? data.checkData : {};
+  var total = data ? data.total : 0;
+  var issHead = [['Issue','Count','%']];
+  var issBody = [];
+  for (var ck in checkData) {
+    if (!checkData.hasOwnProperty(ck)) continue;
+    var cnt = checkData[ck];
+    if (cnt === undefined || cnt === null) continue;
+    var pct = total > 0 ? (cnt / total * 100) : 0;
+    var name = ck.replace(/([A-Z])/g, ' $1').replace(/^./, function(s){return s.toUpperCase();});
+    issBody.push([name, fmtNum(cnt), pct.toFixed(1) + '%']);
+  }
+  if (issBody.length === 0) issBody.push(['No issues found','','']);
+  issBody.sort(function(a,b) { return parseFloat(b[2]) - parseFloat(a[2]); });
+
+  var leftCfg = hrTableConfig(doc, leftY, leftX, HR_PAGE_W - leftX - colW, colW);
+  leftCfg.head = issHead;
+  leftCfg.body = issBody;
+  leftCfg.columnStyles = {1:{halign:'right'}, 2:{halign:'right'}};
+  doc.autoTable(leftCfg);
+  var leftFinalY = doc.lastAutoTable.finalY;
+
+  // --- RIGHT: Standard Field Completeness ---
+  doc.setFontSize(10); doc.setFont('helvetica','bold');
+  doc.setTextColor.apply(doc, HR_COLORS.soGreen);
+  doc.text('Standard Field Completeness', rightX, y);
+  doc.setDrawColor.apply(doc, HR_COLORS.border);
+  doc.setLineWidth(0.15);
+  doc.line(rightX, y + 1.5, rightX + colW, y + 1.5);
+  var rightY = y + 4;
+
+  var cpl = data ? data.completeness : null;
+  var cplHead = [['Field','Filled','%']];
+  var cplBody = [];
+  if (cpl && total > 0) {
+    for (var fk in cpl) {
+      if (!cpl.hasOwnProperty(fk)) continue;
+      var fv = cpl[fk] || 0;
+      var fp = Math.round(fv / total * 100);
+      var fLabel = fk.replace(/([A-Z])/g, ' $1').replace(/^./, function(s){return s.toUpperCase();});
+      cplBody.push([fLabel, fmtNum(fv), fp + '%', fp]);
+    }
+    cplBody.sort(function(a,b) { return b[3] - a[3]; });
+  }
+  if (cplBody.length === 0) cplBody.push(['No data','','', 0]);
+
+  var rightCfg = hrTableConfig(doc, rightY, rightX, HR_MR, colW);
+  rightCfg.head = cplHead;
+  rightCfg.body = cplBody.map(function(r) { return [r[0], r[1], r[2]]; });
+  rightCfg.columnStyles = {1:{halign:'right'}, 2:{halign:'right'}};
+  // Progress bars in % column
+  rightCfg.didDrawCell = function(dd) {
+    // horizontal lines
+    if (dd.section === 'head') {
+      dd.doc.setDrawColor.apply(dd.doc, HR_COLORS.border);
+      dd.doc.setLineWidth(0.3);
+      dd.doc.line(dd.cell.x, dd.cell.y + dd.cell.height, dd.cell.x + dd.cell.width, dd.cell.y + dd.cell.height);
+    }
+    if (dd.section === 'body') {
+      dd.doc.setDrawColor.apply(dd.doc, HR_COLORS.tblBorder);
+      dd.doc.setLineWidth(0.1);
+      dd.doc.line(dd.cell.x, dd.cell.y + dd.cell.height, dd.cell.x + dd.cell.width, dd.cell.y + dd.cell.height);
+    }
+    // progress bar in col 2
+    if (dd.section === 'body' && dd.column.index === 2) {
+      var raw = cplBody[dd.row.index] ? cplBody[dd.row.index][3] : 0;
+      var barW = 18;
+      var barH = 2;
+      var barX = dd.cell.x;
+      var barY = dd.cell.y + dd.cell.height / 2 - barH / 2;
+      dd.doc.setFillColor(224,223,220);
+      pdfRRect(dd.doc, barX, barY, barW, barH, 0.5, 0.5, 'F');
+      dd.doc.setFillColor.apply(dd.doc, hrScoreColor(raw));
+      pdfRRect(dd.doc, barX, barY, Math.max(0.5, barW * raw / 100), barH, 0.5, 0.5, 'F');
+    }
+  };
+  rightCfg.didParseCell = function(dd) {
+    if (dd.section === 'body' && dd.column.index === 2) {
+      dd.cell.styles.cellPadding = {top:1.8,bottom:1.8,left:20,right:2};
+    }
+  };
+  doc.autoTable(rightCfg);
+  var rightFinalY = doc.lastAutoTable.finalY;
+
+  return Math.max(leftFinalY, rightFinalY) + 6;
+}
+
+// --- Data Integrity table ---
+function hrDrawIntegrityTable(doc, y, entity, scores, data) {
+  var intResult = scores.integrity;
+  if (!intResult || !intResult.details || intResult.details.length === 0) return y;
+
+  y = hrSectionTitle(doc, y, 'Data Integrity');
+  var total = data ? data.integrityTotal || data.total : 0;
+  var checkData = data ? data.checkData : {};
+
+  var tHead = [['Check','Affected','of Total','%','Weight']];
+  var tBody = [];
+  for (var i = 0; i < intResult.details.length; i++) {
+    var d = intResult.details[i];
+    var cnt = checkData[d.key] !== undefined ? checkData[d.key] : 0;
+    tBody.push([d.label, fmtNum(cnt), fmtNum(total), d.affected.toFixed(1) + '%', d.weight]);
+  }
+
+  var cfg = hrTableConfig(doc, y);
+  cfg.head = tHead;
+  cfg.body = tBody;
+  cfg.columnStyles = {1:{halign:'right'}, 2:{halign:'right'}, 3:{halign:'right'}, 4:{halign:'right'}};
+  doc.autoTable(cfg);
+  return doc.lastAutoTable.finalY + 6;
+}
+
+// --- Company Pipeline table ---
+function hrDrawPipelineTable(doc, y, cd) {
+  if (!cd || !cd.funnel) return y;
+  y = hrSectionTitle(doc, y, 'CRM Health Pipeline');
+  var f = cd.funnel;
+  var total = f.total || 0;
+  var stages = [
+    {label:'Total Companies', value: total, pctTotal: 100, conv: null},
+    {label:'\u2192 With Contact Person', value: f.withPerson || 0, pctTotal: total > 0 ? (f.withPerson||0)/total*100 : 0, conv: total > 0 ? (f.withPerson||0)/total*100 : 0},
+    {label:'\u2192 With Activity (12m)', value: f.withPersonActivity || 0, pctTotal: total > 0 ? (f.withPersonActivity||0)/total*100 : 0, conv: (f.withPerson||0) > 0 ? (f.withPersonActivity||0)/(f.withPerson||1)*100 : 0},
+    {label:'\u2192 With Open Sale', value: f.withPersonActivitySale || 0, pctTotal: total > 0 ? (f.withPersonActivitySale||0)/total*100 : 0, conv: (f.withPersonActivity||0) > 0 ? (f.withPersonActivitySale||0)/(f.withPersonActivity||1)*100 : 0}
+  ];
+  var tHead = [['Stage','Companies','%','Conversion']];
+  var tBody = [];
+  for (var i = 0; i < stages.length; i++) {
+    var s = stages[i];
+    tBody.push([s.label, fmtNum(s.value), s.pctTotal.toFixed(1) + '%', s.conv !== null ? s.conv.toFixed(1) + '%' : '\u2014']);
+  }
+  var cfg = hrTableConfig(doc, y);
+  cfg.head = tHead;
+  cfg.body = tBody;
+  cfg.columnStyles = {1:{halign:'right'}, 2:{halign:'right'}, 3:{halign:'right'}};
+  doc.autoTable(cfg);
+  return doc.lastAutoTable.finalY + 6;
+}
+
+// --- Adoption table (for entities that have it) ---
+function hrDrawAdoptionTable(doc, y, entity, scores, data) {
+  var adResult = scores.adoption;
+  if (!adResult || !adResult.details || adResult.details.length === 0) return y;
+
+  y = hrSectionTitle(doc, y, 'Adoption');
+  var total = data ? data.adoptionTotal || data.total : 0;
+  var compData = data ? data.componentData : {};
+
+  var tHead = [['Component','Count','of Total','%','Weight']];
+  var tBody = [];
+  for (var i = 0; i < adResult.details.length; i++) {
+    var d = adResult.details[i];
+    var cnt = compData[d.key] !== undefined ? compData[d.key] : 0;
+    tBody.push([d.label, fmtNum(cnt), fmtNum(total), d.pct.toFixed(1) + '%', d.weight]);
+  }
+
+  var cfg = hrTableConfig(doc, y);
+  cfg.head = tHead;
+  cfg.body = tBody;
+  cfg.columnStyles = {1:{halign:'right'}, 2:{halign:'right'}, 3:{halign:'right'}, 4:{halign:'right'}};
+  doc.autoTable(cfg);
+  return doc.lastAutoTable.finalY + 6;
+}
+
+// --- Page overflow check ---
+function hrCheckPageBreak(doc, y, needed, pageNum, totalPages) {
+  if (y + needed > HR_PAGE_H - HR_MB - 10) {
+    hrDrawPageFooter(doc, pageNum, totalPages);
+    doc.addPage();
+    hrDrawPageHeader(doc);
+    return HR_MT + 4;
+  }
+  return y;
+}
+
 // =============================================================================
 // MAIN EXPORT FUNCTION
 // =============================================================================
@@ -998,7 +1247,7 @@ function exportHealthReport() {
 
   hrDrawPageFooter(doc, 3, totalPages);
 
-  // ===== PAGES 4-N: ENTITY PLACEHOLDERS =====
+  // ===== PAGES 4-N: ENTITY PAGES =====
   for (var pi = 0; pi < entities.length; pi++) {
     var pk = entities[pi];
     var pOv = overviewData[pk].overview;
@@ -1009,24 +1258,171 @@ function exportHealthReport() {
     var pScore = pSc ? _st(pSc.health) + '%' : '-';
     var pTitle = pk.charAt(0).toUpperCase() + pk.slice(1);
     var pY = hrDrawEntityHeader(doc, pTitle, pSub, pScore);
+
     // Score cards
     if (pSc) pY = hrDrawScoreCards(doc, pY + 2, pSc);
-    // Placeholder text
-    doc.setFontSize(10); doc.setFont('helvetica','normal');
-    doc.setTextColor.apply(doc, HR_COLORS.muted);
-    doc.text('Detailed entity analysis will be added in Phase 4.', HR_ML, pY + 8);
+
+    // Key Metrics
+    var pMetrics = hrGetEntityMetrics(pk, pOv, companyDetailData);
+    pY = hrSectionTitle(doc, pY, 'Key Metrics', fmtNum(pOv.total) + ' ' + pk + (pOv.total !== 1 ? 's' : ''));
+    pY = hrDrawMetricCards(doc, pY, pMetrics);
+
+    // Gather entity data for tables
+    var pData = gatherEntityData(pk);
+
+    // Two-column: DQ/Integrity Issues + Field Completeness
+    pY = hrDrawTwoColumnSection(doc, pY, pk, pSc, pData);
+
+    // Data Integrity table (full width)
+    if (pSc && pSc.integrity && pSc.integrity.details && pSc.integrity.details.length > 0) {
+      pY = hrCheckPageBreak(doc, pY, 30, 4 + pi, totalPages);
+      pY = hrDrawIntegrityTable(doc, pY, pk, pSc, pData);
+    }
+
+    // Company-specific: CRM Health Pipeline
+    if (pk === 'company' && companyDetailData) {
+      pY = hrCheckPageBreak(doc, pY, 30, 4 + pi, totalPages);
+      pY = hrDrawPipelineTable(doc, pY, companyDetailData);
+    }
+
+    // Adoption table (for contact, sale, project if they have adoption details)
+    if (pk !== 'company' && pSc && pSc.adoption && pSc.adoption.details && pSc.adoption.details.length > 0) {
+      pY = hrCheckPageBreak(doc, pY, 25, 4 + pi, totalPages);
+      pY = hrDrawAdoptionTable(doc, pY, pk, pSc, pData);
+    }
+
     hrDrawPageFooter(doc, 4 + pi, totalPages);
   }
 
-  // ===== LAST PAGE: CRM MOMENTUM PLACEHOLDER =====
+  // ===== LAST PAGE: CRM MOMENTUM =====
   doc.addPage();
   hrDrawPageHeader(doc);
   var mmSub = 'Activity trends & user engagement \u00b7 Last 24 months';
   var mmScore = (momentumData.totalUsers || 0) + ' users';
   var mmY = hrDrawEntityHeader(doc, 'CRM Momentum', mmSub, mmScore);
-  doc.setFontSize(10); doc.setFont('helvetica','normal');
+
+  // Compute momentum levels
+  var mmUsers = momentumData.users || [];
+  var mmTotalU = momentumData.totalUsers || 0;
+  var mmMonthly = momentumData.monthly || [];
+  var mmFilterMonths = mmMonthly.length;
+  var mmLevels = {Power:0, Regular:0, Low:0, Inactive:0};
+  var mmLevelActs = {Power:0, Regular:0, Low:0, Inactive:0};
+  var mmTotalActs = 0;
+  var mmTotalDocs = 0;
+  var mmUserList = [];
+  for (var ui = 0; ui < mmUsers.length; ui++) {
+    var u = mmUsers[ui];
+    var uActs = u.activities || 0;
+    var uDocs = u.documents || 0;
+    var uTotal = uActs + uDocs;
+    var lvl = mmUserLevel(uTotal, mmFilterMonths);
+    mmLevels[lvl]++;
+    mmLevelActs[lvl] += uTotal;
+    mmTotalActs += uActs;
+    mmTotalDocs += uDocs;
+    mmUserList.push({name: u.name || 'Unknown', group: u.group || '-', activities: uActs, documents: uDocs, total: uTotal, level: lvl});
+  }
+  mmUserList.sort(function(a,b){ return b.total - a.total; });
+  var mmGrandTotal = mmTotalActs + mmTotalDocs;
+
+  // Last month vs prior month deltas
+  var mmLastMonth = mmMonthly.length > 0 ? mmMonthly[mmMonthly.length - 1] : {};
+  var mmPriorMonth = mmMonthly.length > 1 ? mmMonthly[mmMonthly.length - 2] : {};
+
+  // Activity Summary KPI cards
+  mmY = hrSectionTitle(doc, mmY + 2, 'Activity Summary (Last Full Month vs Prior Month)');
+  var actSumCards = [
+    {label:'Activities', value: mmLastMonth.activities || 0, delta: (mmLastMonth.activities || 0) - (mmPriorMonth.activities || 0)},
+    {label:'Documents', value: mmLastMonth.documents || 0, delta: (mmLastMonth.documents || 0) - (mmPriorMonth.documents || 0)},
+    {label:'Total', value: (mmLastMonth.activities || 0) + (mmLastMonth.documents || 0), delta: ((mmLastMonth.activities||0)+(mmLastMonth.documents||0)) - ((mmPriorMonth.activities||0)+(mmPriorMonth.documents||0))},
+    {label:'Active Users', value: mmLastMonth.activeUsers || mmTotalU, delta: 0}
+  ];
+  var asCardW = (HR_CW - 9) / 4;
+  for (var ai = 0; ai < 4; ai++) {
+    var ac = actSumCards[ai];
+    var ax = HR_ML + ai * (asCardW + 3);
+    doc.setFillColor.apply(doc, HR_COLORS.dune);
+    pdfRRect(doc, ax, mmY, asCardW, 16, 2, 2, 'F');
+    var aCx = ax + asCardW / 2;
+    doc.setFontSize(16); doc.setFont('helvetica','bold');
+    doc.setTextColor.apply(doc, HR_COLORS.charcoal);
+    doc.text(fmtNum(ac.value), aCx, mmY + 6, {align:'center'});
+    // Delta indicator
+    if (ac.delta !== 0) {
+      var dSign = ac.delta > 0 ? '\u25B2 ' : '\u25BC ';
+      doc.setFontSize(7.5); doc.setFont('helvetica','normal');
+      doc.setTextColor.apply(doc, ac.delta > 0 ? HR_COLORS.good : HR_COLORS.bad);
+      doc.text(dSign + Math.abs(ac.delta), aCx, mmY + 10, {align:'center'});
+    }
+    doc.setFontSize(8); doc.setFont('helvetica','bold');
+    doc.setTextColor.apply(doc, HR_COLORS.muted);
+    doc.text(ac.label, aCx, mmY + 13.5, {align:'center'});
+  }
+  mmY += 20;
+
+  // User Adoption Levels
+  mmY = hrSectionTitle(doc, mmY, 'User Adoption Levels');
+  var ulCards = [
+    {label:'Power Users', value: mmLevels.Power, color: HR_COLORS.good, sub: mmTotalU > 0 ? Math.round(mmLevels.Power / mmTotalU * 100) + '% of users' : ''},
+    {label:'Regular Users', value: mmLevels.Regular, color: HR_COLORS.blue, sub: mmTotalU > 0 ? Math.round(mmLevels.Regular / mmTotalU * 100) + '% of users' : ''},
+    {label:'Low Usage', value: mmLevels.Low, color: HR_COLORS.warn, sub: mmTotalU > 0 ? Math.round(mmLevels.Low / mmTotalU * 100) + '% of users' : ''},
+    {label:'Inactive', value: mmLevels.Inactive, color: HR_COLORS.bad, sub: mmTotalU > 0 ? Math.round(mmLevels.Inactive / mmTotalU * 100) + '% of users' : ''}
+  ];
+  var ulCardW = (HR_CW - 9) / 4;
+  for (var li = 0; li < 4; li++) {
+    var lc = ulCards[li];
+    var lx = HR_ML + li * (ulCardW + 3);
+    doc.setFillColor.apply(doc, HR_COLORS.dune);
+    pdfRRect(doc, lx, mmY, ulCardW, 16, 2, 2, 'F');
+    var lCx = lx + ulCardW / 2;
+    doc.setFontSize(18); doc.setFont('helvetica','bold');
+    doc.setTextColor.apply(doc, lc.color);
+    doc.text(String(lc.value), lCx, mmY + 6.5, {align:'center'});
+    doc.setFontSize(8.5); doc.setFont('helvetica','bold');
+    doc.setTextColor.apply(doc, HR_COLORS.charcoal);
+    doc.text(lc.label, lCx, mmY + 10.5, {align:'center'});
+    doc.setFontSize(7.5); doc.setFont('helvetica','normal');
+    doc.setTextColor.apply(doc, HR_COLORS.muted);
+    doc.text(lc.sub, lCx, mmY + 13.5, {align:'center'});
+  }
+  mmY += 20;
+
+  // Top 10 Most Active Users table
+  mmY = hrSectionTitle(doc, mmY, 'Top 10 Most Active Users');
+  var topN = Math.min(mmUserList.length, 10);
+  var tuHead = [['#','User','Group','Activities','Documents','Total','%']];
+  var tuBody = [];
+  for (var ti = 0; ti < topN; ti++) {
+    var tu = mmUserList[ti];
+    var tuPct = mmGrandTotal > 0 ? (tu.total / mmGrandTotal * 100).toFixed(1) + '%' : '0%';
+    tuBody.push([String(ti + 1), tu.name, tu.group, fmtNum(tu.activities), fmtNum(tu.documents), fmtNum(tu.total), tuPct]);
+  }
+  var tuCfg = hrTableConfig(doc, mmY);
+  tuCfg.head = tuHead;
+  tuCfg.body = tuBody;
+  tuCfg.columnStyles = {
+    0:{cellWidth:10, halign:'center'},
+    1:{cellWidth:40},
+    2:{cellWidth:24},
+    3:{halign:'right'},
+    4:{halign:'right'},
+    5:{halign:'right', fontStyle:'bold'},
+    6:{halign:'right'}
+  };
+  doc.autoTable(tuCfg);
+  mmY = doc.lastAutoTable.finalY + 6;
+
+  // Note box
+  doc.setFillColor.apply(doc, HR_COLORS.dune);
+  var noteText = 'Activity counts exclude Outlook appointments and private entries. User levels are based on average monthly activity over the analysis period.';
+  var noteLines = doc.splitTextToSize(noteText, HR_CW - 8);
+  var noteH = noteLines.length * 3.5 + 5;
+  pdfRRect(doc, HR_ML, mmY, HR_CW, noteH, 2, 2, 'F');
+  doc.setFontSize(8); doc.setFont('helvetica','italic');
   doc.setTextColor.apply(doc, HR_COLORS.muted);
-  doc.text('Detailed CRM Momentum analysis will be added in Phase 5.', HR_ML, mmY + 8);
+  doc.text(noteLines, HR_ML + 4, mmY + 4);
+
   hrDrawPageFooter(doc, totalPages, totalPages);
 
   // ===== SAVE =====
