@@ -555,9 +555,9 @@ function hrSectionTitle(doc, y, title, badge) {
     doc.text(badge, HR_ML + tw + 7, y);
   }
   doc.setDrawColor.apply(doc, HR_COLORS.border);
-  doc.setLineWidth(0.4);
-  doc.line(HR_ML, y + 1.5, HR_PAGE_W - HR_MR, y + 1.5);
-  return y + 5;
+  doc.setLineWidth(0.15);
+  doc.line(HR_ML, y + 2, HR_PAGE_W - HR_MR, y + 2);
+  return y + 6;
 }
 
 // --- Donut ring via canvas ---
@@ -806,13 +806,13 @@ function exportHealthReport() {
   // ===== PAGE 3: EXECUTIVE SUMMARY =====
   doc.addPage();
   hrDrawPageHeader(doc);
-  var ey = 17;
+  var ey = 22;
 
   // Title
   doc.setFontSize(10); doc.setFont('helvetica','bold');
   doc.setTextColor.apply(doc, HR_COLORS.muted);
   doc.text('OVERALL HEALTH SCORES', HR_PAGE_W / 2, ey, {align:'center'});
-  ey += 4;
+  ey += 8;
 
   // Donut rings
   var ringR = 12; // radius in mm
@@ -873,13 +873,13 @@ function exportHealthReport() {
     styles:{font:'helvetica', fontSize:9.5, cellPadding:{top:2,bottom:2,left:3,right:3}},
     headStyles:{fillColor:HR_COLORS.dune, textColor:HR_COLORS.muted, fontSize:7.5, fontStyle:'bold'},
     columnStyles:{
-      0:{fontStyle:'bold', cellWidth:30},
-      1:{cellWidth:22},
-      2:{halign:'right', cellWidth:28},
-      3:{halign:'right', cellWidth:28},
-      4:{halign:'right', cellWidth:28},
-      5:{halign:'right', fontStyle:'bold', cellWidth:30}
+      0:{fontStyle:'bold'},
+      2:{halign:'right'},
+      3:{halign:'right'},
+      4:{halign:'right'},
+      5:{halign:'right', fontStyle:'bold'}
     },
+    tableWidth: HR_CW,
     theme:'grid',
     tableLineColor:HR_COLORS.tblBorder, tableLineWidth:0.15,
     didParseCell: function(data) {
@@ -909,12 +909,11 @@ function exportHealthReport() {
     styles:{font:'helvetica', fontSize:9.5, cellPadding:{top:2,bottom:2,left:3,right:3}},
     headStyles:{fillColor:HR_COLORS.dune, textColor:HR_COLORS.muted, fontSize:7.5, fontStyle:'bold'},
     columnStyles:{
-      0:{cellWidth:38},
-      1:{cellWidth:30},
-      2:{halign:'right', cellWidth:28},
-      3:{halign:'right', cellWidth:28},
-      4:{halign:'right', cellWidth:28}
+      2:{halign:'right'},
+      3:{halign:'right'},
+      4:{halign:'right'}
     },
+    tableWidth: HR_CW,
     theme:'grid',
     tableLineColor:HR_COLORS.tblBorder, tableLineWidth:0.15
   });
