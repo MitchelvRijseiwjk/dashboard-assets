@@ -965,6 +965,104 @@ function hrCheckPageBreak(doc, y, needed, pageNum, totalPages) {
   return y;
 }
 
+// --- UDEF Field Completeness table ---
+function hrDrawUdefTable(doc, y, entity, pageNum, totalPages) {
+  var ec = entityConfig[entity];
+  if (!ec || !ec.udefId || ec.udefId <= 0) return y;
+  var ud = udefData[ec.udefId];
+  if (!ud || !ud.fields || ud.fields.length === 0) return y;
+
+  y = hrCheckPageBreak(doc, y, 30, pageNum, totalPages);
+  y = hrSectionTitle(doc, y, 'User-Defined Field Completeness', ud.fields.length + ' fields');
+
+  var fields = ud.fields.slice().sort(function(a,b) { return b.percent - a.percent; });
+  var tHead = [['Field','Type','Filled','%']];
+  var tBody = [];
+  for (var i = 0; i < fields.length; i++) {
+    var f = fields[i];
+    tBody.push([f.label, f.type || '-', f.filled + ' / ' + ud.total, f.percent.toFixed(1) + '%']);
+  }
+
+  var cfg = hrTableConfig(doc, y);
+  cfg.head = tHead;
+  cfg.body = tBody;
+  cfg.columnStyles = {
+    0:{cellWidth:'auto'},
+    1:{cellWidth:22},
+    2:{halign:'right', cellWidth:28},
+    3:{halign:'right', cellWidth:20}
+  };
+  cfg.didParseCell = function(data) {
+    if (data.section === 'body' && data.column.index === 3) {
+      var val = parseFloat(data.cell.raw);
+      if (!isNaN(val)) data.cell.styles.textColor = hrScoreColor(val);
+    }
+  };
+  // Page break handling
+  cfg.didDrawPage = function(data) {
+    if (data.pageNumber > 1) {
+      hrDrawPageHeader(data.doc);
+      hrDrawPageFooter(data.doc, pageNum, totalPages);
+    }
+  };
+  cfg.margin.top = HR_MT + 4;
+  doc.autoTable(cfg);
+  return doc.lastAutoTable.finalY + 8;
+}
+
+// --- Distributions tables ---
+function hrDrawDistributions(doc, y, entity, pageNum, totalPages) {
+  var ov = overviewData[entity];
+  if (!ov || !ov.distributions || ov.distributions.length === 0) return y;
+  var total = ov.overview.total || 0;
+
+  for (var di = 0; di < ov.distributions.length; di++) {
+    var dist = ov.distributions[di];
+    if (!dist.items || dist.items.length === 0) continue;
+    var distTotal = dist.total || total;
+
+    y = hrCheckPageBreak(doc, y, 25, pageNum, totalPages);
+    y = hrSectionTitle(doc, y, dist.title + ' Distribution', fmtNum(dist.items.length) + ' values');
+
+    // Sort by count descending, limit to top 15
+    var items = dist.items.slice().sort(function(a,b) { return b.count - a.count; });
+    var maxItems = Math.min(items.length, 15);
+    var tHead = [['Value','Count','%']];
+    var tBody = [];
+    for (var ii = 0; ii < maxItems; ii++) {
+      var it = items[ii];
+      var pct = distTotal > 0 ? (it.count / distTotal * 100) : 0;
+      tBody.push([it.name || '(empty)', fmtNum(it.count), pct.toFixed(1) + '%']);
+    }
+    if (items.length > maxItems) {
+      var otherCount = 0;
+      for (var oi = maxItems; oi < items.length; oi++) otherCount += items[oi].count;
+      var otherPct = distTotal > 0 ? (otherCount / distTotal * 100) : 0;
+      tBody.push(['(' + (items.length - maxItems) + ' others)', fmtNum(otherCount), otherPct.toFixed(1) + '%']);
+    }
+
+    var cfg = hrTableConfig(doc, y);
+    cfg.head = tHead;
+    cfg.body = tBody;
+    cfg.columnStyles = {
+      0:{cellWidth:'auto'},
+      1:{halign:'right', cellWidth:22},
+      2:{halign:'right', cellWidth:20}
+    };
+    // Page break handling
+    cfg.didDrawPage = function(data) {
+      if (data.pageNumber > 1) {
+        hrDrawPageHeader(data.doc);
+        hrDrawPageFooter(data.doc, pageNum, totalPages);
+      }
+    };
+    cfg.margin.top = HR_MT + 4;
+    doc.autoTable(cfg);
+    y = doc.lastAutoTable.finalY + 8;
+  }
+  return y;
+}
+
 // =============================================================================
 // MAIN EXPORT FUNCTION
 // =============================================================================
@@ -1335,6 +1433,12 @@ function exportHealthReport() {
       pY = hrDrawAdoptionTable(doc, pY, pk, pSc, pData);
     }
 
+    // UDEF Field Completeness
+    pY = hrDrawUdefTable(doc, pY, pk, 4 + pi, totalPages);
+
+    // Distributions (Category, Business type, etc.)
+    pY = hrDrawDistributions(doc, pY, pk, 4 + pi, totalPages);
+
     hrDrawPageFooter(doc, 4 + pi, totalPages);
   }
 
@@ -1432,15 +1536,13 @@ function exportHealthReport() {
   }
   mmY += 22;
 
-  // Top 10 Most Active Users table
-  mmY = hrSectionTitle(doc, mmY, 'Top 10 Most Active Users');
-  var topN = Math.min(mmUserList.length, 10);
-  var tuHead = [['#','User','Group','Activities','Documents','Total','%']];
+  // All Users table (with automatic page breaks via autotable)
+  mmY = hrSectionTitle(doc, mmY, 'User Activity Overview', fmtNum(mmUserList.length) + ' users');
+  var tuHead = [['#','User','Group','Activities','Documents','Total','Level']];
   var tuBody = [];
-  for (var ti = 0; ti < topN; ti++) {
+  for (var ti = 0; ti < mmUserList.length; ti++) {
     var tu = mmUserList[ti];
-    var tuPct = mmGrandTotal > 0 ? (tu.total / mmGrandTotal * 100).toFixed(1) + '%' : '0%';
-    tuBody.push([String(ti + 1), tu.name, tu.group, fmtNum(tu.activities), fmtNum(tu.documents), fmtNum(tu.total), tuPct]);
+    tuBody.push([String(ti + 1), tu.name, tu.group, fmtNum(tu.activities), fmtNum(tu.documents), fmtNum(tu.total), tu.level]);
   }
   var tuCfg = hrTableConfig(doc, mmY);
   tuCfg.head = tuHead;
@@ -1448,16 +1550,39 @@ function exportHealthReport() {
   tuCfg.columnStyles = {
     0:{cellWidth:10, halign:'center'},
     1:{cellWidth:40},
-    2:{cellWidth:24},
-    3:{halign:'right'},
-    4:{halign:'right'},
-    5:{halign:'right', fontStyle:'bold'},
-    6:{halign:'right'}
+    2:{cellWidth:26},
+    3:{halign:'right', cellWidth:22},
+    4:{halign:'right', cellWidth:22},
+    5:{halign:'right', fontStyle:'bold', cellWidth:20},
+    6:{halign:'right', cellWidth:20}
   };
+  // Color-code the Level column
+  tuCfg.didParseCell = function(data) {
+    if (data.section === 'body' && data.column.index === 6) {
+      var lvl = data.cell.raw;
+      if (lvl === 'Power') data.cell.styles.textColor = HR_COLORS.good;
+      else if (lvl === 'Regular') data.cell.styles.textColor = HR_COLORS.blue;
+      else if (lvl === 'Low') data.cell.styles.textColor = HR_COLORS.warn;
+      else if (lvl === 'Inactive') data.cell.styles.textColor = HR_COLORS.bad;
+    }
+  };
+  // Page break handling — redraw header on new pages
+  tuCfg.didDrawPage = function(data) {
+    if (data.pageNumber > 1) {
+      hrDrawPageHeader(data.doc);
+      hrDrawPageFooter(data.doc, totalPages, totalPages);
+    }
+  };
+  tuCfg.margin.top = HR_MT + 4;
   doc.autoTable(tuCfg);
-  mmY = doc.lastAutoTable.finalY + 6;
+  mmY = doc.lastAutoTable.finalY + 8;
 
-  // Note box
+  // Note box (check if it fits on current page)
+  if (mmY + 15 > HR_PAGE_H - HR_MB - 10) {
+    doc.addPage();
+    hrDrawPageHeader(doc);
+    mmY = HR_MT + 4;
+  }
   doc.setFillColor.apply(doc, HR_COLORS.dune);
   var noteText = 'Activity counts exclude Outlook appointments and private entries. User levels are based on average monthly activity over the analysis period.';
   var noteLines = doc.splitTextToSize(noteText, HR_CW - 8);
