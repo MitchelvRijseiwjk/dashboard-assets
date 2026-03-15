@@ -1,5 +1,5 @@
 // === UDEF RENDER ===
-function renderUdef(ent, idx) {
+function renderUdef(ent, idx, entityKey) {
   var h = '<div class="entity-card">';
   h += '<div class="entity-header"><div class="entity-info"><h3>' + ent.name + '</h3> <span class="field-count">\u2014 ' + ent.fields.length + ' active fields</span></div>';
   h += '<span class="record-badge">' + fmtNum(ent.total) + ' records</span></div>';
@@ -7,6 +7,7 @@ function renderUdef(ent, idx) {
     h += '<div style="padding:20px;color:#888"><em>No extra fields configured</em></div>';
   } else {
     ent.fields.sort(function(a,b) { return b.percent - a.percent; });
+    var udefCfg = (typeof daSettings !== 'undefined' && entityKey) ? (daSettings.getSettings(entityKey).udefFieldConfig || {}) : {};
     var Q = String.fromCharCode(39);
     h += '<table class="data-table" id="tbl-u' + idx + '">';
     h += '<thead><tr>';
@@ -14,13 +15,17 @@ function renderUdef(ent, idx) {
     h += '<th onclick="sortT(' + Q + 'tbl-u' + idx + Q + ',1)">Type <span class="sort-arrow">' + svgSortN + '</span></th>';
     h += '<th class="col-right" onclick="sortT(' + Q + 'tbl-u' + idx + Q + ',2)">Filled <span class="sort-arrow">' + svgSortN + '</span></th>';
     h += '<th class="col-right" onclick="sortT(' + Q + 'tbl-u' + idx + Q + ',3)">' + P + ' <span class="sort-arrow active">' + svgSortD + '</span></th>';
-    h += '<th style="width:130px">Fill Rate</th>';
+    h += '<th style="text-align:center">Importance</th>';
+    h += '<th style="width:100px">Fill Rate</th>';
     h += '</tr></thead><tbody>';
     for (var fi = 0; fi < ent.fields.length; fi++) {
       var f = ent.fields[fi];
+      var pid = f.progId || f.label || ('f' + fi);
+      var imp = udefCfg[pid] || 'normal';
       var rc = '';
       if (f.filled === 0) rc = 'unused';
-      h += '<tr class="' + rc + '">';
+      var dimStyle = imp === 'excluded' ? ' style="opacity:0.4"' : '';
+      h += '<tr class="' + rc + '"' + dimStyle + '>';
       h += '<td data-sort-value="' + f.label + '">' + f.label + '</td>';
       h += '<td data-sort-value="' + f.type + '"><span class="type-badge">' + f.type + '</span>';
       if (f.items && f.items.length > 0) {
@@ -43,6 +48,7 @@ function renderUdef(ent, idx) {
       h += '</td>';
       h += '<td class="col-right" data-sort-value="' + f.filled + '">' + f.filled + ' / ' + ent.total + '</td>';
       h += '<td class="col-right" data-sort-value="' + f.percent + '">' + f.percent.toFixed(1) + P + '</td>';
+      h += '<td style="text-align:center"><span class="imp-badge ' + imp + '">' + imp + '</span></td>';
       h += '<td>' + fillBar(f.percent) + '</td>';
       h += '</tr>';
     }
@@ -82,7 +88,7 @@ function loadEntityUdef(entityId, entityKey, udefIdx, callback) {
     if (resultsEl) resultsEl.style.display = 'block';
     if (d && summaryEl) {
       summaryEl.textContent = d.fields.length + ' active extra fields. Click column headers to sort.';
-      if (cardsEl) cardsEl.innerHTML = renderUdef(d, udefIdx);
+      if (cardsEl) cardsEl.innerHTML = renderUdef(d, udefIdx, entityKey);
     } else if (summaryEl) {
       summaryEl.textContent = 'No extra fields found.';
     }
@@ -99,7 +105,7 @@ function loadEntityUdefQuiet(entityId, entityKey, udefIdx, callback) {
     if (typeof daSettings !== 'undefined' && daSettings.notifyUdefLoaded) daSettings.notifyUdefLoaded(entityId, d);
     if (d && summaryEl) {
       summaryEl.textContent = d.fields.length + ' active extra fields. Click column headers to sort.';
-      if (cardsEl) cardsEl.innerHTML = renderUdef(d, udefIdx);
+      if (cardsEl) cardsEl.innerHTML = renderUdef(d, udefIdx, entityKey);
     } else if (summaryEl) {
       summaryEl.textContent = 'No extra fields found.';
     }
@@ -368,7 +374,7 @@ function startFullEntity(key) {
       var summaryEl = document.getElementById(tabKey + 'UdefSummary');
       if (d && summaryEl) {
         summaryEl.textContent = d.fields.length + ' active extra fields. Click column headers to sort.';
-        if (cardsEl) { cardsEl.innerHTML = renderUdef(d, ec.udefIdx); cardsEl.style.animation = 'fadeIn .3s ease'; }
+        if (cardsEl) { cardsEl.innerHTML = renderUdef(d, ec.udefIdx, key); cardsEl.style.animation = 'fadeIn .3s ease'; }
       } else {
         if (summaryEl) summaryEl.textContent = 'No extra fields found.';
         if (cardsEl) cardsEl.innerHTML = '';
