@@ -817,9 +817,9 @@ function hrDrawTwoColumnSection(doc, y, entity, scores, data) {
   rightCfg.columnStyles = {
     0:{cellWidth:'auto'},
     1:{halign:'right', cellWidth:16},
-    2:{halign:'right', cellWidth:24}
+    2:{halign:'right', cellWidth:28}
   };
-  // Progress bars in % column
+  // Progress bars in % column — draw bar + text manually
   rightCfg.didDrawCell = function(dd) {
     // horizontal lines
     if (dd.section === 'head') {
@@ -832,22 +832,27 @@ function hrDrawTwoColumnSection(doc, y, entity, scores, data) {
       dd.doc.setLineWidth(0.1);
       dd.doc.line(dd.cell.x, dd.cell.y + dd.cell.height, dd.cell.x + dd.cell.width, dd.cell.y + dd.cell.height);
     }
-    // progress bar in col 2
+    // progress bar + text in col 2
     if (dd.section === 'body' && dd.column.index === 2) {
       var raw = cplBody[dd.row.index] ? cplBody[dd.row.index][3] : 0;
-      var barW = 18;
+      var barW = 16;
       var barH = 2;
-      var barX = dd.cell.x;
+      var barX = dd.cell.x + 2;
       var barY = dd.cell.y + dd.cell.height / 2 - barH / 2;
       dd.doc.setFillColor(224,223,220);
       pdfRRect(dd.doc, barX, barY, barW, barH, 0.5, 0.5, 'F');
       dd.doc.setFillColor.apply(dd.doc, hrScoreColor(raw));
       pdfRRect(dd.doc, barX, barY, Math.max(0.5, barW * raw / 100), barH, 0.5, 0.5, 'F');
+      // Draw percentage text after bar
+      dd.doc.setFontSize(9); dd.doc.setFont('helvetica','normal');
+      dd.doc.setTextColor.apply(dd.doc, HR_COLORS.charcoal);
+      dd.doc.text(raw + '%', barX + barW + 2, dd.cell.y + dd.cell.height / 2 + 1);
     }
   };
   rightCfg.didParseCell = function(dd) {
+    // Hide original text in % column — we draw it manually in didDrawCell
     if (dd.section === 'body' && dd.column.index === 2) {
-      dd.cell.styles.cellPadding = {top:1.8,bottom:1.8,left:20,right:2};
+      dd.cell.text = [''];
     }
   };
   doc.autoTable(rightCfg);
