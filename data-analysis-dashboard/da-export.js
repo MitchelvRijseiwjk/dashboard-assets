@@ -499,13 +499,14 @@ function hrScoreLabel(pct) {
 
 function hrDrawPageHeader(doc) {
   doc.addImage(HR_LOGO_B64, 'PNG', HR_ML, 4, 40, 7.3);
-  doc.setFontSize(8); doc.setFont('helvetica','bold');
+  doc.setFontSize(8); doc.setFont('helvetica','normal');
   doc.setTextColor.apply(doc, HR_COLORS.muted);
   var rptDate = new Date().toLocaleDateString('en-GB', {year:'numeric',month:'long'});
   doc.text('CRM Health Report \u00b7 ' + rptDate, HR_PAGE_W - HR_MR, 9, {align:'right'});
+  // Full-width subtle line
   doc.setDrawColor.apply(doc, HR_COLORS.border);
-  doc.setLineWidth(0.3);
-  doc.line(HR_ML, 13, HR_PAGE_W - HR_MR, 13);
+  doc.setLineWidth(0.2);
+  doc.line(0, 13, HR_PAGE_W, 13);
 }
 
 function hrDrawPageFooter(doc, pageNum, totalPages) {
@@ -522,22 +523,22 @@ function hrDrawPageFooter(doc, pageNum, totalPages) {
 }
 
 function hrDrawEntityHeader(doc, title, subtitle, scoreText) {
-  var y = 14, h = 22;
+  var y = 13, h = 22;
   doc.setFillColor.apply(doc, HR_COLORS.soGreen);
   doc.rect(0, y, HR_PAGE_W, h, 'F');
   doc.setFontSize(20); doc.setFont('helvetica','bold');
   doc.setTextColor.apply(doc, HR_COLORS.white);
   doc.text(title, HR_ML, y + 9);
   doc.setFontSize(10); doc.setFont('helvetica','normal');
-  doc.setTextColor(255,255,255);
-  doc.text(subtitle, HR_ML, y + 14);
-  // Score badge
-  doc.setFillColor(26,89,85);
-  pdfRRect(doc, HR_PAGE_W - HR_MR - 32, y + 4, 32, 14, 2, 2, 'F');
+  doc.setTextColor(220,220,220);
+  doc.text(subtitle, HR_ML, y + 15);
+  // Score badge — darker green rounded rect
+  doc.setFillColor(10,80,76);
+  pdfRRect(doc, HR_PAGE_W - HR_MR - 34, y + 4, 34, 14, 3, 3, 'F');
   doc.setFontSize(22); doc.setFont('helvetica','bold');
   doc.setTextColor.apply(doc, HR_COLORS.white);
-  doc.text(scoreText, HR_PAGE_W - HR_MR - 16, y + 13, {align:'center'});
-  return y + h + 3; // content start y
+  doc.text(scoreText, HR_PAGE_W - HR_MR - 17, y + 13.5, {align:'center'});
+  return y + h + 5; // content start y
 }
 
 function hrSectionTitle(doc, y, title, badge) {
@@ -567,6 +568,10 @@ function hrDrawDonut(doc, cx, cy, radius, pct, label, subLabel) {
   var ctx = canvas.getContext('2d');
   var ctr = size / 2, r = size * 0.4, lw = size * 0.08;
 
+  // White background (prevents anti-alias transparency artifacts in PDF)
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, size, size);
+
   // Background ring
   ctx.beginPath();
   ctx.arc(ctr, ctr, r, 0, Math.PI * 2);
@@ -591,9 +596,9 @@ function hrDrawDonut(doc, cx, cy, radius, pct, label, subLabel) {
   ctx.textBaseline = 'middle';
   ctx.fillText(Math.round(pct) + '%', ctr, ctr + 2);
 
-  var imgData = canvas.toDataURL('image/png');
+  var imgData = canvas.toDataURL('image/jpeg', 0.95);
   var imgSize = radius * 2;
-  doc.addImage(imgData, 'PNG', cx - radius, cy - radius, imgSize, imgSize);
+  doc.addImage(imgData, 'JPEG', cx - radius, cy - radius, imgSize, imgSize);
 
   // Label below ring
   doc.setFontSize(11); doc.setFont('helvetica','bold');
@@ -779,27 +784,16 @@ function exportHealthReport() {
     doc.text((ti + 1) + '.', HR_ML, tocY);
     doc.setFont('helvetica','normal');
     doc.text(ch.title, HR_ML + 8, tocY);
-    // Subtitle
-    var subTxt = '';
-    if (ch.records) subTxt = fmtNum(ch.records) + ' records \u00b7 ' + ch.health + '%';
-    else if (ch.users) subTxt = ch.users + ' users';
-    if (subTxt) {
-      doc.setFontSize(9); doc.setTextColor.apply(doc, HR_COLORS.muted);
-      var titleW = doc.getTextWidth(ch.title);
-      doc.text(subTxt, HR_ML + 8 + titleW + 4, tocY);
-    }
     // Page number right
     doc.setFontSize(12); doc.setTextColor.apply(doc, HR_COLORS.muted);
     doc.text(String(ch.page), HR_PAGE_W - HR_MR, tocY, {align:'right'});
-    // Clickable link to page
-    // doc.link(HR_ML, tocY - 4, HR_CW, 8, {pageNumber: ch.page}); // disabled: crashes jsPDF 2.5.1
     // Dotted line
     doc.setDrawColor.apply(doc, HR_COLORS.border);
     doc.setLineDashPattern([0.5, 1.5], 0);
     doc.setLineWidth(0.2);
-    doc.line(HR_ML, tocY + 2, HR_PAGE_W - HR_MR, tocY + 2);
+    doc.line(HR_ML + 8 + doc.getTextWidth(ch.title) + 3, tocY + 0.5, HR_PAGE_W - HR_MR - 8, tocY + 0.5);
     doc.setLineDashPattern([], 0); // reset
-    tocY += 9;
+    tocY += 10;
   }
   // Config note
   tocY += 8;
@@ -833,7 +827,7 @@ function exportHealthReport() {
     var rCx = HR_ML + ringSpacing * ri + ringSpacing / 2;
     hrDrawDonut(doc, rCx, ringY, ringR, rs ? _st(rs.health) : 0, ringLabels[ri], fmtNum(rOv.total) + ' records');
   }
-  ey = ringY + ringR + 14;
+  ey = ringY + ringR + 16;
 
   // Executive summary text
   var summaryText = hrGenerateSummary(scores, entities);
@@ -854,7 +848,7 @@ function exportHealthReport() {
   doc.setFontSize(9.5);
   doc.setTextColor.apply(doc, HR_COLORS.gray);
   doc.text(sumLines, HR_ML + 4, ey + 10);
-  ey += sumBoxH + 7;
+  ey += sumBoxH + 12;
 
   // Score Breakdown table
   ey = hrSectionTitle(doc, ey, 'Score Breakdown');
@@ -876,14 +870,18 @@ function exportHealthReport() {
   doc.autoTable({
     startY: ey, margin:{left:HR_ML, right:HR_MR},
     head: sbHead, body: sbBody,
-    styles:{font:'helvetica', fontSize:9.5, cellPadding:{top:1.5,bottom:1.5,left:2,right:2}},
-    headStyles:{fillColor:HR_COLORS.white, textColor:HR_COLORS.muted, fontSize:7.5, fontStyle:'bold'},
+    styles:{font:'helvetica', fontSize:9.5, cellPadding:{top:2,bottom:2,left:3,right:3}},
+    headStyles:{fillColor:HR_COLORS.dune, textColor:HR_COLORS.muted, fontSize:7.5, fontStyle:'bold'},
     columnStyles:{
-      0:{fontStyle:'bold'},
-      2:{halign:'right'}, 3:{halign:'right'}, 4:{halign:'right'}, 5:{halign:'right', fontStyle:'bold'}
+      0:{fontStyle:'bold', cellWidth:30},
+      1:{cellWidth:22},
+      2:{halign:'right', cellWidth:28},
+      3:{halign:'right', cellWidth:28},
+      4:{halign:'right', cellWidth:28},
+      5:{halign:'right', fontStyle:'bold', cellWidth:30}
     },
-    theme:'plain',
-    tableLineColor:HR_COLORS.tblBorder, tableLineWidth:0.2,
+    theme:'grid',
+    tableLineColor:HR_COLORS.tblBorder, tableLineWidth:0.15,
     didParseCell: function(data) {
       // Color the percentage cells
       if (data.section === 'body' && data.column.index >= 2) {
@@ -894,7 +892,7 @@ function exportHealthReport() {
       }
     }
   });
-  ey = doc.lastAutoTable.finalY + 7;
+  ey = doc.lastAutoTable.finalY + 10;
 
   // Top Issues table
   ey = hrSectionTitle(doc, ey, 'Top Issues Requiring Attention');
@@ -908,13 +906,19 @@ function exportHealthReport() {
   doc.autoTable({
     startY: ey, margin:{left:HR_ML, right:HR_MR},
     head: issHead, body: issBody,
-    styles:{font:'helvetica', fontSize:9.5, cellPadding:{top:1.5,bottom:1.5,left:2,right:2}},
-    headStyles:{fillColor:HR_COLORS.white, textColor:HR_COLORS.muted, fontSize:7.5, fontStyle:'bold'},
-    columnStyles:{2:{halign:'right'}, 3:{halign:'right'}, 4:{halign:'right'}},
-    theme:'plain',
-    tableLineColor:HR_COLORS.tblBorder, tableLineWidth:0.2
+    styles:{font:'helvetica', fontSize:9.5, cellPadding:{top:2,bottom:2,left:3,right:3}},
+    headStyles:{fillColor:HR_COLORS.dune, textColor:HR_COLORS.muted, fontSize:7.5, fontStyle:'bold'},
+    columnStyles:{
+      0:{cellWidth:38},
+      1:{cellWidth:30},
+      2:{halign:'right', cellWidth:28},
+      3:{halign:'right', cellWidth:28},
+      4:{halign:'right', cellWidth:28}
+    },
+    theme:'grid',
+    tableLineColor:HR_COLORS.tblBorder, tableLineWidth:0.15
   });
-  ey = doc.lastAutoTable.finalY + 7;
+  ey = doc.lastAutoTable.finalY + 10;
 
   // Momentum Snapshot
   if (momentumData) {
