@@ -453,6 +453,7 @@
 
   function getSettings(entity) {
     var s = get(entity || 'company');
+    if (!s || !s.stdFieldConfig) return { completenessFields: [], stdFieldConfig: {}, udefFieldConfig: {}, integrityConfig: {}, engagementConfig: {}, healthWeights: {}, healthExclude: {}, pipelineType: 'sale', dqWeights: { completeness: 70, udef: 30, quality: 0 }, qualityIssueFields: [], engagementWeights: [] };
     return {
       completenessFields: getCompleteness(entity),
       stdFieldConfig: s.stdFieldConfig,
