@@ -498,15 +498,16 @@ function hrScoreLabel(pct) {
 // --- Shared drawing helpers ---
 
 function hrDrawPageHeader(doc) {
-  doc.addImage(HR_LOGO_B64, 'PNG', HR_ML, 4, 40, 7.3);
+  // Logo: mockup height=18px ≈ 4.7mm, aspect 5.45:1 → 26×4.7mm
+  doc.addImage(HR_LOGO_B64, 'PNG', HR_ML, 5, 26, 4.7);
   doc.setFontSize(8); doc.setFont('helvetica','normal');
   doc.setTextColor.apply(doc, HR_COLORS.muted);
   var rptDate = new Date().toLocaleDateString('en-GB', {year:'numeric',month:'long'});
-  doc.text('CRM Health Report \u00b7 ' + rptDate, HR_PAGE_W - HR_MR, 9, {align:'right'});
-  // Full-width subtle line
+  doc.text('CRM Health Report \u00b7 ' + rptDate, HR_PAGE_W - HR_MR, 8, {align:'right'});
+  // Full-width subtle line (matching mockup: 1px border-bottom)
   doc.setDrawColor.apply(doc, HR_COLORS.border);
-  doc.setLineWidth(0.2);
-  doc.line(0, 13, HR_PAGE_W, 13);
+  doc.setLineWidth(0.15);
+  doc.line(0, 14, HR_PAGE_W, 14);
 }
 
 function hrDrawPageFooter(doc, pageNum, totalPages) {
@@ -523,22 +524,22 @@ function hrDrawPageFooter(doc, pageNum, totalPages) {
 }
 
 function hrDrawEntityHeader(doc, title, subtitle, scoreText) {
-  var y = 13, h = 22;
+  var y = 14, h = 20;
   doc.setFillColor.apply(doc, HR_COLORS.soGreen);
   doc.rect(0, y, HR_PAGE_W, h, 'F');
+  doc.setFontSize(18); doc.setFont('helvetica','bold');
+  doc.setTextColor.apply(doc, HR_COLORS.white);
+  doc.text(title, HR_ML, y + 8);
+  doc.setFontSize(9); doc.setFont('helvetica','normal');
+  doc.setTextColor(200,200,200);
+  doc.text(subtitle, HR_ML, y + 13);
+  // Score badge — semi-transparent white on green (rgba 255,255,255,0.12)
+  doc.setFillColor(36,89,85);
+  pdfRRect(doc, HR_PAGE_W - HR_MR - 30, y + 3, 30, 14, 3, 3, 'F');
   doc.setFontSize(20); doc.setFont('helvetica','bold');
   doc.setTextColor.apply(doc, HR_COLORS.white);
-  doc.text(title, HR_ML, y + 9);
-  doc.setFontSize(10); doc.setFont('helvetica','normal');
-  doc.setTextColor(220,220,220);
-  doc.text(subtitle, HR_ML, y + 15);
-  // Score badge — darker green rounded rect
-  doc.setFillColor(10,80,76);
-  pdfRRect(doc, HR_PAGE_W - HR_MR - 34, y + 4, 34, 14, 3, 3, 'F');
-  doc.setFontSize(22); doc.setFont('helvetica','bold');
-  doc.setTextColor.apply(doc, HR_COLORS.white);
-  doc.text(scoreText, HR_PAGE_W - HR_MR - 17, y + 13.5, {align:'center'});
-  return y + h + 5; // content start y
+  doc.text(scoreText, HR_PAGE_W - HR_MR - 15, y + 12.5, {align:'center'});
+  return y + h + 4;
 }
 
 function hrSectionTitle(doc, y, title, badge) {
@@ -736,7 +737,7 @@ function exportHealthReport() {
   // ===== PAGE 1: COVER =====
   doc.addImage(HR_COVER_B64, 'JPEG', 0, 0, HR_PAGE_W, HR_PAGE_H);
   // Logo top-right
-  doc.addImage(HR_LOGO_B64, 'PNG', HR_PAGE_W - 52, 10, 40, 7.3);
+  doc.addImage(HR_LOGO_B64, 'PNG', HR_PAGE_W - 48, 10, 36, 6.6);
   // Text block bottom-left
   var ty = HR_PAGE_H - 68;
   doc.setFontSize(10); doc.setFont('helvetica','bold');
@@ -806,13 +807,13 @@ function exportHealthReport() {
   // ===== PAGE 3: EXECUTIVE SUMMARY =====
   doc.addPage();
   hrDrawPageHeader(doc);
-  var ey = 22;
+  var ey = 20;
 
   // Title
   doc.setFontSize(10); doc.setFont('helvetica','bold');
   doc.setTextColor.apply(doc, HR_COLORS.muted);
   doc.text('OVERALL HEALTH SCORES', HR_PAGE_W / 2, ey, {align:'center'});
-  ey += 8;
+  ey += 6;
 
   // Donut rings
   var ringR = 12; // radius in mm
@@ -871,7 +872,7 @@ function exportHealthReport() {
     startY: ey, margin:{left:HR_ML, right:HR_MR},
     head: sbHead, body: sbBody,
     styles:{font:'helvetica', fontSize:9.5, cellPadding:{top:2,bottom:2,left:3,right:3}},
-    headStyles:{fillColor:HR_COLORS.dune, textColor:HR_COLORS.muted, fontSize:7.5, fontStyle:'bold'},
+    headStyles:{fillColor:HR_COLORS.white, textColor:HR_COLORS.muted, fontSize:7.5, fontStyle:'bold'},
     columnStyles:{
       0:{fontStyle:'bold'},
       2:{halign:'right'},
@@ -880,10 +881,23 @@ function exportHealthReport() {
       5:{halign:'right', fontStyle:'bold'}
     },
     tableWidth: HR_CW,
-    theme:'grid',
-    tableLineColor:HR_COLORS.tblBorder, tableLineWidth:0.15,
+    theme:'plain',
+    didDrawCell: function(data) {
+      // Horizontal lines only (matching mockup)
+      if (data.section === 'head') {
+        data.doc.setDrawColor.apply(data.doc, HR_COLORS.border);
+        data.doc.setLineWidth(0.3);
+        data.doc.line(data.cell.x, data.cell.y + data.cell.height,
+                      data.cell.x + data.cell.width, data.cell.y + data.cell.height);
+      }
+      if (data.section === 'body') {
+        data.doc.setDrawColor.apply(data.doc, HR_COLORS.tblBorder);
+        data.doc.setLineWidth(0.1);
+        data.doc.line(data.cell.x, data.cell.y + data.cell.height,
+                      data.cell.x + data.cell.width, data.cell.y + data.cell.height);
+      }
+    },
     didParseCell: function(data) {
-      // Color the percentage cells
       if (data.section === 'body' && data.column.index >= 2) {
         var val = parseInt(data.cell.raw);
         if (!isNaN(val)) {
@@ -907,15 +921,28 @@ function exportHealthReport() {
     startY: ey, margin:{left:HR_ML, right:HR_MR},
     head: issHead, body: issBody,
     styles:{font:'helvetica', fontSize:9.5, cellPadding:{top:2,bottom:2,left:3,right:3}},
-    headStyles:{fillColor:HR_COLORS.dune, textColor:HR_COLORS.muted, fontSize:7.5, fontStyle:'bold'},
+    headStyles:{fillColor:HR_COLORS.white, textColor:HR_COLORS.muted, fontSize:7.5, fontStyle:'bold'},
     columnStyles:{
       2:{halign:'right'},
       3:{halign:'right'},
       4:{halign:'right'}
     },
     tableWidth: HR_CW,
-    theme:'grid',
-    tableLineColor:HR_COLORS.tblBorder, tableLineWidth:0.15
+    theme:'plain',
+    didDrawCell: function(data) {
+      if (data.section === 'head') {
+        data.doc.setDrawColor.apply(data.doc, HR_COLORS.border);
+        data.doc.setLineWidth(0.3);
+        data.doc.line(data.cell.x, data.cell.y + data.cell.height,
+                      data.cell.x + data.cell.width, data.cell.y + data.cell.height);
+      }
+      if (data.section === 'body') {
+        data.doc.setDrawColor.apply(data.doc, HR_COLORS.tblBorder);
+        data.doc.setLineWidth(0.1);
+        data.doc.line(data.cell.x, data.cell.y + data.cell.height,
+                      data.cell.x + data.cell.width, data.cell.y + data.cell.height);
+      }
+    }
   });
   ey = doc.lastAutoTable.finalY + 10;
 
