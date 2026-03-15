@@ -700,7 +700,12 @@ function exportHealthReport() {
     return;
   }
 
-  var jsPDF = window.jspdf.jsPDF;
+  // jsPDF 4.x: different global export than 2.x
+  var jsPDF = (window.jspdf && window.jspdf.jsPDF) || window.jsPDF;
+  if (!jsPDF) {
+    alert('jsPDF library not loaded. Check CDN script tag.');
+    return;
+  }
   var doc = new jsPDF({unit:'mm', format:'a4'});
 
   // Gather scores
@@ -794,6 +799,8 @@ function exportHealthReport() {
     doc.setLineWidth(0.2);
     doc.line(HR_ML + 8 + doc.getTextWidth(ch.title) + 3, tocY + 0.5, HR_PAGE_W - HR_MR - 8, tocY + 0.5);
     doc.setLineDashPattern([], 0); // reset
+    // Internal page link (jsPDF 4.x supports this)
+    try { doc.link(HR_ML, tocY - 4, HR_CW, 8, {pageNumber: ch.page}); } catch(e) {}
     tocY += 10;
   }
   // Config note
