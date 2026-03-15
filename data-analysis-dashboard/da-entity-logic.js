@@ -1050,37 +1050,62 @@ function renderDQScore(key) {
       var total = ov.overview.total || 0;
       var q = (companyDetailData && companyDetailData.quality) ? companyDetailData.quality : null;
 
-      // Use settings-driven completeness fields
-      var cplFields = (typeof daSettings !== 'undefined') ? daSettings.getSettings('company').completenessFields : ['orgNr', 'email', 'phone', 'address', 'webpage'];
-      var cplOptions = (typeof daSettings !== 'undefined') ? daSettings.COMPLETENESS_OPTIONS : null;
-
-      if (total > 0 && cplFields.length > 0) {
+      // Show ALL stdFields with importance badge
+      if (total > 0 && typeof daSettings !== 'undefined') {
+        var def = daSettings.ENTITY_DEFS['company'];
+        var cfg = daSettings.getSettings('company');
         h += '<div class="entity-card">';
         h += '<div class="entity-header"><div class="entity-info"><h3>Standard Field Completeness</h3></div>';
         h += '<span class="record-badge">' + fmtNum(total) + ' companies</span></div>';
-        h += '<table class="data-table"><thead><tr><th>Field</th><th class="col-right">Filled</th><th class="col-right">' + P + '</th></tr></thead><tbody>';
-        for (var j = 0; j < cplFields.length; j++) {
-          var fk = cplFields[j];
-          var val = (typeof daSettings !== 'undefined') ? daSettings.getCompletenessValue(fk, c, q, total) : (c[fk] || 0);
+        h += '<table class="data-table"><thead><tr><th>Field</th><th class="col-right">Filled</th><th class="col-right">' + P + '</th><th style="text-align:center">Importance</th></tr></thead><tbody>';
+        for (var j = 0; j < def.stdFields.length; j++) {
+          var fk = def.stdFields[j].key;
+          var label = def.stdFields[j].label;
+          var imp = cfg.stdFieldConfig[fk] || 'excluded';
+          var val = daSettings.getCompletenessValue(fk, c, q, total);
           var pct = Math.round((val / total) * 1000) / 10;
-          var label = fk;
-          if (cplOptions) {
-            for (var co = 0; co < cplOptions.length; co++) {
-              if (cplOptions[co].key === fk) { label = cplOptions[co].label; break; }
-            }
-          } else {
-            var fallbackLabels = { orgNr: 'Org. Number', email: 'Email', phone: 'Phone', address: 'Address', webpage: 'Webpage' };
-            if (fallbackLabels[fk]) label = fallbackLabels[fk];
-          }
-          h += '<tr><td>' + label + '</td>';
+          var dimStyle = imp === 'excluded' ? ' style="opacity:0.4"' : '';
+          var badgeHtml = '<span class="imp-badge ' + imp + '">' + imp + '</span>';
+          h += '<tr' + dimStyle + '><td>' + label + '</td>';
           h += '<td class="col-right">' + fmtNum(val) + '</td>';
-          h += '<td class="col-right">' + barCell(pct, '') + '</td></tr>';
+          h += '<td class="col-right">' + barCell(pct, '') + '</td>';
+          h += '<td style="text-align:center">' + badgeHtml + '</td></tr>';
         }
         h += '</tbody></table></div>';
       }
     }
 
     if (cols === 2) h += '</div>';
+  }
+
+  // Standard Field Completeness for ALL entities (non-company)
+  if (key !== 'company' && typeof daSettings !== 'undefined') {
+    var def = daSettings.ENTITY_DEFS[key];
+    var cfg = daSettings.getSettings(key);
+    var data = gatherEntityData(key);
+    if (def && cfg && data && data.completeness && data.total > 0) {
+      var cpl = data.completeness;
+      var eTotal = data.total;
+      var eLabel = def.label;
+      h += '<div class="entity-card">';
+      h += '<div class="entity-header"><div class="entity-info"><h3>Standard Field Completeness</h3></div>';
+      h += '<span class="record-badge">' + fmtNum(eTotal) + ' ' + eLabel.toLowerCase() + 's</span></div>';
+      h += '<table class="data-table"><thead><tr><th>Field</th><th class="col-right">Filled</th><th class="col-right">' + P + '</th><th style="text-align:center">Importance</th></tr></thead><tbody>';
+      for (var fi = 0; fi < def.stdFields.length; fi++) {
+        var fk = def.stdFields[fi].key;
+        var fLabel = def.stdFields[fi].label;
+        var imp = cfg.stdFieldConfig[fk] || 'excluded';
+        var fVal = cpl[fk] || 0;
+        var fPct = Math.round((fVal / eTotal) * 1000) / 10;
+        var dimStyle = imp === 'excluded' ? ' style="opacity:0.4"' : '';
+        var badgeHtml = '<span class="imp-badge ' + imp + '">' + imp + '</span>';
+        h += '<tr' + dimStyle + '><td>' + fLabel + '</td>';
+        h += '<td class="col-right">' + fmtNum(fVal) + '</td>';
+        h += '<td class="col-right">' + barCell(fPct, '') + '</td>';
+        h += '<td style="text-align:center">' + badgeHtml + '</td></tr>';
+      }
+      h += '</tbody></table></div>';
+    }
   }
 
   h = dateFilterNotice() + h; // filter notice always at very top
