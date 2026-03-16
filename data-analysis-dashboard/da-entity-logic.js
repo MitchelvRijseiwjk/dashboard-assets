@@ -13,7 +13,7 @@ function renderUdef(ent, idx, entityKey) {
     h += '<thead><tr>';
     h += '<th onclick="sortT(' + Q + 'tbl-u' + idx + Q + ',0)">Field Label <span class="sort-arrow">' + svgSortN + '</span></th>';
     h += '<th onclick="sortT(' + Q + 'tbl-u' + idx + Q + ',1)">Type <span class="sort-arrow">' + svgSortN + '</span></th>';
-    h += '<th class="col-right" style="width:90px" onclick="sortT(' + Q + 'tbl-u' + idx + Q + ',2)">Filled <span class="sort-arrow">' + svgSortN + '</span></th>';
+    h += '<th class="col-right" style="width:110px" onclick="sortT(' + Q + 'tbl-u' + idx + Q + ',2)">Filled <span class="sort-arrow">' + svgSortN + '</span></th>';
     h += '<th style="text-align:center;width:90px">Importance</th>';
     h += '<th class="col-right" style="width:130px" onclick="sortT(' + Q + 'tbl-u' + idx + Q + ',4)">Completeness <span class="sort-arrow active">' + svgSortD + '</span></th>';
     h += '</tr></thead><tbody>';
