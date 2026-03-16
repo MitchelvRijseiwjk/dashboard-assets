@@ -1160,16 +1160,17 @@ function renderAdoptionTab(key) {
     h += '<h3>Adoption Score</h3>';
     h += '</div>';
     h += '<span class="record-badge" style="background:' + ac + ';color:#fff;font-size:1.1rem;padding:4px 14px;border-radius:12px">' + ad.total + P + '</span></div>';
-    h += '<table class="data-table"><thead><tr><th>Component</th><th class="col-right" style="width:80px">Count</th><th class="col-right" style="width:80px">of Total</th><th class="col-right" style="width:130px">' + P + '</th><th class="col-right" style="width:70px">Weight</th></tr></thead><tbody>';
+    h += '<table class="data-table"><thead><tr><th>Component</th><th class="col-right" style="width:80px">Count</th><th class="col-right" style="width:80px">of Total</th><th style="text-align:center;width:90px">Weight</th><th class="col-right" style="width:130px">Completeness</th></tr></thead><tbody>';
     for (var i = 0; i < ad.details.length; i++) {
       var d = ad.details[i];
       var cnt = (data && data.componentData) ? (data.componentData[d.key] || 0) : 0;
       var col = slColor(d.pct);
+      var wCls = d.weight === 'high' ? 'required' : (d.weight === 'medium' ? 'normal' : 'excluded');
       h += '<tr><td>' + d.label + '</td>';
       h += '<td class="col-right">' + fmtNum(cnt) + '</td>';
       h += '<td class="col-right">' + fmtNum(data ? data.adoptionTotal : total) + '</td>';
-      h += '<td class="col-right">' + barCell(d.pct, col) + '</td>';
-      h += '<td class="col-right" style="text-transform:capitalize">' + d.weight + '</td></tr>';
+      h += '<td style="text-align:center"><span class="imp-badge ' + wCls + '">' + d.weight + '</span></td>';
+      h += '<td class="col-right">' + barCell(d.pct, col) + '</td></tr>';
     }
     h += '</tbody></table></div>';
   }
@@ -1184,17 +1185,18 @@ function renderAdoptionTab(key) {
     h += '<h3>Data Integrity</h3>';
     h += '</div>';
     h += '<span class="record-badge" style="background:' + ic + ';color:#fff;font-size:1.1rem;padding:4px 14px;border-radius:12px">' + ig.total + P + '</span></div>';
-    h += '<table class="data-table"><thead><tr><th>Check</th><th class="col-right" style="width:80px">Affected</th><th class="col-right" style="width:80px">of Total</th><th class="col-right" style="width:130px">' + P + '</th><th class="col-right" style="width:70px">Weight</th></tr></thead><tbody>';
+    h += '<table class="data-table"><thead><tr><th>Check</th><th class="col-right" style="width:80px">Affected</th><th class="col-right" style="width:80px">of Total</th><th style="text-align:center;width:90px">Weight</th><th class="col-right" style="width:130px">Completeness</th></tr></thead><tbody>';
     for (var j = 0; j < ig.details.length; j++) {
       var c = ig.details[j];
       var cnt2 = (data2 && data2.checkData) ? (data2.checkData[c.key] || 0) : 0;
       var col2 = slColorInv(c.affected);
       var iTotal = (data2 && data2.integrityTotal) ? data2.integrityTotal : total;
+      var wCls2 = c.weight === 'high' ? 'required' : (c.weight === 'medium' ? 'normal' : 'excluded');
       h += '<tr><td>' + c.label + '</td>';
       h += '<td class="col-right">' + fmtNum(cnt2) + '</td>';
       h += '<td class="col-right">' + fmtNum(iTotal) + '</td>';
-      h += '<td class="col-right">' + barCell(c.affected, col2) + '</td>';
-      h += '<td class="col-right" style="text-transform:capitalize">' + c.weight + '</td></tr>';
+      h += '<td style="text-align:center"><span class="imp-badge ' + wCls2 + '">' + c.weight + '</span></td>';
+      h += '<td class="col-right">' + barCell(c.affected, col2) + '</td></tr>';
     }
     h += '</tbody></table></div>';
   }
