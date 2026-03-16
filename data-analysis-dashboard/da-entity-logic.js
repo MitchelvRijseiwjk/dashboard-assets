@@ -1063,7 +1063,7 @@ function renderDQScore(key) {
         h += '<div class="entity-card">';
         h += '<div class="entity-header"><div class="entity-info"><h3>Standard Field Completeness</h3></div>';
         h += '<span class="record-badge">' + fmtNum(total) + ' companies</span></div>';
-        h += '<table class="data-table"><thead><tr><th>Field</th><th class="col-right">Filled</th><th class="col-right">' + P + '</th><th style="text-align:center">Importance</th></tr></thead><tbody>';
+        h += '<table class="data-table"><thead><tr><th>Field</th><th class="col-right">Filled</th><th class="col-right">' + P + '</th><th style="text-align:center">Importance</th><th style="width:100px">Fill Rate</th></tr></thead><tbody>';
         for (var j = 0; j < def.stdFields.length; j++) {
           var fk = def.stdFields[j].key;
           var label = def.stdFields[j].label;
@@ -1074,8 +1074,9 @@ function renderDQScore(key) {
           var badgeHtml = '<span class="imp-badge ' + imp + '">' + imp + '</span>';
           h += '<tr' + dimStyle + '><td>' + label + '</td>';
           h += '<td class="col-right">' + fmtNum(val) + '</td>';
-          h += '<td class="col-right">' + barCell(pct, '') + '</td>';
-          h += '<td style="text-align:center">' + badgeHtml + '</td></tr>';
+          h += '<td class="col-right">' + pct + P + '</td>';
+          h += '<td style="text-align:center">' + badgeHtml + '</td>';
+          h += '<td>' + fillBar(pct) + '</td></tr>';
         }
         h += '</tbody></table></div>';
       }
@@ -1096,7 +1097,7 @@ function renderDQScore(key) {
       h += '<div class="entity-card">';
       h += '<div class="entity-header"><div class="entity-info"><h3>Standard Field Completeness</h3></div>';
       h += '<span class="record-badge">' + fmtNum(eTotal) + ' ' + eLabel.toLowerCase() + 's</span></div>';
-      h += '<table class="data-table"><thead><tr><th>Field</th><th class="col-right">Filled</th><th class="col-right">' + P + '</th><th style="text-align:center">Importance</th></tr></thead><tbody>';
+      h += '<table class="data-table"><thead><tr><th>Field</th><th class="col-right">Filled</th><th class="col-right">' + P + '</th><th style="text-align:center">Importance</th><th style="width:100px">Fill Rate</th></tr></thead><tbody>';
       for (var fi = 0; fi < def.stdFields.length; fi++) {
         var fk = def.stdFields[fi].key;
         var fLabel = def.stdFields[fi].label;
@@ -1107,8 +1108,9 @@ function renderDQScore(key) {
         var badgeHtml = '<span class="imp-badge ' + imp + '">' + imp + '</span>';
         h += '<tr' + dimStyle + '><td>' + fLabel + '</td>';
         h += '<td class="col-right">' + fmtNum(fVal) + '</td>';
-        h += '<td class="col-right">' + barCell(fPct, '') + '</td>';
-        h += '<td style="text-align:center">' + badgeHtml + '</td></tr>';
+        h += '<td class="col-right">' + fPct + P + '</td>';
+        h += '<td style="text-align:center">' + badgeHtml + '</td>';
+        h += '<td>' + fillBar(fPct) + '</td></tr>';
       }
       h += '</tbody></table></div>';
     }
