@@ -13,9 +13,9 @@ function renderUdef(ent, idx, entityKey) {
     h += '<thead><tr>';
     h += '<th onclick="sortT(' + Q + 'tbl-u' + idx + Q + ',0)">Field Label <span class="sort-arrow">' + svgSortN + '</span></th>';
     h += '<th onclick="sortT(' + Q + 'tbl-u' + idx + Q + ',1)">Type <span class="sort-arrow">' + svgSortN + '</span></th>';
-    h += '<th class="col-right" onclick="sortT(' + Q + 'tbl-u' + idx + Q + ',2)">Filled <span class="sort-arrow">' + svgSortN + '</span></th>';
-    h += '<th style="text-align:center">Importance</th>';
-    h += '<th class="col-right" onclick="sortT(' + Q + 'tbl-u' + idx + Q + ',4)">Completeness <span class="sort-arrow active">' + svgSortD + '</span></th>';
+    h += '<th class="col-right" style="width:90px" onclick="sortT(' + Q + 'tbl-u' + idx + Q + ',2)">Filled <span class="sort-arrow">' + svgSortN + '</span></th>';
+    h += '<th style="text-align:center;width:90px">Importance</th>';
+    h += '<th class="col-right" style="width:130px" onclick="sortT(' + Q + 'tbl-u' + idx + Q + ',4)">Completeness <span class="sort-arrow active">' + svgSortD + '</span></th>';
     h += '</tr></thead><tbody>';
     for (var fi = 0; fi < ent.fields.length; fi++) {
       var f = ent.fields[fi];
@@ -1032,7 +1032,7 @@ function renderDQScore(key) {
         h += '<div class="entity-card">';
         h += '<div class="entity-header"><div class="entity-info"><h3>Data Quality Issues</h3></div>';
         h += '<span class="record-badge">' + fmtNum(total) + ' companies</span></div>';
-        h += '<table class="data-table"><thead><tr><th>Issue</th><th class="col-right">Count</th><th class="col-right">' + P + '</th></tr></thead><tbody>';
+        h += '<table class="data-table"><thead><tr><th>Issue</th><th class="col-right" style="width:80px">Count</th><th class="col-right" style="width:130px">' + P + '</th></tr></thead><tbody>';
         for (var i = 0; i < allIssues.length; i++) {
           var iss = allIssues[i];
           var isActive = qiFields.indexOf(iss.key) >= 0;
@@ -1061,7 +1061,7 @@ function renderDQScore(key) {
         h += '<div class="entity-card">';
         h += '<div class="entity-header"><div class="entity-info"><h3>Standard Field Completeness</h3></div>';
         h += '<span class="record-badge">' + fmtNum(total) + ' companies</span></div>';
-        h += '<table class="data-table"><thead><tr><th>Field</th><th class="col-right">Filled</th><th style="text-align:center">Importance</th><th class="col-right">Completeness</th></tr></thead><tbody>';
+        h += '<table class="data-table"><thead><tr><th>Field</th><th class="col-right" style="width:80px">Filled</th><th style="text-align:center;width:90px">Importance</th><th class="col-right" style="width:130px">Completeness</th></tr></thead><tbody>';
         for (var j = 0; j < def.stdFields.length; j++) {
           var fk = def.stdFields[j].key;
           var label = def.stdFields[j].label;
@@ -1094,7 +1094,7 @@ function renderDQScore(key) {
       h += '<div class="entity-card">';
       h += '<div class="entity-header"><div class="entity-info"><h3>Standard Field Completeness</h3></div>';
       h += '<span class="record-badge">' + fmtNum(eTotal) + ' ' + eLabel.toLowerCase() + 's</span></div>';
-      h += '<table class="data-table"><thead><tr><th>Field</th><th class="col-right">Filled</th><th style="text-align:center">Importance</th><th class="col-right">Completeness</th></tr></thead><tbody>';
+      h += '<table class="data-table"><thead><tr><th>Field</th><th class="col-right" style="width:80px">Filled</th><th style="text-align:center;width:90px">Importance</th><th class="col-right" style="width:130px">Completeness</th></tr></thead><tbody>';
       for (var fi = 0; fi < def.stdFields.length; fi++) {
         var fk = def.stdFields[fi].key;
         var fLabel = def.stdFields[fi].label;
@@ -1160,7 +1160,7 @@ function renderAdoptionTab(key) {
     h += '<h3>Adoption Score</h3>';
     h += '</div>';
     h += '<span class="record-badge" style="background:' + ac + ';color:#fff;font-size:1.1rem;padding:4px 14px;border-radius:12px">' + ad.total + P + '</span></div>';
-    h += '<table class="data-table"><thead><tr><th>Component</th><th class="col-right">Count</th><th class="col-right">of Total</th><th class="col-right">' + P + '</th><th class="col-right">Weight</th></tr></thead><tbody>';
+    h += '<table class="data-table"><thead><tr><th>Component</th><th class="col-right" style="width:80px">Count</th><th class="col-right" style="width:80px">of Total</th><th class="col-right" style="width:130px">' + P + '</th><th class="col-right" style="width:70px">Weight</th></tr></thead><tbody>';
     for (var i = 0; i < ad.details.length; i++) {
       var d = ad.details[i];
       var cnt = (data && data.componentData) ? (data.componentData[d.key] || 0) : 0;
@@ -1184,7 +1184,7 @@ function renderAdoptionTab(key) {
     h += '<h3>Data Integrity</h3>';
     h += '</div>';
     h += '<span class="record-badge" style="background:' + ic + ';color:#fff;font-size:1.1rem;padding:4px 14px;border-radius:12px">' + ig.total + P + '</span></div>';
-    h += '<table class="data-table"><thead><tr><th>Check</th><th class="col-right">Affected</th><th class="col-right">of Total</th><th class="col-right">' + P + '</th><th class="col-right">Weight</th></tr></thead><tbody>';
+    h += '<table class="data-table"><thead><tr><th>Check</th><th class="col-right" style="width:80px">Affected</th><th class="col-right" style="width:80px">of Total</th><th class="col-right" style="width:130px">' + P + '</th><th class="col-right" style="width:70px">Weight</th></tr></thead><tbody>';
     for (var j = 0; j < ig.details.length; j++) {
       var c = ig.details[j];
       var cnt2 = (data2 && data2.checkData) ? (data2.checkData[c.key] || 0) : 0;
