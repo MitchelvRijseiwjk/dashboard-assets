@@ -14,9 +14,8 @@ function renderUdef(ent, idx, entityKey) {
     h += '<th onclick="sortT(' + Q + 'tbl-u' + idx + Q + ',0)">Field Label <span class="sort-arrow">' + svgSortN + '</span></th>';
     h += '<th onclick="sortT(' + Q + 'tbl-u' + idx + Q + ',1)">Type <span class="sort-arrow">' + svgSortN + '</span></th>';
     h += '<th class="col-right" onclick="sortT(' + Q + 'tbl-u' + idx + Q + ',2)">Filled <span class="sort-arrow">' + svgSortN + '</span></th>';
-    h += '<th class="col-right" onclick="sortT(' + Q + 'tbl-u' + idx + Q + ',3)">' + P + ' <span class="sort-arrow active">' + svgSortD + '</span></th>';
     h += '<th style="text-align:center">Importance</th>';
-    h += '<th style="width:100px">Fill Rate</th>';
+    h += '<th class="col-right" onclick="sortT(' + Q + 'tbl-u' + idx + Q + ',4)">Completeness <span class="sort-arrow active">' + svgSortD + '</span></th>';
     h += '</tr></thead><tbody>';
     for (var fi = 0; fi < ent.fields.length; fi++) {
       var f = ent.fields[fi];
@@ -47,9 +46,8 @@ function renderUdef(ent, idx, entityKey) {
       }
       h += '</td>';
       h += '<td class="col-right" data-sort-value="' + f.filled + '">' + f.filled + ' / ' + ent.total + '</td>';
-      h += '<td class="col-right" data-sort-value="' + f.percent + '">' + f.percent.toFixed(1) + P + '</td>';
       h += '<td style="text-align:center"><span class="imp-badge ' + imp + '">' + imp + '</span></td>';
-      h += '<td>' + fillBar(f.percent) + '</td>';
+      h += '<td class="col-right" data-sort-value="' + f.percent + '">' + barCell(f.percent, '') + '</td>';
       h += '</tr>';
     }
     h += '</tbody></table>';
@@ -1063,7 +1061,7 @@ function renderDQScore(key) {
         h += '<div class="entity-card">';
         h += '<div class="entity-header"><div class="entity-info"><h3>Standard Field Completeness</h3></div>';
         h += '<span class="record-badge">' + fmtNum(total) + ' companies</span></div>';
-        h += '<table class="data-table"><thead><tr><th>Field</th><th class="col-right">Filled</th><th class="col-right">' + P + '</th><th style="text-align:center">Importance</th><th style="width:100px">Fill Rate</th></tr></thead><tbody>';
+        h += '<table class="data-table"><thead><tr><th>Field</th><th class="col-right">Filled</th><th style="text-align:center">Importance</th><th class="col-right">Completeness</th></tr></thead><tbody>';
         for (var j = 0; j < def.stdFields.length; j++) {
           var fk = def.stdFields[j].key;
           var label = def.stdFields[j].label;
@@ -1074,9 +1072,8 @@ function renderDQScore(key) {
           var badgeHtml = '<span class="imp-badge ' + imp + '">' + imp + '</span>';
           h += '<tr' + dimStyle + '><td>' + label + '</td>';
           h += '<td class="col-right">' + fmtNum(val) + '</td>';
-          h += '<td class="col-right">' + pct + P + '</td>';
           h += '<td style="text-align:center">' + badgeHtml + '</td>';
-          h += '<td>' + fillBar(pct) + '</td></tr>';
+          h += '<td class="col-right">' + barCell(pct, '') + '</td></tr>';
         }
         h += '</tbody></table></div>';
       }
@@ -1097,7 +1094,7 @@ function renderDQScore(key) {
       h += '<div class="entity-card">';
       h += '<div class="entity-header"><div class="entity-info"><h3>Standard Field Completeness</h3></div>';
       h += '<span class="record-badge">' + fmtNum(eTotal) + ' ' + eLabel.toLowerCase() + 's</span></div>';
-      h += '<table class="data-table"><thead><tr><th>Field</th><th class="col-right">Filled</th><th class="col-right">' + P + '</th><th style="text-align:center">Importance</th><th style="width:100px">Fill Rate</th></tr></thead><tbody>';
+      h += '<table class="data-table"><thead><tr><th>Field</th><th class="col-right">Filled</th><th style="text-align:center">Importance</th><th class="col-right">Completeness</th></tr></thead><tbody>';
       for (var fi = 0; fi < def.stdFields.length; fi++) {
         var fk = def.stdFields[fi].key;
         var fLabel = def.stdFields[fi].label;
@@ -1108,9 +1105,8 @@ function renderDQScore(key) {
         var badgeHtml = '<span class="imp-badge ' + imp + '">' + imp + '</span>';
         h += '<tr' + dimStyle + '><td>' + fLabel + '</td>';
         h += '<td class="col-right">' + fmtNum(fVal) + '</td>';
-        h += '<td class="col-right">' + fPct + P + '</td>';
         h += '<td style="text-align:center">' + badgeHtml + '</td>';
-        h += '<td>' + fillBar(fPct) + '</td></tr>';
+        h += '<td class="col-right">' + barCell(fPct, '') + '</td></tr>';
       }
       h += '</tbody></table></div>';
     }
