@@ -343,7 +343,7 @@
     .type-badge{display:inline-block;font-size:.72rem;padding:3px 10px;border-radius:200px;background:var(--so-dune);color:#666;font-weight:600}
     .imp-badge{display:inline-block;font-size:.65rem;padding:2px 8px;border-radius:200px;font-weight:600;text-transform:capitalize}
     .imp-badge.required{background:var(--so-green);color:#fff}
-    .imp-badge.normal{background:var(--so-dune-dark);color:var(--so-charcoal)}
+    .imp-badge.normal{background:var(--so-coast);color:var(--so-green-dark)}
     .imp-badge.excluded{background:transparent;color:var(--so-text-muted);border:1px solid var(--so-border)}
 
     /* === DROPDOWN PANEL === */
