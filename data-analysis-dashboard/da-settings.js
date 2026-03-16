@@ -234,8 +234,13 @@
   // ============================================================
   function notifyUdefLoaded(entityId, data) {
     if (!data || !data.fields) return;
-    var eKey = null;
-    for (var k in ENTITY_DEFS) { if (ENTITY_DEFS[k].entityId === entityId) { eKey = k; break; } }
+    // Map udefId to entity key (udefId differs from entityId for contact and project)
+    var udefIdMap = {7:'company', 8:'contact', 10:'sale', 9:'project'};
+    var eKey = udefIdMap[entityId] || null;
+    if (!eKey) {
+      // Fallback: try matching by ENTITY_DEFS.entityId
+      for (var k in ENTITY_DEFS) { if (ENTITY_DEFS[k].entityId === entityId) { eKey = k; break; } }
+    }
     if (!eKey) return;
     _udefFields[eKey] = [];
     for (var i = 0; i < data.fields.length; i++) {
