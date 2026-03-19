@@ -221,16 +221,26 @@
       return;
     }
     try {
-      var url = settingsSaveUrl + String.fromCharCode(38) + 'config=' + encodeURIComponent(JSON.stringify(_s));
-      ajax(url, function(resp) {
-        if (resp && resp.success) {
-          console.log('Settings saved to server');
-          if (callback) callback(true);
-        } else {
-          console.warn('Settings server save failed:', resp ? resp.error : 'no response');
-          if (callback) callback(false);
+      var x = new XMLHttpRequest();
+      x.open('POST', settingsSaveUrl, true);
+      x.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+      x.onreadystatechange = function() {
+        if (x.readyState === 4) {
+          if (x.status === 200 && x.responseText.length > 0) {
+            try {
+              var resp = JSON.parse(x.responseText);
+              if (resp && resp.success) {
+                console.log('Settings saved to server');
+                if (callback) callback(true);
+              } else {
+                console.warn('Settings server save failed:', resp ? resp.error : 'no response');
+                if (callback) callback(false);
+              }
+            } catch(e) { if (callback) callback(false); }
+          } else { if (callback) callback(false); }
         }
-      });
+      };
+      x.send('config=' + encodeURIComponent(JSON.stringify(_s)));
     } catch(e) {
       console.warn('Settings server save error:', e);
       if (callback) callback(false);
