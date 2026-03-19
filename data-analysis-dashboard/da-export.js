@@ -488,6 +488,18 @@ function hrScoreHex(pct) {
 // Score objects from daSettings are {total: N, ...} — extract the number safely
 function _st(v) { return (v && typeof v === 'object' && v.total != null) ? Math.round(v.total) : (typeof v === 'number' ? Math.round(v) : 0); }
 
+// Map field key to readable label using ENTITY_DEFS from daSettings
+function hrFieldLabel(entity, key) {
+  if (typeof daSettings !== 'undefined' && daSettings.ENTITY_DEFS && daSettings.ENTITY_DEFS[entity]) {
+    var fields = daSettings.ENTITY_DEFS[entity].stdFields;
+    for (var i = 0; i < fields.length; i++) {
+      if (fields[i].key === key) return fields[i].label;
+    }
+  }
+  // Fallback: camelCase to words
+  return key.replace(/([A-Z])/g, ' $1').replace(/^./, function(s){return s.toUpperCase();});
+}
+
 function hrScoreLabel(pct) {
   if (pct >= 70) return 'Good';
   if (pct >= 50) return 'Moderate';
@@ -804,7 +816,7 @@ function hrDrawTwoColumnSection(doc, y, entity, scores, data) {
       if (!cpl.hasOwnProperty(fk)) continue;
       var fv = cpl[fk] || 0;
       var fp = Math.round(fv / total * 100);
-      var fLabel = fk.replace(/([A-Z])/g, ' $1').replace(/^./, function(s){return s.toUpperCase();});
+      var fLabel = hrFieldLabel(entity, fk);
       cplBody.push([fLabel, fmtNum(fv), fp + '%', fp]);
     }
     cplBody.sort(function(a,b) { return b[3] - a[3]; });
@@ -955,9 +967,8 @@ function hrDrawAdoptionTable(doc, y, entity, scores, data) {
 }
 
 // --- Page overflow check ---
-function hrCheckPageBreak(doc, y, needed, pageNum, totalPages) {
+function hrCheckPageBreak(doc, y, needed) {
   if (y + needed > HR_PAGE_H - HR_MB - 10) {
-    hrDrawPageFooter(doc, pageNum, totalPages);
     doc.addPage();
     hrDrawPageHeader(doc);
     return HR_MT + 4;
@@ -966,13 +977,13 @@ function hrCheckPageBreak(doc, y, needed, pageNum, totalPages) {
 }
 
 // --- UDEF Field Completeness table ---
-function hrDrawUdefTable(doc, y, entity, pageNum, totalPages) {
+function hrDrawUdefTable(doc, y, entity) {
   var ec = entityConfig[entity];
   if (!ec || !ec.udefId || ec.udefId <= 0) return y;
   var ud = udefData[ec.udefId];
   if (!ud || !ud.fields || ud.fields.length === 0) return y;
 
-  y = hrCheckPageBreak(doc, y, 30, pageNum, totalPages);
+  y = hrCheckPageBreak(doc, y, 30);
   y = hrSectionTitle(doc, y, 'User-Defined Field Completeness', ud.fields.length + ' fields');
 
   var fields = ud.fields.slice().sort(function(a,b) { return b.percent - a.percent; });
@@ -998,11 +1009,9 @@ function hrDrawUdefTable(doc, y, entity, pageNum, totalPages) {
       if (!isNaN(val)) data.cell.styles.textColor = hrScoreColor(val);
     }
   };
-  // Page break handling
   cfg.didDrawPage = function(data) {
     if (data.pageNumber > 1) {
       hrDrawPageHeader(data.doc);
-      hrDrawPageFooter(data.doc, pageNum, totalPages);
     }
   };
   cfg.margin.top = HR_MT + 4;
@@ -1011,7 +1020,7 @@ function hrDrawUdefTable(doc, y, entity, pageNum, totalPages) {
 }
 
 // --- Distributions tables ---
-function hrDrawDistributions(doc, y, entity, pageNum, totalPages) {
+function hrDrawDistributions(doc, y, entity) {
   var ov = overviewData[entity];
   if (!ov || !ov.distributions || ov.distributions.length === 0) return y;
   var total = ov.overview.total || 0;
@@ -1021,7 +1030,7 @@ function hrDrawDistributions(doc, y, entity, pageNum, totalPages) {
     if (!dist.items || dist.items.length === 0) continue;
     var distTotal = dist.total || total;
 
-    y = hrCheckPageBreak(doc, y, 25, pageNum, totalPages);
+    y = hrCheckPageBreak(doc, y, 25);
     y = hrSectionTitle(doc, y, dist.title + ' Distribution', fmtNum(dist.items.length) + ' values');
 
     // Sort by count descending, limit to top 15
@@ -1049,11 +1058,9 @@ function hrDrawDistributions(doc, y, entity, pageNum, totalPages) {
       1:{halign:'right', cellWidth:22},
       2:{halign:'right', cellWidth:20}
     };
-    // Page break handling
     cfg.didDrawPage = function(data) {
       if (data.pageNumber > 1) {
         hrDrawPageHeader(data.doc);
-        hrDrawPageFooter(data.doc, pageNum, totalPages);
       }
     };
     cfg.margin.top = HR_MT + 4;
@@ -1095,25 +1102,9 @@ function exportHealthReport() {
     scores[k] = entityScores[k] || computeEntityScores(k);
   }
 
-  // Determine included chapters and page numbers
+  // Chapter tracking — actual page numbers filled during rendering
   var chapters = [];
   chapters.push({id:'executive', title:'Executive Summary', page:3});
-  var pageCounter = 4;
-  for (var ci = 0; ci < entities.length; ci++) {
-    var ek = entities[ci];
-    var ov = overviewData[ek].overview;
-    var s = scores[ek];
-    chapters.push({
-      id: ek,
-      title: ek.charAt(0).toUpperCase() + ek.slice(1),
-      page: pageCounter,
-      records: ov.total,
-      health: s ? _st(s.health) : 0
-    });
-    pageCounter++;
-  }
-  chapters.push({id:'momentum', title:'CRM Momentum', page:pageCounter, users: momentumData.totalUsers || 0});
-  var totalPages = pageCounter;
 
   // Report date
   var rptDate = new Date().toLocaleDateString('en-GB', {year:'numeric', month:'long', day:'numeric'});
@@ -1156,47 +1147,13 @@ function exportHealthReport() {
   // Green bar bottom
   doc.setFillColor.apply(doc, HR_COLORS.soGreen);
   doc.rect(0, HR_PAGE_H - 5, HR_PAGE_W, 5, 'F');
-  // Page number
-  doc.setFontSize(8); doc.setTextColor.apply(doc, HR_COLORS.muted);
-  doc.text('1 / ' + totalPages, HR_PAGE_W - HR_MR, HR_PAGE_H - 10, {align:'right'});
+  // Page number on cover — will be stamped at the end with correct total
+  // (skip for now)
 
-  // ===== PAGE 2: TABLE OF CONTENTS =====
+  // ===== PAGE 2: TABLE OF CONTENTS (placeholder — redrawn at the end) =====
   doc.addPage();
   hrDrawPageHeader(doc);
-  hrDrawPageFooter(doc, 2, totalPages);
-  var tocY = 25;
-  doc.setFontSize(24); doc.setFont('helvetica','bold');
-  doc.setTextColor.apply(doc, HR_COLORS.soGreen);
-  doc.text('Table of Contents', HR_ML, tocY);
-  tocY += 12;
-
-  for (var ti = 0; ti < chapters.length; ti++) {
-    var ch = chapters[ti];
-    doc.setFontSize(12); doc.setFont('helvetica','bold');
-    doc.setTextColor.apply(doc, HR_COLORS.charcoal);
-    doc.text((ti + 1) + '.', HR_ML, tocY);
-    doc.setFont('helvetica','normal');
-    doc.text(ch.title, HR_ML + 8, tocY);
-    // Page number right
-    doc.setFontSize(12); doc.setTextColor.apply(doc, HR_COLORS.muted);
-    doc.text(String(ch.page), HR_PAGE_W - HR_MR, tocY, {align:'right'});
-    // Dotted line
-    doc.setDrawColor.apply(doc, HR_COLORS.border);
-    doc.setLineDashPattern([0.5, 1.5], 0);
-    doc.setLineWidth(0.2);
-    doc.line(HR_ML + 8 + doc.getTextWidth(ch.title) + 3, tocY + 0.5, HR_PAGE_W - HR_MR - 8, tocY + 0.5);
-    doc.setLineDashPattern([], 0); // reset
-    // Internal page link (jsPDF 4.x supports this)
-    try { doc.link(HR_ML, tocY - 4, HR_CW, 8, {pageNumber: ch.page}); } catch(e) {}
-    tocY += 10;
-  }
-  // Config note
-  tocY += 8;
-  doc.setFontSize(9); doc.setFont('helvetica','italic');
-  doc.setTextColor.apply(doc, HR_COLORS.muted);
-  doc.text('This report was generated from the SuperOffice Data Analysis Dashboard.', HR_ML, tocY);
-  tocY += 4;
-  doc.text('Entity chapters can be configured in the export settings.', HR_ML, tocY);
+  // TOC content will be drawn after all pages are rendered
 
   // ===== PAGE 3: EXECUTIVE SUMMARY =====
   doc.addPage();
@@ -1386,14 +1343,20 @@ function exportHealthReport() {
     }
   }
 
-  hrDrawPageFooter(doc, 3, totalPages);
-
-  // ===== PAGES 4-N: ENTITY PAGES =====
+  // ===== PAGES 4+: ENTITY PAGES =====
   for (var pi = 0; pi < entities.length; pi++) {
     var pk = entities[pi];
     var pOv = overviewData[pk].overview;
     var pSc = scores[pk];
     doc.addPage();
+    // Track actual page number for this chapter
+    chapters.push({
+      id: pk,
+      title: pk.charAt(0).toUpperCase() + pk.slice(1),
+      page: doc.internal.getNumberOfPages(),
+      records: pOv.total,
+      health: pSc ? _st(pSc.health) : 0
+    });
     hrDrawPageHeader(doc);
     var pSub = fmtNum(pOv.total) + ' records \u00b7 All data';
     var pScore = pSc ? _st(pSc.health) + '%' : '-';
@@ -1417,33 +1380,32 @@ function exportHealthReport() {
 
     // Data Integrity table (full width)
     if (pSc && pSc.integrity && pSc.integrity.details && pSc.integrity.details.length > 0) {
-      pY = hrCheckPageBreak(doc, pY, 30, 4 + pi, totalPages);
+      pY = hrCheckPageBreak(doc, pY, 30);
       pY = hrDrawIntegrityTable(doc, pY, pk, pSc, pData);
     }
 
     // Company-specific: CRM Health Pipeline
     if (pk === 'company' && companyDetailData) {
-      pY = hrCheckPageBreak(doc, pY, 30, 4 + pi, totalPages);
+      pY = hrCheckPageBreak(doc, pY, 30);
       pY = hrDrawPipelineTable(doc, pY, companyDetailData);
     }
 
     // Adoption table (for contact, sale, project if they have adoption details)
     if (pk !== 'company' && pSc && pSc.adoption && pSc.adoption.details && pSc.adoption.details.length > 0) {
-      pY = hrCheckPageBreak(doc, pY, 25, 4 + pi, totalPages);
+      pY = hrCheckPageBreak(doc, pY, 25);
       pY = hrDrawAdoptionTable(doc, pY, pk, pSc, pData);
     }
 
     // UDEF Field Completeness
-    pY = hrDrawUdefTable(doc, pY, pk, 4 + pi, totalPages);
+    pY = hrDrawUdefTable(doc, pY, pk);
 
     // Distributions (Category, Business type, etc.)
-    pY = hrDrawDistributions(doc, pY, pk, 4 + pi, totalPages);
-
-    hrDrawPageFooter(doc, 4 + pi, totalPages);
+    pY = hrDrawDistributions(doc, pY, pk);
   }
 
-  // ===== LAST PAGE: CRM MOMENTUM =====
+  // ===== LAST PAGE(S): CRM MOMENTUM =====
   doc.addPage();
+  chapters.push({id:'momentum', title:'CRM Momentum', page: doc.internal.getNumberOfPages(), users: momentumData.totalUsers || 0});
   hrDrawPageHeader(doc);
   var mmSub = 'Activity trends & user engagement \u00b7 Last 24 months';
   var mmScore = (momentumData.totalUsers || 0) + ' users';
@@ -1570,7 +1532,6 @@ function exportHealthReport() {
   tuCfg.didDrawPage = function(data) {
     if (data.pageNumber > 1) {
       hrDrawPageHeader(data.doc);
-      hrDrawPageFooter(data.doc, totalPages, totalPages);
     }
   };
   tuCfg.margin.top = HR_MT + 4;
@@ -1592,7 +1553,64 @@ function exportHealthReport() {
   doc.setTextColor.apply(doc, HR_COLORS.muted);
   doc.text(noteLines, HR_ML + 4, mmY + 4);
 
-  hrDrawPageFooter(doc, totalPages, totalPages);
+  // ===== FINAL: STAMP ALL PAGE FOOTERS + REDRAW TOC =====
+  var totalPages = doc.internal.getNumberOfPages();
+
+  // 1. Stamp footers on every page
+  for (var fp = 1; fp <= totalPages; fp++) {
+    doc.setPage(fp);
+    hrDrawPageFooter(doc, fp, totalPages);
+  }
+
+  // 2. Redraw cover page number
+  doc.setPage(1);
+  doc.setFontSize(8); doc.setTextColor.apply(doc, HR_COLORS.muted);
+  doc.text('1 / ' + totalPages, HR_PAGE_W - HR_MR, HR_PAGE_H - 10, {align:'right'});
+
+  // 3. Redraw TOC on page 2 with correct chapter page numbers
+  doc.setPage(2);
+  var tocY = 25;
+  doc.setFontSize(24); doc.setFont('helvetica','bold');
+  doc.setTextColor.apply(doc, HR_COLORS.soGreen);
+  doc.text('Table of Contents', HR_ML, tocY);
+  tocY += 12;
+
+  for (var ti = 0; ti < chapters.length; ti++) {
+    var ch = chapters[ti];
+    doc.setFontSize(12); doc.setFont('helvetica','bold');
+    doc.setTextColor.apply(doc, HR_COLORS.charcoal);
+    doc.text((ti + 1) + '.', HR_ML, tocY);
+    doc.setFont('helvetica','normal');
+    doc.text(ch.title, HR_ML + 8, tocY);
+    // Subtitle info
+    var subText = '';
+    if (ch.records) subText = fmtNum(ch.records) + ' records';
+    if (ch.health) subText += (subText ? ' - ' : '') + ch.health + '% health';
+    if (ch.users) subText = ch.users + ' users';
+    if (subText) {
+      doc.setFontSize(8); doc.setTextColor.apply(doc, HR_COLORS.muted);
+      doc.text(subText, HR_ML + 8, tocY + 4);
+    }
+    // Page number right
+    doc.setFontSize(12); doc.setTextColor.apply(doc, HR_COLORS.muted);
+    doc.text(String(ch.page), HR_PAGE_W - HR_MR, tocY, {align:'right'});
+    // Dotted line
+    doc.setDrawColor.apply(doc, HR_COLORS.border);
+    doc.setLineDashPattern([0.5, 1.5], 0);
+    doc.setLineWidth(0.2);
+    doc.line(HR_ML + 8 + doc.getTextWidth(ch.title) + 3, tocY + 0.5, HR_PAGE_W - HR_MR - 8, tocY + 0.5);
+    doc.setLineDashPattern([], 0);
+    // Internal page link
+    try { doc.link(HR_ML, tocY - 4, HR_CW, 8, {pageNumber: ch.page}); } catch(e) {}
+    tocY += (subText ? 14 : 10);
+  }
+  // Config note
+  tocY += 8;
+  doc.setFontSize(9); doc.setFont('helvetica','italic');
+  doc.setTextColor.apply(doc, HR_COLORS.muted);
+  doc.text('This report was generated from the SuperOffice CRM Health Dashboard.', HR_ML, tocY);
+  tocY += 4;
+  doc.text(totalPages + ' pages - entity chapters can be configured in the export settings.', HR_ML, tocY);
 
   // ===== SAVE =====
   doc.save('CRM_Health_Report_' + new Date().toISOString().split('T')[0] + '.pdf');
