@@ -28,6 +28,9 @@
       integrityChecks: [
         { key: 'noPerson',      label: 'No contact person',  desc: 'Company has zero linked persons' },
         { key: 'unreachable',   label: 'Unreachable company', desc: 'No person has an email or phone number' },
+        { key: 'noCategory',    label: 'No category',         desc: 'Company has no category assigned' },
+        { key: 'noBusiness',    label: 'No business type',    desc: 'Company has no business type assigned' },
+        { key: 'noOrgNr',       label: 'No org. number',      desc: 'Company has no organisation number' },
         { key: 'noActivity12m', label: 'No recent activity',  desc: 'No activities logged in the last 12 months', isNew: true },
         { key: 'noOwner',       label: 'No owner',            desc: 'Company has no assigned associate/owner', isNew: true }
       ],
