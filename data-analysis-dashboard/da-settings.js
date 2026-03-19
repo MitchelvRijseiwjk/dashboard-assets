@@ -157,6 +157,7 @@
   // ============================================================
   var SK = 'da_settings_v3';
   var _s = null;
+  var _serverAvailable = false;
   var _udefFields = {};
   var _activeId = null;
   var _activeEntity = 'company';
@@ -172,14 +173,76 @@
   function clone(o) { return JSON.parse(JSON.stringify(o)); }
 
   function load() {
+    // Synchronous load from localStorage (instant, used on page load)
     try {
       var raw = localStorage.getItem(SK);
       if (raw) { _s = migrateV3(JSON.parse(raw)); return; }
       var v2 = localStorage.getItem('da_settings_v2');
-      if (v2) { _s = migrateFromV2(JSON.parse(v2)); save(); return; }
+      if (v2) { _s = migrateFromV2(JSON.parse(v2)); saveLocal(); return; }
     } catch(e) { console.warn('Settings load error:', e); }
     _s = allDefaults();
   }
+
+  // Async load from server — overwrites localStorage if server has data
+  function loadFromServer(callback) {
+    if (typeof settingsLoadUrl === 'undefined' || !settingsLoadUrl) { if (callback) callback(false); return; }
+    try {
+      ajax(settingsLoadUrl, function(resp) {
+        if (!resp) { if (callback) callback(false); return; }
+        _serverAvailable = resp.tableExists || false;
+        if (resp.found && resp.config) {
+          try {
+            var parsed = typeof resp.config === 'string' ? JSON.parse(resp.config) : resp.config;
+            _s = migrateV3(parsed);
+            saveLocal(); // sync localStorage with server data
+            console.log('Settings loaded from server (updated by associate ' + (resp.updatedBy || '?') + ')');
+            if (callback) callback(true);
+          } catch(e) {
+            console.warn('Settings parse error from server:', e);
+            if (callback) callback(false);
+          }
+        } else {
+          // Server table exists but no row yet — push localStorage settings to server
+          if (_serverAvailable && _s) saveToServer();
+          if (callback) callback(false);
+        }
+      });
+    } catch(e) {
+      console.warn('Settings server load failed:', e);
+      if (callback) callback(false);
+    }
+  }
+
+  function saveLocal() { try { localStorage.setItem(SK, JSON.stringify(_s)); } catch(e) {} }
+
+  function saveToServer(callback) {
+    if (!_serverAvailable || typeof settingsSaveUrl === 'undefined' || !settingsSaveUrl) {
+      if (callback) callback(false);
+      return;
+    }
+    try {
+      var url = settingsSaveUrl + String.fromCharCode(38) + 'config=' + encodeURIComponent(JSON.stringify(_s));
+      ajax(url, function(resp) {
+        if (resp && resp.success) {
+          console.log('Settings saved to server');
+          if (callback) callback(true);
+        } else {
+          console.warn('Settings server save failed:', resp ? resp.error : 'no response');
+          if (callback) callback(false);
+        }
+      });
+    } catch(e) {
+      console.warn('Settings server save error:', e);
+      if (callback) callback(false);
+    }
+  }
+
+  function save() {
+    saveLocal();
+    saveToServer();
+  }
+
+  function get(entity) { if (!_s) load(); return _s[entity || 'company'] || entityDefaults(entity || 'company'); }
 
   function migrateV3(saved) {
     var defs = allDefaults();
@@ -225,9 +288,6 @@
     }
     return all;
   }
-
-  function save() { try { localStorage.setItem(SK, JSON.stringify(_s)); } catch(e) {} }
-  function get(entity) { if (!_s) load(); return _s[entity || 'company'] || entityDefaults(entity || 'company'); }
 
   // ============================================================
   // UDEF DISCOVERY
@@ -1159,7 +1219,7 @@
       readEntityFromDOM(ENTITY_ORDER[i]);
     }
     readMomentumFromDOM();
-    save();
+    saveLocal();
     // Recalculate scores for all entities that have loaded data
     for (var i = 0; i < ENTITY_ORDER.length; i++) {
       var ek = ENTITY_ORDER[i];
@@ -1173,11 +1233,20 @@
     var unsaved = document.getElementById('smUnsaved');
     if (unsaved) unsaved.classList.remove('show');
     closeSettings();
-    toast('Settings applied and scores recalculated');
+    // Save to server (async) with toast feedback
+    saveToServer(function(ok) {
+      if (ok) {
+        toast('Settings saved and scores recalculated');
+      } else if (_serverAvailable) {
+        toast('Settings applied locally (server save failed)');
+      } else {
+        toast('Settings applied (create y_crm_health_setting table to enable sharing)');
+      }
+    });
   }
 
   function doReset() {
-    _s = allDefaults(); save();
+    _s = allDefaults(); saveLocal(); saveToServer();
     // Re-render modal sections if open
     var overlay = document.getElementById('smOverlay');
     if (overlay && overlay.classList.contains('open')) {
@@ -1197,7 +1266,20 @@
     setTimeout(function(){ t.classList.remove('show'); setTimeout(function(){ t.remove(); }, 300); }, 2500);
   }
 
-  function init() { load(); }
+  function init() {
+    load(); // sync from localStorage (instant)
+    // Then try server (async) — server data overwrites localStorage if found
+    loadFromServer(function(loaded) {
+      if (loaded) {
+        // Re-render scores with server settings
+        for (var i = 0; i < ENTITY_ORDER.length; i++) {
+          var ek = ENTITY_ORDER[i];
+          if (typeof renderDQScore === 'function') renderDQScore(ek);
+          if (typeof renderScoreBanner === 'function') renderScoreBanner(ek);
+        }
+      }
+    });
+  }
 
   // Escape key handler
   function _onEscKey(e) {
