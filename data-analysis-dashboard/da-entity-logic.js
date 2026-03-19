@@ -866,7 +866,14 @@ function gatherEntityData(key) {
     var ah = (companyDetailData && companyDetailData.activityHealth) ? companyDetailData.activityHealth : null;
     var f = (companyDetailData && companyDetailData.funnel) ? companyDetailData.funnel : null;
     qData = q;
-    if (q) { checkData.noPerson = q.noPerson; checkData.unreachable = q.unreachable; checkData.noOwner = q.noOwner; }
+    if (q) {
+      checkData.noPerson = q.noPerson;
+      checkData.unreachable = q.unreachable;
+      checkData.noOwner = q.noOwner;
+      checkData.noCategory = q.noCategory;
+      checkData.noBusiness = q.noBusiness;
+      checkData.noOrgNr = q.noOrgNr;
+    }
     if (ah) { checkData.noActivity12m = ah.noActivity; }
     if (f) {
       compData.withPerson = f.withPerson;
