@@ -756,7 +756,6 @@ function renderCrossEntityFunnel(d) {
   var f = d.funnel;
   if (!f) { el.innerHTML = ''; return; }
   var segs = f.segments;
-  var m = f.metrics;
   var h = '';
   h += dateFilterNotice();
 
@@ -770,46 +769,38 @@ function renderCrossEntityFunnel(d) {
   h += '<span class="filter-reset-link" id="companyFilterReset" style="display:none" onclick="resetDetailFilter(\'company\')">Reset</span>';
   h += '</div>';
 
-  // -- CRM Health metrics with context descriptions --
+  // -- CRM Health Pipeline — combined funnel with counts, %, and conversion --
   var pipeLabel = (typeof daSettings !== 'undefined') ? daSettings.getPipelineLabel('company') : 'Open Sale';
   var pipeType = (typeof daSettings !== 'undefined') ? daSettings.getPipelineType('company') : 'sale';
   var showPipeline = pipeType !== 'none';
 
-  h += '<div class="detail-section">';
-  h += '<div class="detail-section-head">' + secHead('CRM Health Pipeline') + '</div>';
-  h += '<div class="stat-row">';
-  h += pctCard('Person Coverage', m.personCoverage, 'Companies with a contact person', slColor(m.personCoverage), f.withPerson, f.total);
-  h += pctCard('Activity Rate', m.activityRate, 'With person + activity in 12 months', slColor(m.activityRate), f.withPersonActivity, f.withPerson);
-  if (showPipeline) {
-    h += pctCard('Pipeline Rate', m.pipelineRate, 'Active companies with ' + pipeLabel.toLowerCase(), slColor(m.pipelineRate), f.withPersonActivitySale, f.withPersonActivity);
-    h += pctCard('Overall Health', m.overallHealth, 'Person + activity + pipeline (fully engaged)', slColor(m.overallHealth), f.withPersonActivitySale, f.total);
-  } else {
-    var actHealth = f.total > 0 ? Math.round(f.withPersonActivity / f.total * 100) : 0;
-    h += pctCard('Overall Health', actHealth, 'Person + activity (fully engaged)', slColor(actHealth), f.withPersonActivity, f.total);
-  }
-  h += '</div></div>';
-
-  // -- Engagement Funnel (compact: stage + count with %) --
   var funnelSteps = [
-    { label: 'Total Companies', count: f.total, pct: 100 },
-    { label: 'With Contact Person', count: f.withPerson, pct: f.total > 0 ? Math.round(f.withPerson / f.total * 1000) / 10 : 0 },
-    { label: 'With Activity (12m)', count: f.withPersonActivity, pct: f.total > 0 ? Math.round(f.withPersonActivity / f.total * 1000) / 10 : 0 }
+    { label: 'Total Companies', count: f.total, from: f.total, desc: 'All companies in database' },
+    { label: 'With Contact Person', count: f.withPerson, from: f.total, desc: 'Has at least one linked person' },
+    { label: 'With Activity (12m)', count: f.withPersonActivity, from: f.withPerson, desc: 'Person + recent activity logged' }
   ];
   if (showPipeline) {
-    funnelSteps.push({ label: 'With ' + pipeLabel, count: f.withPersonActivitySale, pct: f.total > 0 ? Math.round(f.withPersonActivitySale / f.total * 1000) / 10 : 0 });
+    funnelSteps.push({ label: 'With ' + pipeLabel, count: f.withPersonActivitySale, from: f.withPersonActivity, desc: 'Active + open ' + pipeLabel.toLowerCase() });
   }
 
   h += '<div class="entity-card">';
-  h += '<div class="entity-header"><div class="entity-info"><h3>Company Engagement Funnel</h3></div>';
+  h += '<div class="entity-header"><div class="entity-info"><h3>CRM Health Pipeline</h3></div>';
   h += '<span class="record-badge">' + fmtNum(f.total) + ' companies</span></div>';
   h += '<table class="data-table"><thead><tr>';
-  h += '<th>Stage</th><th class="col-right">Companies</th>';
+  h += '<th>Stage</th><th class="col-right" style="width:80px">Count</th><th class="col-right" style="width:80px">% of Total</th><th class="col-right" style="width:90px">Conversion</th><th class="col-right" style="width:130px">Completeness</th>';
   h += '</tr></thead><tbody>';
   for (var i = 0; i < funnelSteps.length; i++) {
     var step = funnelSteps[i];
+    var pctTotal = f.total > 0 ? Math.round(step.count / f.total * 1000) / 10 : 0;
+    var conv = (i === 0) ? '-' : (step.from > 0 ? Math.round(step.count / step.from * 1000) / 10 + P : '0' + P);
+    var col = slColor(pctTotal);
     h += '<tr>';
-    h += '<td><span style="font-weight:500">' + step.label + '</span></td>';
-    h += '<td class="col-right">' + fmtNum(step.count) + ' <span style="color:#999;font-size:.78rem">' + step.pct + P + '</span></td>';
+    h += '<td><span style="font-weight:500">' + step.label + '</span>';
+    h += '<div style="font-size:.75rem;color:var(--so-text-muted)">' + step.desc + '</div></td>';
+    h += '<td class="col-right">' + fmtNum(step.count) + '</td>';
+    h += '<td class="col-right">' + pctTotal + P + '</td>';
+    h += '<td class="col-right">' + conv + '</td>';
+    h += '<td class="col-right">' + barCell(pctTotal, col) + '</td>';
     h += '</tr>';
   }
   h += '</tbody></table></div>';
