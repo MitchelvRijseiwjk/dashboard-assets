@@ -389,15 +389,31 @@ function startFullEntity(key) {
     });
   }
 
-  // === PARALLEL LOAD 3: Company Details (company only) ===
+  // === PARALLEL LOAD 3: Company Details + Core (company only, parallel) ===
   if (hasDetails) {
     var catParam = '';
     if (companyDetailCatValue) {
       catParam = String.fromCharCode(38) + 'categoryName=' + encodeURIComponent(companyDetailCatValue);
     }
-    ajax(detailUrl + dfParam + catParam, function(d) {
+
+    // Track which scripts have returned (both run in parallel)
+    var detailReady = false;
+    var coreReady = false;
+    var detailResult = null;
+    var coreResult = null;
+
+    function mergeAndRenderCompanyData() {
+      if (!detailReady || !coreReady) return;
+      // Merge core data into detail data
+      var d = detailResult || {};
+      if (coreResult) {
+        if (coreResult.activityHealth) d.activityHealth = coreResult.activityHealth;
+        if (coreResult.trend) d.trend = coreResult.trend;
+        if (coreResult.trendMonthly) d.trendMonthly = coreResult.trendMonthly;
+        if (coreResult.trendBefore !== undefined) d.trendBefore = coreResult.trendBefore;
+      }
       companyDetailData = d;
-      // Render funnel first (creates category filter select element)
+      // Render funnel (from detail)
       if (d && d.funnel) {
         companyCrossData = d;
         renderCrossEntityFunnel(d);
@@ -413,6 +429,20 @@ function startFullEntity(key) {
       var detailEl2 = document.getElementById('companyDetailContent');
       if (detailEl2) detailEl2.style.animation = 'fadeIn .3s ease';
       stepDone('Details loaded');
+    }
+
+    // Call 1: CompanyDetailFetch (associates, categories, funnel, quality, churn)
+    ajax(detailUrl + dfParam + catParam, function(d) {
+      detailResult = d;
+      detailReady = true;
+      mergeAndRenderCompanyData();
+    });
+
+    // Call 2: CompanyCoreFetch (activity health, trend) — runs in parallel
+    ajax(coreUrl + dfParam + catParam, function(d) {
+      coreResult = d;
+      coreReady = true;
+      mergeAndRenderCompanyData();
     });
   }
 
@@ -666,7 +696,21 @@ function fetchCompanyDetails(cb) {
   if (companyDetailCatValue) {
     catParam = String.fromCharCode(38) + 'categoryName=' + encodeURIComponent(companyDetailCatValue);
   }
-  ajax(detailUrl + getDateFilterParam() + catParam, function(d) {
+  var dfParam = getDateFilterParam();
+  var detailDone = false;
+  var coreDone = false;
+  var detailD = null;
+  var coreD = null;
+
+  function mergeAndRender() {
+    if (!detailDone || !coreDone) return;
+    var d = detailD || {};
+    if (coreD) {
+      if (coreD.activityHealth) d.activityHealth = coreD.activityHealth;
+      if (coreD.trend) d.trend = coreD.trend;
+      if (coreD.trendMonthly) d.trendMonthly = coreD.trendMonthly;
+      if (coreD.trendBefore !== undefined) d.trendBefore = coreD.trendBefore;
+    }
     companyDetailData = d;
     if (d) renderCompanyDetails(d);
     populateDetailCatFilter();
@@ -675,6 +719,17 @@ function fetchCompanyDetails(cb) {
       countEl.textContent = companyDetailCatValue ? fmtNum(d.activityHealth.total) + ' companies' : '';
     }
     if (cb) cb();
+  }
+
+  ajax(detailUrl + dfParam + catParam, function(d) {
+    detailD = d;
+    detailDone = true;
+    mergeAndRender();
+  });
+  ajax(coreUrl + dfParam + catParam, function(d) {
+    coreD = d;
+    coreDone = true;
+    mergeAndRender();
   });
 }
 
