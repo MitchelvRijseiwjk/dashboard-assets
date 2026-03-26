@@ -30,6 +30,16 @@ function resolveDate(val) {
   if (val === 'last6m') { now.setDate(1); now.setMonth(now.getMonth() - 6); return fmt(now); }
   if (val === 'last12m') { now.setDate(1); now.setMonth(now.getMonth() - 12); return fmt(now); }
   if (val === 'last24m') { now.setDate(1); now.setMonth(now.getMonth() - 24); return fmt(now); }
+  if (val === 'last36m') { now.setDate(1); now.setMonth(now.getMonth() - 36); return fmt(now); }
+  if (val === 'last48m') { now.setDate(1); now.setMonth(now.getMonth() - 48); return fmt(now); }
+  // Enforce max 4 years back for custom dates
+  if (val) {
+    var maxBack = new Date();
+    maxBack.setMonth(maxBack.getMonth() - 48);
+    maxBack.setDate(1);
+    var valDate = new Date(val);
+    if (valDate < maxBack) return fmt(maxBack);
+  }
   return val;
 }
 
