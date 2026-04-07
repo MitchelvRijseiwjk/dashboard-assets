@@ -283,11 +283,28 @@ function startAnalyzeAll() {
   var labelEl = document.getElementById('aaProgressLabel');
   if (labelEl) labelEl.textContent = 'Analyzing data... 0/' + aaQueue.length;
   _aaCurrentPct = 0;
+  _aaAnimTarget = 0;
+  _aaAnimCurrent = 0;
   _aaCompleted = 0;
   _aaRunning = 0;
   _aaDoneSteps = 0;
   _aaTotalSteps = 0;
   for (var si = 0; si < aaQueue.length; si++) _aaTotalSteps += _aaEntitySteps(aaQueue[si]);
+
+  // Elapsed timer
+  _aaStartTime = Date.now();
+  if (_aaElapsedTimer) clearInterval(_aaElapsedTimer);
+  var elapsedEl = document.getElementById('aaElapsed');
+  var elapsedEl2 = document.getElementById('setupElapsed');
+  if (elapsedEl) elapsedEl.textContent = '0s';
+  if (elapsedEl2) elapsedEl2.textContent = '0s';
+  _aaElapsedTimer = setInterval(function() {
+    var s = Math.round((Date.now() - _aaStartTime) / 1000);
+    var e1 = document.getElementById('aaElapsed');
+    var e2 = document.getElementById('setupElapsed');
+    if (e1) e1.textContent = s + 's';
+    if (e2 && setupAnalysisRunning) e2.textContent = s + 's';
+  }, 1000);
 
   aaIdx = 0;
   runNextAA();
@@ -308,21 +325,42 @@ var _aaCurrentPct = 0;
 var _aaTotalSteps = 0;
 var _aaDoneSteps = 0;
 
+var _aaAnimTarget = 0;
+var _aaAnimCurrent = 0;
+var _aaAnimRAF = null;
+
+function _aaAnimateCounter() {
+  if (_aaAnimCurrent < _aaAnimTarget) {
+    _aaAnimCurrent += Math.max(1, (_aaAnimTarget - _aaAnimCurrent) * 0.25);
+    if (_aaAnimCurrent > _aaAnimTarget) _aaAnimCurrent = _aaAnimTarget;
+    var v = Math.round(_aaAnimCurrent);
+    var circPct = document.getElementById('aaCirclePercent');
+    if (circPct) circPct.textContent = v + P;
+    var circPct2 = document.getElementById('setupCirclePercent');
+    if (circPct2 && setupAnalysisRunning) circPct2.textContent = v + P;
+    _aaAnimRAF = requestAnimationFrame(_aaAnimateCounter);
+  } else {
+    _aaAnimRAF = null;
+  }
+}
+
 function _aaSetProgress(pct) {
   if (pct < _aaCurrentPct) pct = _aaCurrentPct;
   _aaCurrentPct = pct;
   var offset = 314.16 * (1 - pct / 100);
   var circBar = document.getElementById('aaCircleBar');
-  var circPct = document.getElementById('aaCirclePercent');
   var labelEl = document.getElementById('aaProgressLabel');
   if (circBar) circBar.setAttribute('stroke-dashoffset', offset);
-  if (circPct) circPct.textContent = Math.round(pct) + P;
+  // Smooth counter animation instead of instant text
+  _aaAnimTarget = pct;
+  if (!_aaAnimRAF) _aaAnimRAF = requestAnimationFrame(_aaAnimateCounter);
   if (labelEl) labelEl.textContent = 'Analyzing data... ' + _aaCompleted + '/' + aaQueue.length;
   setupProgressUpdate(Math.round(pct));
 }
 
 function _aaStepDone() {
   _aaDoneSteps++;
+  if (_aaDoneSteps > _aaTotalSteps) _aaDoneSteps = _aaTotalSteps; // cap at 100%
   var pct = _aaTotalSteps > 0 ? (_aaDoneSteps / _aaTotalSteps) * 100 : 0;
   _aaSetProgress(pct);
 }
@@ -330,9 +368,41 @@ function _aaStepDone() {
 var _aaConcurrency = 3;
 var _aaCompleted = 0;
 var _aaRunning = 0;
+var _aaElapsedTimer = null;
+var _aaStartTime = 0;
 
 function _aaOnAllDone() {
   _aaSetProgress(100);
+  // Stop elapsed timer
+  if (_aaElapsedTimer) { clearInterval(_aaElapsedTimer); _aaElapsedTimer = null; }
+  var elapsed = Math.round((Date.now() - _aaStartTime) / 1000);
+
+  // Show "done" state: checkmark replaces percentage, label changes
+  setTimeout(function() {
+    // Replace circle content with checkmark
+    var checkSvg = '<svg width="120" height="120" viewBox="0 0 120 120" shape-rendering="geometricPrecision">'
+      + '<circle cx="60" cy="60" r="50" fill="none" stroke="#e0ddd5" stroke-width="7"/>'
+      + '<circle cx="60" cy="60" r="50" fill="none" stroke="#0F6E56" stroke-width="7" stroke-dasharray="314.16" stroke-dashoffset="0" transform="rotate(-90 60 60)" style="transition:stroke .3s ease"/>'
+      + '<polyline points="40,62 54,76 80,46" stroke="#0F6E56" stroke-width="6" fill="none" stroke-linecap="round" stroke-linejoin="round" class="aa-check-draw"/>'
+      + '</svg>';
+    var aaCircleWrap = document.getElementById('aaCircle');
+    if (aaCircleWrap) aaCircleWrap.outerHTML = checkSvg.replace('id="', 'id="aaCircle" ').replace('<svg ', '<svg id="aaCircleDone" ');
+    var setupCircleWrap = document.getElementById('setupCircle');
+    if (setupCircleWrap && setupAnalysisRunning) setupCircleWrap.outerHTML = checkSvg;
+
+    var labelEl = document.getElementById('aaProgressLabel');
+    if (labelEl) labelEl.textContent = 'Analysis complete \u00B7 ' + elapsed + 's';
+    var labelEl2 = document.getElementById('setupProgressLabel');
+    if (labelEl2 && setupAnalysisRunning) labelEl2.textContent = 'Analysis complete \u00B7 ' + elapsed + 's';
+
+    // Hide elapsed since it's now in the label
+    var e1 = document.getElementById('aaElapsed');
+    var e2 = document.getElementById('setupElapsed');
+    if (e1) e1.style.display = 'none';
+    if (e2) e2.style.display = 'none';
+  }, 400);
+
+  // Transition to dashboard after delay
   setTimeout(function() {
     // Auto-populate standalone Extra Tables tab from cache
     if (typeof _extraCache !== 'undefined' && _extraCache && _extraCache.ready) {
@@ -369,10 +439,10 @@ function _aaOnAllDone() {
     document.getElementById('aaProgressScreen').style.display = 'none';
     document.getElementById('aaStartScreen').style.display = '';
     document.getElementById('aaDoneBanner').style.display = '';
-    document.getElementById('aaDoneSummary').textContent = aaQueue.length + ' entities analyzed.';
+    document.getElementById('aaDoneSummary').textContent = aaQueue.length + ' entities analyzed in ' + elapsed + 's.';
     if (setupAnalysisRunning) { setupAnalysisComplete(); return; }
     document.getElementById('aaStartBtn').innerHTML = '<img src="data:image/svg+xml;base64,' + icoPlayO + '"> Run Again';
-  }, 800);
+  }, 2000);
 }
 
 function runNextAA() {
@@ -384,6 +454,20 @@ function runNextAA() {
   while (_aaRunning < _aaConcurrency && aaIdx < aaQueue.length) {
     _aaLaunchEntity(aaQueue[aaIdx]);
     aaIdx++;
+  }
+}
+
+function _aaSortPills() {
+  var containers = [document.getElementById('aaEntityList'), document.getElementById('setupEntityList')];
+  for (var ci = 0; ci < containers.length; ci++) {
+    var c = containers[ci];
+    if (!c) continue;
+    var pills = Array.prototype.slice.call(c.children);
+    pills.sort(function(a, b) {
+      var order = {'aa-pill aa-pill-loading':0, 'aa-pill aa-pill-done':1, 'aa-pill aa-pill-pending':2};
+      return (order[a.className] || 2) - (order[b.className] || 2);
+    });
+    for (var i = 0; i < pills.length; i++) c.appendChild(pills[i]);
   }
 }
 
@@ -409,6 +493,7 @@ function _aaLaunchEntity(key) {
       if (pillEl2) pillEl2.className = 'aa-pill aa-pill-done';
       if (icoEl2) icoEl2.innerHTML = svgDone;
     }
+    _aaSortPills();
   }
   setEntityStatus('loading');
 
