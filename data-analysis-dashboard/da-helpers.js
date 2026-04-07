@@ -323,7 +323,7 @@ function _aaStartSmooth(targetPct, status) {
   _aaFakeTimer = setInterval(function() {
     if (_aaCurrentPct < maxPct) {
       var remaining = maxPct - _aaCurrentPct;
-      var increment = Math.max(0.15, remaining * 0.04);
+      var increment = Math.max(0.08, remaining * 0.02);
       _aaCurrentPct = Math.min(_aaCurrentPct + increment, maxPct);
       var offset = 314.16 * (1 - _aaCurrentPct / 100);
       var circBar = document.getElementById('aaCircleBar');
@@ -364,14 +364,14 @@ var _aaStatusTexts = {}; // track status per running entity
 function _aaUpdateCombinedStatus() {
   var parts = [];
   for (var k in _aaStatusTexts) { parts.push(_aaStatusTexts[k]); }
-  var combined = parts.join('  |  ');
+  var combined = parts.length > 0 ? 'Loading ' + parts.join(', ') : '';
   var offset = 314.16 * (1 - _aaCurrentPct / 100);
   var circBar = document.getElementById('aaCircleBar');
   var circPct = document.getElementById('aaCirclePercent');
   var statusEl = document.getElementById('aaProgressStatus');
   if (circBar) circBar.setAttribute('stroke-dashoffset', offset);
   if (circPct) circPct.textContent = Math.round(_aaCurrentPct) + P;
-  if (statusEl && combined) statusEl.textContent = combined;
+  if (statusEl) statusEl.textContent = combined;
   setupProgressUpdate(Math.round(_aaCurrentPct), combined);
 }
 
@@ -434,19 +434,21 @@ function runNextAA() {
     aaIdx++;
   }
 
-  // Start smooth animation toward current progress + running entities' weight
+  // Start smooth animation — running entities count at 30% to avoid premature high percentages
   var totalWeight = 0;
-  var potentialWeight = 0;
+  var doneWeight = 0;
+  var runningWeight = 0;
   for (var qi = 0; qi < aaQueue.length; qi++) {
     var qk = aaQueue[qi];
     var w = aaWeights[qk] || 5;
     totalWeight += w;
     var qPill = document.getElementById('aaProg_' + qk);
-    if (qPill && (qPill.className.indexOf('aa-pill-done') >= 0 || qPill.className.indexOf('aa-pill-loading') >= 0)) {
-      potentialWeight += w;
+    if (qPill) {
+      if (qPill.className.indexOf('aa-pill-done') >= 0) doneWeight += w;
+      else if (qPill.className.indexOf('aa-pill-loading') >= 0) runningWeight += w;
     }
   }
-  var targetPct = (potentialWeight / totalWeight) * 100;
+  var targetPct = ((doneWeight + runningWeight * 0.3) / totalWeight) * 100;
   if (targetPct > _aaCurrentPct) _aaStartSmooth(targetPct, '');
 }
 
@@ -494,10 +496,7 @@ function _aaLaunchEntity(key) {
   }
 
   function getStatusText() {
-    var parts = [];
-    for (var k in pending) { parts.push(pending[k]); }
-    if (parts.length === 0) return entityName;
-    return entityName + ' — ' + parts.join(', ');
+    return entityName;
   }
 
   _aaStatusTexts[key] = getStatusText();
