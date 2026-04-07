@@ -403,8 +403,8 @@
     .setup-inner{width:100%;max-width:1000px;padding:60px 32px 32px;margin:0 auto}
     .setup-brand{position:fixed;top:20px;left:32px;margin-bottom:0;z-index:1001}
     .setup-brand .hugo-logo{width:170px;height:auto}
-    .setup-tabs{display:flex;align-items:center;gap:0;margin-bottom:16px;border-bottom:1px solid var(--so-border)}
-    .setup-tab{padding:8px 18px;font-size:.84rem;font-weight:500;color:var(--so-text-muted);cursor:pointer;border-bottom:2px solid transparent;transition:all .15s;margin-bottom:-1px}
+    .setup-tabs{display:flex;align-items:center;gap:0;margin-bottom:16px}
+    .setup-tab{padding:8px 18px;font-size:.84rem;font-weight:500;color:var(--so-text-muted);cursor:pointer;border-bottom:2px solid transparent;transition:all .15s}
     .setup-tab:hover{color:var(--so-charcoal)}
     .setup-tab.active{color:var(--so-green);border-bottom-color:var(--so-green);font-weight:600}
     .setup-tabs .btn-launch{margin-left:auto;padding:7px 24px;font-size:.82rem;margin-bottom:6px}
@@ -470,7 +470,6 @@
     .aa-pill-done{opacity:1;border-color:#0F6E56;transform:scale(1)}
     @keyframes aa-check-draw{from{stroke-dashoffset:60}to{stroke-dashoffset:0}}
     .aa-check-draw{stroke-dasharray:60;stroke-dashoffset:0;animation:aa-check-draw .5s ease forwards}
-    .aa-elapsed{font-size:12px;color:#8a877f;margin-top:4px;margin-bottom:12px;font-variant-numeric:tabular-nums}
 
     /* === DQ SCORE BANNER === */
     .dq-score-banner{display:flex;align-items:center;gap:24px;padding:24px 28px;margin-bottom:20px;background:var(--so-white);border:1px solid var(--so-border);border-radius:12px;box-shadow:0 1px 4px rgba(0,0,0,.06)}
