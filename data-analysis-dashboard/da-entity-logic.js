@@ -323,7 +323,7 @@ function startFullEntity(key) {
   var totalSteps = 2; // overview + extra (always)
   if (ec && ec.udefId > 0) totalSteps++;
   if (ec && ec.hasTicketFields) totalSteps++;
-  if (hasDetails) totalSteps++; // details (includes funnel now)
+  if (hasDetails) totalSteps += 3; // core + quality + detail (3 parallel scripts)
   var completedSteps = 0;
   var dfParam = getDateFilterParam();
 
@@ -389,60 +389,69 @@ function startFullEntity(key) {
     });
   }
 
-  // === PARALLEL LOAD 3: Company Details + Core (company only, parallel) ===
+  // === PARALLEL LOAD 3: Company Core + Quality + Detail (3 scripts, parallel) ===
   if (hasDetails) {
     var catParam = '';
     if (companyDetailCatValue) {
       catParam = String.fromCharCode(38) + 'categoryName=' + encodeURIComponent(companyDetailCatValue);
     }
 
-    // Track which scripts have returned (both run in parallel)
-    var detailReady = false;
-    var coreReady = false;
-    var detailResult = null;
-    var coreResult = null;
+    // Each script renders its part independently as it arrives
+    // companyDetailData is progressively built up
 
-    function mergeAndRenderCompanyData() {
-      if (!detailReady || !coreReady) return;
-      // Merge core data into detail data
-      var d = detailResult || {};
-      if (coreResult) {
-        if (coreResult.activityHealth) d.activityHealth = coreResult.activityHealth;
-        if (coreResult.trend) d.trend = coreResult.trend;
-        if (coreResult.trendMonthly) d.trendMonthly = coreResult.trendMonthly;
-        if (coreResult.trendBefore !== undefined) d.trendBefore = coreResult.trendBefore;
+    // Call 1: CompanyCoreFetch (activity health, trend) — lightweight, ~6s
+    ajax(coreUrl + dfParam + catParam, function(d) {
+      if (!companyDetailData) companyDetailData = {};
+      if (d) {
+        if (d.activityHealth) companyDetailData.activityHealth = d.activityHealth;
+        if (d.trend) companyDetailData.trend = d.trend;
+        if (d.trendMonthly) companyDetailData.trendMonthly = d.trendMonthly;
+        if (d.trendBefore !== undefined) companyDetailData.trendBefore = d.trendBefore;
       }
-      companyDetailData = d;
-      // Render funnel (from detail)
-      if (d && d.funnel) {
-        companyCrossData = d;
-        renderCrossEntityFunnel(d);
+      // Re-render details with whatever data we have so far
+      renderCompanyDetails(companyDetailData);
+      stepDone('Activity health loaded');
+    });
+
+    // Call 2: CompanyQualityFetch (quality, funnel, segments, churn) — countRows only, ~5s
+    ajax(qualityUrl + dfParam + catParam, function(d) {
+      if (!companyDetailData) companyDetailData = {};
+      if (d) {
+        if (d.quality) companyDetailData.quality = d.quality;
+        if (d.funnel) companyDetailData.funnel = d.funnel;
+        if (d.churnRisk) companyDetailData.churnRisk = d.churnRisk;
+      }
+      // Render funnel (creates category filter)
+      if (companyDetailData.funnel) {
+        companyCrossData = companyDetailData;
+        renderCrossEntityFunnel(companyDetailData);
         var crossEl2 = document.getElementById('companyCrossContent');
         if (crossEl2) crossEl2.style.animation = 'fadeIn .3s ease';
       }
-      if (d) renderCompanyDetails(d);
       populateDetailCatFilter();
       var countEl = document.getElementById('companyDetailFilterCount');
-      if (countEl && d && d.activityHealth) {
-        countEl.textContent = companyDetailCatValue ? fmtNum(d.activityHealth.total) + ' companies' : '';
+      if (countEl && companyDetailData.activityHealth) {
+        countEl.textContent = companyDetailCatValue ? fmtNum(companyDetailData.activityHealth.total) + ' companies' : '';
       }
-      var detailEl2 = document.getElementById('companyDetailContent');
-      if (detailEl2) detailEl2.style.animation = 'fadeIn .3s ease';
-      stepDone('Details loaded');
-    }
-
-    // Call 1: CompanyDetailFetch (associates, categories, funnel, quality, churn)
-    ajax(detailUrl + dfParam + catParam, function(d) {
-      detailResult = d;
-      detailReady = true;
-      mergeAndRenderCompanyData();
+      // Re-render details
+      renderCompanyDetails(companyDetailData);
+      // Trigger DQ score recalc (quality data now available)
+      renderDQScore('company');
+      stepDone('Quality analysis loaded');
     });
 
-    // Call 2: CompanyCoreFetch (activity health, trend) — runs in parallel
-    ajax(coreUrl + dfParam + catParam, function(d) {
-      coreResult = d;
-      coreReady = true;
-      mergeAndRenderCompanyData();
+    // Call 3: CompanyDetailFetch (associates, category effectiveness) — bulk loop, ~25s
+    ajax(detailUrl + dfParam + catParam, function(d) {
+      if (!companyDetailData) companyDetailData = {};
+      if (d) {
+        if (d.associates) companyDetailData.associates = d.associates;
+        if (d.categoryEffectiveness) companyDetailData.categoryEffectiveness = d.categoryEffectiveness;
+      }
+      // Re-render details (now with associate + category data)
+      renderCompanyDetails(companyDetailData);
+      var detailEl2 = document.getElementById('companyDetailContent');
+      if (detailEl2) detailEl2.style.animation = 'fadeIn .3s ease';
+      stepDone('Associate breakdown loaded');
     });
   }
 
@@ -697,39 +706,53 @@ function fetchCompanyDetails(cb) {
     catParam = String.fromCharCode(38) + 'categoryName=' + encodeURIComponent(companyDetailCatValue);
   }
   var dfParam = getDateFilterParam();
-  var detailDone = false;
-  var coreDone = false;
-  var detailD = null;
-  var coreD = null;
+  var pending = 3;
+  companyDetailData = {};
 
-  function mergeAndRender() {
-    if (!detailDone || !coreDone) return;
-    var d = detailD || {};
-    if (coreD) {
-      if (coreD.activityHealth) d.activityHealth = coreD.activityHealth;
-      if (coreD.trend) d.trend = coreD.trend;
-      if (coreD.trendMonthly) d.trendMonthly = coreD.trendMonthly;
-      if (coreD.trendBefore !== undefined) d.trendBefore = coreD.trendBefore;
-    }
-    companyDetailData = d;
-    if (d) renderCompanyDetails(d);
-    populateDetailCatFilter();
-    var countEl = document.getElementById('companyDetailFilterCount');
-    if (countEl && d && d.activityHealth) {
-      countEl.textContent = companyDetailCatValue ? fmtNum(d.activityHealth.total) + ' companies' : '';
-    }
-    if (cb) cb();
+  function checkDone() {
+    pending--;
+    renderCompanyDetails(companyDetailData);
+    if (pending <= 0 && cb) cb();
   }
 
-  ajax(detailUrl + dfParam + catParam, function(d) {
-    detailD = d;
-    detailDone = true;
-    mergeAndRender();
-  });
+  // Call 1: Core (activity health, trend)
   ajax(coreUrl + dfParam + catParam, function(d) {
-    coreD = d;
-    coreDone = true;
-    mergeAndRender();
+    if (d) {
+      if (d.activityHealth) companyDetailData.activityHealth = d.activityHealth;
+      if (d.trend) companyDetailData.trend = d.trend;
+      if (d.trendMonthly) companyDetailData.trendMonthly = d.trendMonthly;
+      if (d.trendBefore !== undefined) companyDetailData.trendBefore = d.trendBefore;
+    }
+    checkDone();
+  });
+
+  // Call 2: Quality (quality, funnel, churn)
+  ajax(qualityUrl + dfParam + catParam, function(d) {
+    if (d) {
+      if (d.quality) companyDetailData.quality = d.quality;
+      if (d.funnel) companyDetailData.funnel = d.funnel;
+      if (d.churnRisk) companyDetailData.churnRisk = d.churnRisk;
+    }
+    // Re-render funnel
+    if (companyDetailData.funnel) {
+      companyCrossData = companyDetailData;
+      renderCrossEntityFunnel(companyDetailData);
+    }
+    populateDetailCatFilter();
+    var countEl = document.getElementById('companyDetailFilterCount');
+    if (countEl && companyDetailData.activityHealth) {
+      countEl.textContent = companyDetailCatValue ? fmtNum(companyDetailData.activityHealth.total) + ' companies' : '';
+    }
+    checkDone();
+  });
+
+  // Call 3: Detail (associates, category effectiveness)
+  ajax(detailUrl + dfParam + catParam, function(d) {
+    if (d) {
+      if (d.associates) companyDetailData.associates = d.associates;
+      if (d.categoryEffectiveness) companyDetailData.categoryEffectiveness = d.categoryEffectiveness;
+    }
+    checkDone();
   });
 }
 
