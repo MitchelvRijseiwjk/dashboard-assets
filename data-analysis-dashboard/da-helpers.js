@@ -285,99 +285,54 @@ function startAnalyzeAll() {
   _aaCurrentPct = 0;
   _aaCompleted = 0;
   _aaRunning = 0;
-  _aaStatusTexts = {};
+  _aaDoneSteps = 0;
+  _aaTotalSteps = 0;
+  for (var si = 0; si < aaQueue.length; si++) _aaTotalSteps += _aaEntitySteps(aaQueue[si]);
 
   aaIdx = 0;
   runNextAA();
 }
 
-// Estimated relative weights per entity (based on actual timings)
-var aaWeights = {
-  company: 35, contact: 24, activities: 28, sale: 10,
-  project: 2, requests: 3, selection: 2, marketing: 2
-};
+// Steps per entity (= number of AJAX responses expected)
+function _aaEntitySteps(key) {
+  var ec = entityConfig[key];
+  if (!ec) return 1; // simple entity (selection, marketing)
+  if (key === 'company') return 6; // overview + udef + core + quality + detail + extra
+  if (key === 'activities') return 2; // momentum + overview
+  var steps = 2; // overview + extra
+  if (ec.udefId > 0 || ec.hasTicketFields) steps++;
+  return steps;
+}
 
-var _aaFakeTimer = null;
 var _aaCurrentPct = 0;
+var _aaTotalSteps = 0;
+var _aaDoneSteps = 0;
 
-function _aaSetProgress(pct, status) {
+function _aaSetProgress(pct) {
   if (pct < _aaCurrentPct) pct = _aaCurrentPct;
   _aaCurrentPct = pct;
   var offset = 314.16 * (1 - pct / 100);
-  // Analyze All screen
   var circBar = document.getElementById('aaCircleBar');
   var circPct = document.getElementById('aaCirclePercent');
-  var statusEl = document.getElementById('aaProgressStatus');
   var labelEl = document.getElementById('aaProgressLabel');
   if (circBar) circBar.setAttribute('stroke-dashoffset', offset);
   if (circPct) circPct.textContent = Math.round(pct) + P;
-  if (statusEl && status) statusEl.textContent = status;
   if (labelEl) labelEl.textContent = 'Analyzing data... ' + _aaCompleted + '/' + aaQueue.length;
-  setupProgressUpdate(Math.round(pct), status);
+  setupProgressUpdate(Math.round(pct));
 }
 
-function _aaStartSmooth(targetPct, status) {
-  _aaStopSmooth();
-  _aaSetProgress(_aaCurrentPct, status);
-  var maxPct = targetPct - 0.5;
-  _aaFakeTimer = setInterval(function() {
-    if (_aaCurrentPct < maxPct) {
-      var remaining = maxPct - _aaCurrentPct;
-      var increment = Math.max(0.08, remaining * 0.02);
-      _aaCurrentPct = Math.min(_aaCurrentPct + increment, maxPct);
-      var offset = 314.16 * (1 - _aaCurrentPct / 100);
-      var circBar = document.getElementById('aaCircleBar');
-      var circPct = document.getElementById('aaCirclePercent');
-      if (circBar) circBar.setAttribute('stroke-dashoffset', offset);
-      if (circPct) circPct.textContent = Math.round(_aaCurrentPct) + P;
-      setupProgressUpdate(Math.round(_aaCurrentPct), '');
-    }
-  }, 120);
+function _aaStepDone() {
+  _aaDoneSteps++;
+  var pct = _aaTotalSteps > 0 ? (_aaDoneSteps / _aaTotalSteps) * 100 : 0;
+  _aaSetProgress(pct);
 }
 
-function _aaStopSmooth() {
-  if (_aaFakeTimer) { clearInterval(_aaFakeTimer); _aaFakeTimer = null; }
-}
-
-// Calculate cumulative percentage ranges per entity
-function _aaCalcRanges() {
-  var totalWeight = 0;
-  for (var i = 0; i < aaQueue.length; i++) totalWeight += (aaWeights[aaQueue[i]] || 5);
-  var ranges = {};
-  var cumulative = 0;
-  for (var i = 0; i < aaQueue.length; i++) {
-    var w = aaWeights[aaQueue[i]] || 5;
-    var startPct = (cumulative / totalWeight) * 100;
-    cumulative += w;
-    var endPct = (cumulative / totalWeight) * 100;
-    ranges[aaQueue[i]] = { start: startPct, end: endPct };
-  }
-  return ranges;
-}
-
-var _aaRanges = {};
-var _aaConcurrency = 3; // run 3 entities at once
+var _aaConcurrency = 3;
 var _aaCompleted = 0;
 var _aaRunning = 0;
-var _aaStatusTexts = {}; // track status per running entity
-
-function _aaUpdateCombinedStatus() {
-  var parts = [];
-  for (var k in _aaStatusTexts) { parts.push(_aaStatusTexts[k]); }
-  var combined = parts.length > 0 ? 'Loading ' + parts.join(', ') : '';
-  var offset = 314.16 * (1 - _aaCurrentPct / 100);
-  var circBar = document.getElementById('aaCircleBar');
-  var circPct = document.getElementById('aaCirclePercent');
-  var statusEl = document.getElementById('aaProgressStatus');
-  if (circBar) circBar.setAttribute('stroke-dashoffset', offset);
-  if (circPct) circPct.textContent = Math.round(_aaCurrentPct) + P;
-  if (statusEl) statusEl.textContent = combined;
-  setupProgressUpdate(Math.round(_aaCurrentPct), combined);
-}
 
 function _aaOnAllDone() {
-  _aaStopSmooth();
-  _aaSetProgress(100, 'All analyses complete!');
+  _aaSetProgress(100);
   setTimeout(function() {
     // Auto-populate standalone Extra Tables tab from cache
     if (typeof _extraCache !== 'undefined' && _extraCache && _extraCache.ready) {
@@ -421,11 +376,8 @@ function _aaOnAllDone() {
 }
 
 function runNextAA() {
-  // Calculate ranges on first call
   if (_aaCompleted === 0 && _aaRunning === 0) {
-    _aaRanges = _aaCalcRanges();
     _aaCurrentPct = 0;
-    _aaStatusTexts = {};
   }
 
   // Launch entities up to concurrency limit
@@ -433,29 +385,10 @@ function runNextAA() {
     _aaLaunchEntity(aaQueue[aaIdx]);
     aaIdx++;
   }
-
-  // Start smooth animation — running entities count at 30% to avoid premature high percentages
-  var totalWeight = 0;
-  var doneWeight = 0;
-  var runningWeight = 0;
-  for (var qi = 0; qi < aaQueue.length; qi++) {
-    var qk = aaQueue[qi];
-    var w = aaWeights[qk] || 5;
-    totalWeight += w;
-    var qPill = document.getElementById('aaProg_' + qk);
-    if (qPill) {
-      if (qPill.className.indexOf('aa-pill-done') >= 0) doneWeight += w;
-      else if (qPill.className.indexOf('aa-pill-loading') >= 0) runningWeight += w;
-    }
-  }
-  var targetPct = ((doneWeight + runningWeight * 0.3) / totalWeight) * 100;
-  if (targetPct > _aaCurrentPct) _aaStartSmooth(targetPct, '');
 }
 
 function _aaLaunchEntity(key) {
   _aaRunning++;
-  var range = _aaRanges[key];
-  var entityName = aaEntityNames[key];
 
   var svgLoading = '<svg width="14" height="14" viewBox="0 0 14 14"><circle cx="7" cy="7" r="6" fill="none" stroke="#06423e" stroke-width="1.5"/><circle cx="7" cy="7" r="2" fill="#06423e"><animate attributeName="opacity" values="1;0.3;1" dur="1.2s" repeatCount="indefinite"/></circle></svg>';
   var svgDone = '<svg width="14" height="14" viewBox="0 0 14 14"><circle cx="7" cy="7" r="6" fill="#0F6E56"/><polyline points="4,7 6.2,9.2 10,5" stroke="#fff" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>';
@@ -482,59 +415,25 @@ function _aaLaunchEntity(key) {
   // Capture filter params synchronously BEFORE any async calls
   captureEntityFilter(key);
 
-  // Track which sub-loads are still running for this entity
-  var pending = {};
-  var ec = entityConfig[key];
-  if (ec) {
-    pending['overview'] = 'overview';
-    if (ec.udefId > 0) pending['fields'] = 'extra fields';
-    if (ec.hasTicketFields) pending['tfields'] = 'ticket fields';
-    if (key === 'company') { pending['core'] = 'activity health'; pending['quality'] = 'quality analysis'; pending['assoc'] = 'associate breakdown'; }
-    pending['tables'] = 'tables';
-  } else {
-    pending['overview'] = 'overview';
-  }
-
-  function getStatusText() {
-    return entityName;
-  }
-
-  _aaStatusTexts[key] = getStatusText();
-  _aaUpdateCombinedStatus();
-
   function markStepDone(stepId) {
-    delete pending[stepId];
-    _aaStatusTexts[key] = getStatusText();
-    // Bump progress based on overall completed weight
-    _aaUpdateCombinedStatus();
+    _aaStepDone();
   }
 
   function onEntityDone() {
     _aaRunning--;
     _aaCompleted++;
-    delete _aaStatusTexts[key];
     setEntityStatus('done');
 
-    // Update progress: percentage = completed weight / total weight
-    var totalWeight = 0;
-    var doneWeight = 0;
-    for (var qi = 0; qi < aaQueue.length; qi++) {
-      var qk = aaQueue[qi];
-      var w = aaWeights[qk] || 5;
-      totalWeight += w;
-      var qPill = document.getElementById('aaProg_' + qk);
-      if (qPill && qPill.className.indexOf('aa-pill-done') >= 0) {
-        doneWeight += w;
-      }
-    }
-    var donePct = (doneWeight / totalWeight) * 100;
-    _aaStopSmooth();
-    _aaSetProgress(donePct, _aaCompleted >= aaQueue.length ? 'All analyses complete!' : '');
+    // Update label with completed count
+    var labelEl = document.getElementById('aaProgressLabel');
+    if (labelEl) labelEl.textContent = 'Analyzing data... ' + _aaCompleted + '/' + aaQueue.length;
+    var labelEl2 = document.getElementById('setupProgressLabel');
+    if (labelEl2 && setupAnalysisRunning) labelEl2.textContent = 'Analyzing data... ' + _aaCompleted + '/' + aaQueue.length;
 
     if (_aaCompleted >= aaQueue.length) {
       _aaOnAllDone();
     } else {
-      runNextAA(); // launch next available entity
+      runNextAA();
     }
   }
 
@@ -551,6 +450,7 @@ function _aaLaunchEntity(key) {
 function aaRunSimpleEntity(key, cb) {
   ajax(overviewUrl + String.fromCharCode(38) + 'entity=' + key + getDateFilterParam(), function(d) {
     if (d) renderEntityOverview(key, d);
+    _aaStepDone();
     var rs = document.getElementById(key + 'Results');
     var ab = document.getElementById(key + 'AnalyzeBtn');
     var eb = document.getElementById(key + 'ExportBtn');
@@ -568,6 +468,7 @@ function aaRunMomentumEntity(key, cb) {
 
   function checkDone() {
     loadsDone++;
+    _aaStepDone();
     if (loadsDone < totalLoads) return;
     // Render momentum
     if (typeof renderMomentum === 'function') renderMomentum(key, momentumData);
@@ -811,16 +712,14 @@ function launchDashboard() {
 
 var setupAnalysisRunning = false;
 
-function setupProgressUpdate(pct, status) {
+function setupProgressUpdate(pct) {
   if (!setupAnalysisRunning) return;
   var offset = 314.16 * (1 - pct / 100);
   var circBar = document.getElementById('setupCircleBar');
   var circPct = document.getElementById('setupCirclePercent');
-  var statusEl = document.getElementById('setupProgressStatus');
   var labelEl = document.getElementById('setupProgressLabel');
   if (circBar) circBar.setAttribute('stroke-dashoffset', offset);
   if (circPct) circPct.textContent = pct + P;
-  if (statusEl && status) statusEl.textContent = status;
   if (labelEl) labelEl.textContent = 'Analyzing data... ' + _aaCompleted + '/' + aaQueue.length;
 }
 
@@ -828,11 +727,9 @@ function setupAnalysisComplete() {
   setupAnalysisRunning = false;
   var circBar = document.getElementById('setupCircleBar');
   var circPct = document.getElementById('setupCirclePercent');
-  var statusEl = document.getElementById('setupProgressStatus');
   var labelEl = document.getElementById('setupProgressLabel');
   if (circBar) circBar.setAttribute('stroke-dashoffset', '0');
   if (circPct) circPct.textContent = '100' + P;
-  if (statusEl) statusEl.textContent = 'Complete!';
   if (labelEl) labelEl.textContent = 'Analysis complete';
   setTimeout(function() {
     var overlay = document.getElementById('setupScreen');
