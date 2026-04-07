@@ -291,20 +291,9 @@ function startAnalyzeAll() {
   _aaTotalSteps = 0;
   for (var si = 0; si < aaQueue.length; si++) _aaTotalSteps += _aaEntitySteps(aaQueue[si]);
 
-  // Elapsed timer
+  // Track start time for done label
   _aaStartTime = Date.now();
   if (_aaElapsedTimer) clearInterval(_aaElapsedTimer);
-  var elapsedEl = document.getElementById('aaElapsed');
-  var elapsedEl2 = document.getElementById('setupElapsed');
-  if (elapsedEl) elapsedEl.textContent = '0s';
-  if (elapsedEl2) elapsedEl2.textContent = '0s';
-  _aaElapsedTimer = setInterval(function() {
-    var s = Math.round((Date.now() - _aaStartTime) / 1000);
-    var e1 = document.getElementById('aaElapsed');
-    var e2 = document.getElementById('setupElapsed');
-    if (e1) e1.textContent = s + 's';
-    if (e2 && setupAnalysisRunning) e2.textContent = s + 's';
-  }, 1000);
 
   aaIdx = 0;
   runNextAA();
@@ -330,9 +319,9 @@ var _aaAnimCurrent = 0;
 var _aaAnimRAF = null;
 
 function _aaAnimateCounter() {
-  if (_aaAnimCurrent < _aaAnimTarget) {
-    _aaAnimCurrent += Math.max(1, (_aaAnimTarget - _aaAnimCurrent) * 0.25);
-    if (_aaAnimCurrent > _aaAnimTarget) _aaAnimCurrent = _aaAnimTarget;
+  var diff = _aaAnimTarget - _aaAnimCurrent;
+  if (diff > 0.5) {
+    _aaAnimCurrent += diff * 0.08; // gentle ease-out
     var v = Math.round(_aaAnimCurrent);
     var circPct = document.getElementById('aaCirclePercent');
     if (circPct) circPct.textContent = v + P;
@@ -340,6 +329,12 @@ function _aaAnimateCounter() {
     if (circPct2 && setupAnalysisRunning) circPct2.textContent = v + P;
     _aaAnimRAF = requestAnimationFrame(_aaAnimateCounter);
   } else {
+    _aaAnimCurrent = _aaAnimTarget;
+    var v2 = Math.round(_aaAnimCurrent);
+    var circPct = document.getElementById('aaCirclePercent');
+    if (circPct) circPct.textContent = v2 + P;
+    var circPct2 = document.getElementById('setupCirclePercent');
+    if (circPct2 && setupAnalysisRunning) circPct2.textContent = v2 + P;
     _aaAnimRAF = null;
   }
 }
@@ -360,8 +355,9 @@ function _aaSetProgress(pct) {
 
 function _aaStepDone() {
   _aaDoneSteps++;
-  if (_aaDoneSteps > _aaTotalSteps) _aaDoneSteps = _aaTotalSteps; // cap at 100%
+  if (_aaDoneSteps > _aaTotalSteps) _aaDoneSteps = _aaTotalSteps;
   var pct = _aaTotalSteps > 0 ? (_aaDoneSteps / _aaTotalSteps) * 100 : 0;
+  if (pct > 99) pct = 99; // only _aaOnAllDone sets 100%
   _aaSetProgress(pct);
 }
 
@@ -373,7 +369,7 @@ var _aaStartTime = 0;
 
 function _aaOnAllDone() {
   _aaSetProgress(100);
-  // Stop elapsed timer
+  // Stop timer
   if (_aaElapsedTimer) { clearInterval(_aaElapsedTimer); _aaElapsedTimer = null; }
   var elapsed = Math.round((Date.now() - _aaStartTime) / 1000);
 
@@ -395,11 +391,6 @@ function _aaOnAllDone() {
     var labelEl2 = document.getElementById('setupProgressLabel');
     if (labelEl2 && setupAnalysisRunning) labelEl2.textContent = 'Analysis complete \u00B7 ' + elapsed + 's';
 
-    // Hide elapsed since it's now in the label
-    var e1 = document.getElementById('aaElapsed');
-    var e2 = document.getElementById('setupElapsed');
-    if (e1) e1.style.display = 'none';
-    if (e2) e2.style.display = 'none';
   }, 400);
 
   // Transition to dashboard after delay
