@@ -321,8 +321,9 @@ var _aaAnimRAF = null;
 function _aaAnimateCounter() {
   var diff = _aaAnimTarget - _aaAnimCurrent;
   if (diff > 0.5) {
-    _aaAnimCurrent += diff * 0.08; // gentle ease-out
+    _aaAnimCurrent += diff * 0.08;
     var v = Math.round(_aaAnimCurrent);
+    if (_aaCompleted < aaQueue.length && v > 99) v = 99; // never show 100 until all entities done
     var circPct = document.getElementById('aaCirclePercent');
     if (circPct) circPct.textContent = v + P;
     var circPct2 = document.getElementById('setupCirclePercent');
@@ -331,6 +332,7 @@ function _aaAnimateCounter() {
   } else {
     _aaAnimCurrent = _aaAnimTarget;
     var v2 = Math.round(_aaAnimCurrent);
+    if (_aaCompleted < aaQueue.length && v2 > 99) v2 = 99;
     var circPct = document.getElementById('aaCirclePercent');
     if (circPct) circPct.textContent = v2 + P;
     var circPct2 = document.getElementById('setupCirclePercent');
@@ -373,18 +375,37 @@ function _aaOnAllDone() {
   if (_aaElapsedTimer) { clearInterval(_aaElapsedTimer); _aaElapsedTimer = null; }
   var elapsed = Math.round((Date.now() - _aaStartTime) / 1000);
 
-  // Show "done" state: checkmark replaces percentage, label changes
+  // Show "done" state: replace percentage text with a subtle checkmark inside existing circle
   setTimeout(function() {
-    // Replace circle content with checkmark
-    var checkSvg = '<svg width="120" height="120" viewBox="0 0 120 120" shape-rendering="geometricPrecision">'
-      + '<circle cx="60" cy="60" r="50" fill="none" stroke="#e0ddd5" stroke-width="7"/>'
-      + '<circle cx="60" cy="60" r="50" fill="none" stroke="#0F6E56" stroke-width="7" stroke-dasharray="314.16" stroke-dashoffset="0" transform="rotate(-90 60 60)" style="transition:stroke .3s ease"/>'
-      + '<polyline points="40,62 54,76 80,46" stroke="#0F6E56" stroke-width="6" fill="none" stroke-linecap="round" stroke-linejoin="round" class="aa-check-draw"/>'
-      + '</svg>';
-    var aaCircleWrap = document.getElementById('aaCircle');
-    if (aaCircleWrap) aaCircleWrap.outerHTML = checkSvg.replace('id="', 'id="aaCircle" ').replace('<svg ', '<svg id="aaCircleDone" ');
-    var setupCircleWrap = document.getElementById('setupCircle');
-    if (setupCircleWrap && setupAnalysisRunning) setupCircleWrap.outerHTML = checkSvg;
+    // Replace just the text element with a checkmark polyline (same weight as circle stroke)
+    var circPct = document.getElementById('aaCirclePercent');
+    if (circPct) {
+      var ns = 'http://www.w3.org/2000/svg';
+      var check = document.createElementNS(ns, 'polyline');
+      check.setAttribute('points', '44,62 54,72 76,48');
+      check.setAttribute('stroke', '#06423e');
+      check.setAttribute('stroke-width', '5');
+      check.setAttribute('fill', 'none');
+      check.setAttribute('stroke-linecap', 'round');
+      check.setAttribute('stroke-linejoin', 'round');
+      check.setAttribute('class', 'aa-check-draw');
+      circPct.parentNode.appendChild(check);
+      circPct.remove();
+    }
+    var circPct2 = document.getElementById('setupCirclePercent');
+    if (circPct2 && setupAnalysisRunning) {
+      var ns2 = 'http://www.w3.org/2000/svg';
+      var check2 = document.createElementNS(ns2, 'polyline');
+      check2.setAttribute('points', '44,62 54,72 76,48');
+      check2.setAttribute('stroke', '#06423e');
+      check2.setAttribute('stroke-width', '5');
+      check2.setAttribute('fill', 'none');
+      check2.setAttribute('stroke-linecap', 'round');
+      check2.setAttribute('stroke-linejoin', 'round');
+      check2.setAttribute('class', 'aa-check-draw');
+      circPct2.parentNode.appendChild(check2);
+      circPct2.remove();
+    }
 
     var labelEl = document.getElementById('aaProgressLabel');
     if (labelEl) labelEl.textContent = 'Analysis complete \u00B7 ' + elapsed + 's';
@@ -790,6 +811,7 @@ var setupAnalysisRunning = false;
 
 function setupProgressUpdate(pct) {
   if (!setupAnalysisRunning) return;
+  if (_aaCompleted < aaQueue.length && pct > 99) pct = 99;
   var offset = 314.16 * (1 - pct / 100);
   var circBar = document.getElementById('setupCircleBar');
   var circPct = document.getElementById('setupCirclePercent');
