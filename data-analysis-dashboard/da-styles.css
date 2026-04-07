@@ -462,12 +462,15 @@
     .aa-done-banner{text-align:center;margin-bottom:16px;padding:20px;background:var(--so-white);border:1px solid var(--so-border);border-radius:10px}
     .aa-done-banner h3{justify-content:center;margin-bottom:4px}
     .aa-done-banner p{color:#888;margin:0;font-size:.85rem}
-    .aa-pill{display:inline-flex;align-items:center;gap:6px;padding:5px 10px;background:#fff;border-radius:20px;border:0.5px solid #d3d1c7;font-size:12px;color:#444441;transition:all .3s ease}
+    .aa-pill{display:inline-flex;align-items:center;gap:6px;padding:5px 10px;background:#fff;border-radius:20px;border:0.5px solid #d3d1c7;font-size:12px;color:#444441;transition:all .4s ease,opacity .4s ease,transform .3s ease}
     .aa-pill-icon{display:flex;align-items:center;line-height:0}
-    .aa-pill-pending{opacity:.6}
+    .aa-pill-pending{opacity:.5}
     .aa-pill-pending span:last-child{color:#B4B2A9}
-    .aa-pill-loading{opacity:1}
-    .aa-pill-done{opacity:1}
+    .aa-pill-loading{opacity:1;border-color:#06423e;background:#f0f9f7}
+    .aa-pill-done{opacity:1;border-color:#0F6E56;transform:scale(1)}
+    @keyframes aa-check-draw{from{stroke-dashoffset:60}to{stroke-dashoffset:0}}
+    .aa-check-draw{stroke-dasharray:60;stroke-dashoffset:0;animation:aa-check-draw .5s ease forwards}
+    .aa-elapsed{font-size:12px;color:#8a877f;margin-top:4px;margin-bottom:12px;font-variant-numeric:tabular-nums}
 
     /* === DQ SCORE BANNER === */
     .dq-score-banner{display:flex;align-items:center;gap:24px;padding:24px 28px;margin-bottom:20px;background:var(--so-white);border:1px solid var(--so-border);border-radius:12px;box-shadow:0 1px 4px rgba(0,0,0,.06)}
