@@ -468,8 +468,8 @@
     .aa-pill-pending span:last-child{color:#B4B2A9}
     .aa-pill-loading{opacity:1;border-color:#06423e;background:#f0f9f7}
     .aa-pill-done{opacity:1;border-color:#0F6E56;transform:scale(1)}
-    @keyframes aa-check-draw{from{stroke-dashoffset:60}to{stroke-dashoffset:0}}
-    .aa-check-draw{stroke-dasharray:60;stroke-dashoffset:0;animation:aa-check-draw .5s ease forwards}
+    @keyframes aa-check-draw{from{stroke-dashoffset:48}to{stroke-dashoffset:0}}
+    .aa-check-draw{stroke-dasharray:48;stroke-dashoffset:48;animation:aa-check-draw .4s ease .1s forwards}
 
     /* === DQ SCORE BANNER === */
     .dq-score-banner{display:flex;align-items:center;gap:24px;padding:24px 28px;margin-bottom:20px;background:var(--so-white);border:1px solid var(--so-border);border-radius:12px;box-shadow:0 1px 4px rgba(0,0,0,.06)}
