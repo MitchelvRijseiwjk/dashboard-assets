@@ -384,7 +384,7 @@ function _aaOnAllDone() {
       var check = document.createElementNS(ns, 'polyline');
       check.setAttribute('points', '44,62 54,72 76,48');
       check.setAttribute('stroke', '#06423e');
-      check.setAttribute('stroke-width', '5');
+      check.setAttribute('stroke-width', '4');
       check.setAttribute('fill', 'none');
       check.setAttribute('stroke-linecap', 'round');
       check.setAttribute('stroke-linejoin', 'round');
@@ -398,7 +398,7 @@ function _aaOnAllDone() {
       var check2 = document.createElementNS(ns2, 'polyline');
       check2.setAttribute('points', '44,62 54,72 76,48');
       check2.setAttribute('stroke', '#06423e');
-      check2.setAttribute('stroke-width', '5');
+      check2.setAttribute('stroke-width', '4');
       check2.setAttribute('fill', 'none');
       check2.setAttribute('stroke-linecap', 'round');
       check2.setAttribute('stroke-linejoin', 'round');
