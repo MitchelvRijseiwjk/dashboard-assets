@@ -254,31 +254,34 @@ function startAnalyzeAll() {
   progScreen.style.display = '';
 
   var listHtml = '';
+  var svgPending = '<svg width="14" height="14" viewBox="0 0 14 14"><circle cx="7" cy="7" r="6" fill="none" stroke="#d3d1c7" stroke-width="1.5"/></svg>';
   for (var j = 0; j < aaQueue.length; j++) {
-    listHtml += '<div class="aa-progress-item" id="aaProg_' + aaQueue[j] + '">';
+    listHtml += '<div class="aa-pill aa-pill-pending" id="aaProg_' + aaQueue[j] + '">';
+    listHtml += '<span class="aa-pill-icon" id="aaIco_' + aaQueue[j] + '">' + svgPending + '</span>';
     listHtml += '<span>' + aaEntityNames[aaQueue[j]] + '</span>';
-    listHtml += '<span class="aa-status aa-status-pending" id="aaSt_' + aaQueue[j] + '">Pending</span>';
     listHtml += '</div>';
   }
   document.getElementById('aaEntityList').innerHTML = listHtml;
-  // Mirror entity list to setup screen (with different IDs)
+  // Mirror entity list to setup screen
   var setupList = document.getElementById('setupEntityList');
   if (setupList) {
     var setupHtml = '';
     for (var j = 0; j < aaQueue.length; j++) {
-      setupHtml += '<div class="aa-progress-item">';
+      setupHtml += '<div class="aa-pill aa-pill-pending" id="setupProg_' + aaQueue[j] + '">';
+      setupHtml += '<span class="aa-pill-icon" id="setupIco_' + aaQueue[j] + '">' + svgPending + '</span>';
       setupHtml += '<span>' + aaEntityNames[aaQueue[j]] + '</span>';
-      setupHtml += '<span class="aa-status aa-status-pending" id="setupSt_' + aaQueue[j] + '">Pending</span>';
       setupHtml += '</div>';
     }
     setupList.innerHTML = setupHtml;
   }
 
-  // Initialize progress bar and parallel counters
-  var aaBar = document.getElementById('aaProgressBar');
-  if (aaBar) { aaBar.style.width = '0'; aaBar.classList.add('loading'); }
-  var aaPctEl = document.getElementById('aaProgressPercent');
-  if (aaPctEl) aaPctEl.textContent = '0' + P;
+  // Initialize SVG circle
+  var circBar = document.getElementById('aaCircleBar');
+  var circPct = document.getElementById('aaCirclePercent');
+  if (circBar) circBar.setAttribute('stroke-dashoffset', '314.16');
+  if (circPct) circPct.textContent = '0' + P;
+  var labelEl = document.getElementById('aaProgressLabel');
+  if (labelEl) labelEl.textContent = 'Analyzing data... 0/' + aaQueue.length;
   _aaCurrentPct = 0;
   _aaCompleted = 0;
   _aaRunning = 0;
@@ -298,15 +301,18 @@ var _aaFakeTimer = null;
 var _aaCurrentPct = 0;
 
 function _aaSetProgress(pct, status) {
-  // Never go backward
   if (pct < _aaCurrentPct) pct = _aaCurrentPct;
   _aaCurrentPct = pct;
-  var bar = document.getElementById('aaProgressBar');
-  var pctEl = document.getElementById('aaProgressPercent');
+  var offset = 314.16 * (1 - pct / 100);
+  // Analyze All screen
+  var circBar = document.getElementById('aaCircleBar');
+  var circPct = document.getElementById('aaCirclePercent');
   var statusEl = document.getElementById('aaProgressStatus');
-  if (bar) bar.style.width = pct + P;
-  if (pctEl) pctEl.textContent = Math.round(pct) + P;
+  var labelEl = document.getElementById('aaProgressLabel');
+  if (circBar) circBar.setAttribute('stroke-dashoffset', offset);
+  if (circPct) circPct.textContent = Math.round(pct) + P;
   if (statusEl && status) statusEl.textContent = status;
+  if (labelEl) labelEl.textContent = 'Analyzing data... ' + _aaCompleted + '/' + aaQueue.length;
   setupProgressUpdate(Math.round(pct), status);
 }
 
@@ -319,10 +325,11 @@ function _aaStartSmooth(targetPct, status) {
       var remaining = maxPct - _aaCurrentPct;
       var increment = Math.max(0.15, remaining * 0.04);
       _aaCurrentPct = Math.min(_aaCurrentPct + increment, maxPct);
-      var bar = document.getElementById('aaProgressBar');
-      var pctEl = document.getElementById('aaProgressPercent');
-      if (bar) bar.style.width = _aaCurrentPct + P;
-      if (pctEl) pctEl.textContent = Math.round(_aaCurrentPct) + P;
+      var offset = 314.16 * (1 - _aaCurrentPct / 100);
+      var circBar = document.getElementById('aaCircleBar');
+      var circPct = document.getElementById('aaCirclePercent');
+      if (circBar) circBar.setAttribute('stroke-dashoffset', offset);
+      if (circPct) circPct.textContent = Math.round(_aaCurrentPct) + P;
       setupProgressUpdate(Math.round(_aaCurrentPct), '');
     }
   }, 120);
@@ -358,19 +365,18 @@ function _aaUpdateCombinedStatus() {
   var parts = [];
   for (var k in _aaStatusTexts) { parts.push(_aaStatusTexts[k]); }
   var combined = parts.join('  |  ');
-  var bar = document.getElementById('aaProgressBar');
-  var pctEl = document.getElementById('aaProgressPercent');
+  var offset = 314.16 * (1 - _aaCurrentPct / 100);
+  var circBar = document.getElementById('aaCircleBar');
+  var circPct = document.getElementById('aaCirclePercent');
   var statusEl = document.getElementById('aaProgressStatus');
-  var pct = _aaCurrentPct;
-  if (bar) bar.style.width = pct + P;
-  if (pctEl) pctEl.textContent = Math.round(pct) + P;
+  if (circBar) circBar.setAttribute('stroke-dashoffset', offset);
+  if (circPct) circPct.textContent = Math.round(_aaCurrentPct) + P;
   if (statusEl && combined) statusEl.textContent = combined;
-  setupProgressUpdate(Math.round(pct), combined);
+  setupProgressUpdate(Math.round(_aaCurrentPct), combined);
 }
 
 function _aaOnAllDone() {
   _aaStopSmooth();
-  document.getElementById('aaProgressBar').classList.remove('loading');
   _aaSetProgress(100, 'All analyses complete!');
   setTimeout(function() {
     // Auto-populate standalone Extra Tables tab from cache
@@ -435,8 +441,8 @@ function runNextAA() {
     var qk = aaQueue[qi];
     var w = aaWeights[qk] || 5;
     totalWeight += w;
-    var qStEl = document.getElementById('aaSt_' + qk);
-    if (qStEl && (qStEl.textContent === 'Done' || qStEl.textContent === 'Loading...')) {
+    var qPill = document.getElementById('aaProg_' + qk);
+    if (qPill && (qPill.className.indexOf('aa-pill-done') >= 0 || qPill.className.indexOf('aa-pill-loading') >= 0)) {
       potentialWeight += w;
     }
   }
@@ -449,13 +455,27 @@ function _aaLaunchEntity(key) {
   var range = _aaRanges[key];
   var entityName = aaEntityNames[key];
 
-  var stEl = document.getElementById('aaSt_' + key);
-  var stEl2 = document.getElementById('setupSt_' + key);
-  function setEntityStatus(cls, txt) {
-    if (stEl) { stEl.className = cls; stEl.textContent = txt; }
-    if (stEl2) { stEl2.className = cls; stEl2.textContent = txt; }
+  var svgLoading = '<svg width="14" height="14" viewBox="0 0 14 14"><circle cx="7" cy="7" r="6" fill="none" stroke="#06423e" stroke-width="1.5"/><circle cx="7" cy="7" r="2" fill="#06423e"><animate attributeName="opacity" values="1;0.3;1" dur="1.2s" repeatCount="indefinite"/></circle></svg>';
+  var svgDone = '<svg width="14" height="14" viewBox="0 0 14 14"><circle cx="7" cy="7" r="6" fill="#0F6E56"/><polyline points="4,7 6.2,9.2 10,5" stroke="#fff" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+
+  var pillEl = document.getElementById('aaProg_' + key);
+  var icoEl = document.getElementById('aaIco_' + key);
+  var pillEl2 = document.getElementById('setupProg_' + key);
+  var icoEl2 = document.getElementById('setupIco_' + key);
+  function setEntityStatus(state) {
+    if (state === 'loading') {
+      if (pillEl) pillEl.className = 'aa-pill aa-pill-loading';
+      if (icoEl) icoEl.innerHTML = svgLoading;
+      if (pillEl2) pillEl2.className = 'aa-pill aa-pill-loading';
+      if (icoEl2) icoEl2.innerHTML = svgLoading;
+    } else if (state === 'done') {
+      if (pillEl) pillEl.className = 'aa-pill aa-pill-done';
+      if (icoEl) icoEl.innerHTML = svgDone;
+      if (pillEl2) pillEl2.className = 'aa-pill aa-pill-done';
+      if (icoEl2) icoEl2.innerHTML = svgDone;
+    }
   }
-  setEntityStatus('aa-status aa-status-loading', 'Loading...');
+  setEntityStatus('loading');
 
   // Capture filter params synchronously BEFORE any async calls
   captureEntityFilter(key);
@@ -467,7 +487,7 @@ function _aaLaunchEntity(key) {
     pending['overview'] = 'overview';
     if (ec.udefId > 0) pending['fields'] = 'extra fields';
     if (ec.hasTicketFields) pending['tfields'] = 'ticket fields';
-    if (key === 'company') { pending['details'] = 'details'; }
+    if (key === 'company') { pending['core'] = 'activity health'; pending['quality'] = 'quality analysis'; pending['assoc'] = 'associate breakdown'; }
     pending['tables'] = 'tables';
   } else {
     pending['overview'] = 'overview';
@@ -494,7 +514,7 @@ function _aaLaunchEntity(key) {
     _aaRunning--;
     _aaCompleted++;
     delete _aaStatusTexts[key];
-    setEntityStatus('aa-status aa-status-done', 'Done');
+    setEntityStatus('done');
 
     // Update progress: percentage = completed weight / total weight
     var totalWeight = 0;
@@ -503,8 +523,8 @@ function _aaLaunchEntity(key) {
       var qk = aaQueue[qi];
       var w = aaWeights[qk] || 5;
       totalWeight += w;
-      var qStEl = document.getElementById('aaSt_' + qk);
-      if (qStEl && qStEl.textContent === 'Done') {
+      var qPill = document.getElementById('aaProg_' + qk);
+      if (qPill && qPill.className.indexOf('aa-pill-done') >= 0) {
         doneWeight += w;
       }
     }
@@ -595,7 +615,7 @@ function aaRunFullEntity(key, cb, markStepDone) {
   var totalSteps = 1; // overview always
   if (ec.udefId > 0) totalSteps++;
   if (ec.hasTicketFields) totalSteps++;
-  if (hasDetails) totalSteps++; // details (includes funnel now)
+  if (hasDetails) totalSteps += 3; // core + quality + detail
   totalSteps++; // extra tables always
 
   var completed = 0;
@@ -611,7 +631,6 @@ function aaRunFullEntity(key, cb, markStepDone) {
       if (st2) st2.style.display = '';
       if (ab) ab.textContent = 'Re-analyze';
       if (eb) eb.style.display = '';
-      // Compute and render scores once all data is loaded
       if (typeof renderDQScore === 'function') renderDQScore(key);
       if (typeof renderScoreBanner === 'function') renderScoreBanner(key);
       if (typeof renderAdoptionTab === 'function') renderAdoptionTab(key);
@@ -636,12 +655,50 @@ function aaRunFullEntity(key, cb, markStepDone) {
     });
   }
 
-  // === PARALLEL 3: Company Details + funnel (company only) ===
+  // === PARALLEL 3: Company Core + Quality + Detail (3 scripts) ===
   if (hasDetails) {
-    loadCompanyDetails(function() {
-      // Funnel is now included in detail response — render it
-      if (typeof loadCompanyCross === 'function') loadCompanyCross(null);
-      stepDone('details');
+    var catParam = '';
+    if (companyDetailCatValue) {
+      catParam = String.fromCharCode(38) + 'categoryName=' + encodeURIComponent(companyDetailCatValue);
+    }
+    if (!companyDetailData) companyDetailData = {};
+
+    // 3a: CompanyCoreFetch (~6s)
+    ajax(coreUrl + dfParam + catParam, function(d) {
+      if (d) {
+        if (d.activityHealth) companyDetailData.activityHealth = d.activityHealth;
+        if (d.trend) companyDetailData.trend = d.trend;
+        if (d.trendMonthly) companyDetailData.trendMonthly = d.trendMonthly;
+        if (d.trendBefore !== undefined) companyDetailData.trendBefore = d.trendBefore;
+      }
+      if (typeof renderCompanyDetails === 'function') renderCompanyDetails(companyDetailData);
+      stepDone('core');
+    });
+
+    // 3b: CompanyQualityFetch (~5s)
+    ajax(qualityUrl + dfParam + catParam, function(d) {
+      if (d) {
+        if (d.quality) companyDetailData.quality = d.quality;
+        if (d.funnel) companyDetailData.funnel = d.funnel;
+        if (d.churnRisk) companyDetailData.churnRisk = d.churnRisk;
+      }
+      if (companyDetailData.funnel) {
+        companyCrossData = companyDetailData;
+        if (typeof renderCrossEntityFunnel === 'function') renderCrossEntityFunnel(companyDetailData);
+      }
+      if (typeof renderCompanyDetails === 'function') renderCompanyDetails(companyDetailData);
+      if (typeof renderDQScore === 'function') renderDQScore('company');
+      stepDone('quality');
+    });
+
+    // 3c: CompanyDetailFetch (~25s)
+    ajax(detailUrl + dfParam + catParam, function(d) {
+      if (d) {
+        if (d.associates) companyDetailData.associates = d.associates;
+        if (d.categoryEffectiveness) companyDetailData.categoryEffectiveness = d.categoryEffectiveness;
+      }
+      if (typeof renderCompanyDetails === 'function') renderCompanyDetails(companyDetailData);
+      stepDone('assoc');
     });
   }
 
@@ -757,22 +814,27 @@ var setupAnalysisRunning = false;
 
 function setupProgressUpdate(pct, status) {
   if (!setupAnalysisRunning) return;
-  var bar = document.getElementById('setupProgressBar');
-  var pctEl = document.getElementById('setupProgressPercent');
+  var offset = 314.16 * (1 - pct / 100);
+  var circBar = document.getElementById('setupCircleBar');
+  var circPct = document.getElementById('setupCirclePercent');
   var statusEl = document.getElementById('setupProgressStatus');
-  if (bar) bar.style.width = pct + '%';
-  if (pctEl) pctEl.textContent = pct + '%';
+  var labelEl = document.getElementById('setupProgressLabel');
+  if (circBar) circBar.setAttribute('stroke-dashoffset', offset);
+  if (circPct) circPct.textContent = pct + P;
   if (statusEl && status) statusEl.textContent = status;
+  if (labelEl) labelEl.textContent = 'Analyzing data... ' + _aaCompleted + '/' + aaQueue.length;
 }
 
 function setupAnalysisComplete() {
   setupAnalysisRunning = false;
-  var pctEl = document.getElementById('setupProgressPercent');
+  var circBar = document.getElementById('setupCircleBar');
+  var circPct = document.getElementById('setupCirclePercent');
   var statusEl = document.getElementById('setupProgressStatus');
-  var bar = document.getElementById('setupProgressBar');
-  if (pctEl) pctEl.textContent = '100%';
-  if (bar) bar.style.width = '100%';
+  var labelEl = document.getElementById('setupProgressLabel');
+  if (circBar) circBar.setAttribute('stroke-dashoffset', '0');
+  if (circPct) circPct.textContent = '100' + P;
   if (statusEl) statusEl.textContent = 'Complete!';
+  if (labelEl) labelEl.textContent = 'Analysis complete';
   setTimeout(function() {
     var overlay = document.getElementById('setupScreen');
     overlay.classList.add('hiding');
