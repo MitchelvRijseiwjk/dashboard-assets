@@ -653,19 +653,26 @@
     .hc-scorecard{background:var(--so-white);border:1px solid var(--so-border);border-radius:12px;padding:24px 26px;margin-bottom:8px;box-shadow:0 2px 12px rgba(0,0,0,.04)}
     .hc-sc-top{display:flex;align-items:center;gap:20px;padding-bottom:22px;border-bottom:1px solid var(--so-dune);margin-bottom:22px}
     .hc-ring-big{width:96px;height:96px;border-radius:50%;display:flex;align-items:center;justify-content:center;position:relative;flex-shrink:0;background:conic-gradient(var(--ho-st) calc(var(--score) * 1%),var(--so-dune) 0)}
-    .hc-ring-big::before{content:"";position:absolute;width:74px;height:74px;background:var(--so-white);border-radius:50%}
+    .hc-ring-big::before{content:"";position:absolute;width:78px;height:78px;background:var(--so-white);border-radius:50%}
     .hc-ring-num{position:relative;font-size:1.6rem;font-weight:500;letter-spacing:-.01em;color:var(--so-charcoal)}
     .hc-ring-num sup{font-size:.5em;font-weight:400;vertical-align:.4em;margin-left:1px}
     .hc-sc-summary{flex:1;min-width:0}
     .hc-sc-h{font-size:1.05rem;font-weight:600;margin:0 0 4px;color:var(--so-charcoal)}
     .hc-sc-meta{font-size:.78rem;color:var(--so-text-muted);margin:0;line-height:1.5}
+    /* Hero — usage / account column on the right */
+    .hc-sc-divider{width:1px;background:var(--so-border);align-self:stretch;flex-shrink:0;margin:0 22px}
+    .hc-sc-usage{flex-shrink:0;min-width:170px}
+    .hc-sc-usage-h{font-size:.66rem;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--so-text-muted);margin-bottom:8px}
+    .hc-sc-usage-list{list-style:none;margin:0;padding:0;font-size:.8rem;color:var(--so-charcoal);line-height:1.7}
+    .hc-sc-usage-list b{font-weight:700;color:var(--so-green)}
+    .hc-sc-u-muted{color:var(--so-text-muted);font-size:.74rem}
     .hc-sc-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
 
     /* ---- Mini dimension card ---- */
     .hc-dim-card{border:1px solid var(--so-border);border-radius:8px;padding:14px 16px;display:flex;align-items:flex-start;gap:14px;cursor:pointer;text-decoration:none;color:inherit;transition:background .12s,border-color .12s}
     .hc-dim-card:hover{background:#fafaf8;border-color:#ccc7c0}
-    .hc-ring-sm{width:78px;height:78px;border-radius:50%;display:flex;align-items:center;justify-content:center;position:relative;flex-shrink:0;background:conic-gradient(var(--ho-st) calc(var(--score) * 1%),var(--so-dune) 0)}
-    .hc-ring-sm::before{content:"";position:absolute;width:56px;height:56px;background:var(--so-white);border-radius:50%}
+    .hc-ring-sm{width:76px;height:76px;border-radius:50%;display:flex;align-items:center;justify-content:center;position:relative;flex-shrink:0;background:conic-gradient(var(--ho-st) calc(var(--score) * 1%),var(--so-dune) 0)}
+    .hc-ring-sm::before{content:"";position:absolute;width:58px;height:58px;background:var(--so-white);border-radius:50%}
     .hc-ring-sm span{position:relative;font-size:1.4rem;font-weight:600;letter-spacing:-.01em;color:var(--ho-st)}
     .hc-dim-info{flex:1;min-width:0}
     .hc-dim-name{font-size:1rem;font-weight:600;color:var(--so-charcoal);line-height:1.2;margin-bottom:8px}
@@ -680,6 +687,10 @@
     .hc-trend-good{color:var(--sl-good)}
     .hc-trend-bad{color:var(--sl-bad)}
     .hc-sc-h .hc-trend{font-size:.7rem;margin-left:8px;vertical-align:middle}
+    /* Block trend line — own row in dim-stats list, explicit period text */
+    .hc-trend-line{font-size:.74rem;font-weight:500;display:flex;align-items:center;gap:4px;margin-top:1px}
+    .hc-trend-line.hc-trend-good{color:var(--sl-good)}
+    .hc-trend-line.hc-trend-bad{color:var(--sl-bad)}
 
     /* ---- TOP FOCUS AREAS (collapsible) ---- */
     .hc-fa{background:var(--so-white);border:1px solid var(--so-border);border-radius:12px;box-shadow:0 2px 12px rgba(0,0,0,.04);overflow:hidden}
@@ -776,6 +787,8 @@
     /* ---- Compact / mobile ---- */
     @media (max-width: 1024px){
       .hc-sc-cards{grid-template-columns:repeat(2,1fr)}
+      .hc-sc-divider{display:none}
+      .hc-sc-usage{border-top:1px solid var(--so-dune);padding-top:14px;margin-top:14px;width:100%}
       .hc-step-desc{display:none}
     }
     @media (max-width: 720px){
