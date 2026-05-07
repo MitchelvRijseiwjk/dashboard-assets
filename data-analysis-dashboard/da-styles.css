@@ -638,7 +638,55 @@
     /* Hairline between the top-level Health Check nav-item and the Entities section below it */
     .nav-divider{height:1px;margin:8px 18px 0;background:rgba(255,255,255,.08)}
 
-    /* Step-1 placeholder — removed in step 2 when hero card is added */
-    .ho-step1-placeholder{max-width:820px;margin:24px auto 0;padding:28px;background:var(--so-white);border:1px dashed var(--so-border);border-radius:12px;text-align:center}
-    .ho-step1-title{font-size:.7rem;font-weight:500;letter-spacing:.08em;text-transform:uppercase;color:var(--so-text-muted);margin-bottom:8px}
-    .ho-step1-desc{font-size:.88rem;font-weight:400;line-height:1.55;color:var(--so-charcoal)}
+    /* Status palette for the Health Check page.
+       Driven by data-status on .ho-dim-row and .ho-ring.
+         good = above norm
+         ok   = below norm by <=10pp
+         bad  = below norm by >10pp */
+    .ho-hero [data-status="good"]{--ho-st:#61974e}
+    .ho-hero [data-status="ok"]  {--ho-st:#E89A3D}
+    .ho-hero [data-status="bad"] {--ho-st:#c62828}
+
+    /* Hero card container */
+    .ho-hero{background:var(--so-white);border:1px solid var(--so-border);border-radius:12px;padding:24px 28px;display:flex;align-items:center;gap:0;margin:0 auto 20px;max-width:1100px;box-shadow:0 2px 12px rgba(0,0,0,.04)}
+
+    /* Left side: overall ring + label */
+    .ho-hero-main{display:flex;flex-direction:column;align-items:center;gap:8px;padding-right:32px;flex-shrink:0;min-width:170px}
+    .ho-ring{--ho-st:var(--so-text-muted);width:118px;height:118px;border-radius:50%;background:conic-gradient(var(--ho-st) calc(var(--score)*1%),var(--so-dune-dark1) calc(var(--score)*1%));display:flex;align-items:center;justify-content:center;position:relative;flex-shrink:0}
+    .ho-ring::before{content:'';position:absolute;width:94px;height:94px;background:var(--so-white);border-radius:50%}
+    .ho-ring-val{position:relative;z-index:1;font-size:1.95rem;font-weight:500;color:var(--so-charcoal);letter-spacing:-.01em}
+    .ho-ring-val small{font-size:.5em;font-weight:400;margin-left:1px}
+    .ho-ring-lbl{font-size:.84rem;font-weight:500;color:var(--so-charcoal);text-align:center;margin-top:4px}
+    .ho-ring-sub{font-size:.72rem;font-weight:400;color:var(--so-text-muted);text-align:center}
+
+    /* Vertical separator */
+    .ho-hero-divider{width:1px;align-self:stretch;background:var(--so-border);flex-shrink:0}
+
+    /* Right side: dimension rows */
+    .ho-dim-list{flex:1;display:flex;flex-direction:column;padding-left:28px;min-width:0}
+    .ho-dim-row{display:flex;align-items:center;gap:16px;padding:12px 0}
+    .ho-dim-row+.ho-dim-row{border-top:1px solid var(--so-dune)}
+    .ho-dim-info{width:200px;flex-shrink:0;min-width:0}
+    .ho-dim-lbl{font-size:.92rem;font-weight:500;color:var(--so-charcoal);line-height:1.25}
+    .ho-dim-desc{font-size:.72rem;font-weight:400;color:var(--so-text-muted);margin-top:2px}
+    .ho-dim-val{font-size:1rem;font-weight:500;flex-shrink:0;width:48px;text-align:right;color:var(--ho-st)}
+
+    /* Two-layered norm bar.
+       - .ho-bar-fill: 0% to actual score, solid status colour
+       - .ho-bar-gap:  actual to norm, same colour at .4 opacity (only shown when below norm)
+       - rest is grey rail (.ho-bar background) */
+    .ho-bar{flex:1;position:relative;height:8px;background:var(--so-dune-dark1);border-radius:4px;overflow:hidden;min-width:120px}
+    .ho-bar-fill,.ho-bar-gap{position:absolute;top:0;bottom:0;background:var(--ho-st)}
+    .ho-bar-fill{left:0;opacity:1}
+    .ho-bar-gap{opacity:.4}
+
+    .ho-dim-norm{font-size:.72rem;font-weight:400;color:var(--so-text-muted);flex-shrink:0;width:64px;text-align:right;letter-spacing:.01em}
+
+    /* Compact layout below 1024px */
+    @media (max-width: 1024px){
+      .ho-hero{flex-direction:column;align-items:stretch}
+      .ho-hero-main{padding:0 0 18px;border-bottom:1px solid var(--so-dune);min-width:0}
+      .ho-hero-divider{display:none}
+      .ho-dim-list{padding:18px 0 0}
+      .ho-dim-info{width:160px}
+    }
