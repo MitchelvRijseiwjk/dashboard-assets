@@ -643,9 +643,9 @@
          good = above norm           --sl-good
          ok   = below norm <=10pp    --sl-ok
          bad  = below norm  >10pp    --sl-bad */
-    .ho-hero [data-status="good"],.ho-card[data-status="good"]{--ho-st:var(--sl-good)}
-    .ho-hero [data-status="ok"],  .ho-card[data-status="ok"]  {--ho-st:var(--sl-ok)}
-    .ho-hero [data-status="bad"], .ho-card[data-status="bad"] {--ho-st:var(--sl-bad)}
+    .ho-hero [data-status="good"],.ho-card[data-status="good"],.ho-focus-row[data-status="good"]{--ho-st:var(--sl-good)}
+    .ho-hero [data-status="ok"],  .ho-card[data-status="ok"],  .ho-focus-row[data-status="ok"]  {--ho-st:var(--sl-ok)}
+    .ho-hero [data-status="bad"], .ho-card[data-status="bad"], .ho-focus-row[data-status="bad"] {--ho-st:var(--sl-bad)}
 
     /* ---- Hero card (overall ring + 4 dimension rows) ---- */
     .ho-hero{background:var(--so-white);border:1px solid var(--so-border);border-radius:12px;padding:24px 28px;display:flex;align-items:center;gap:0;margin:0 0 20px;box-shadow:0 2px 12px rgba(0,0,0,.04)}
@@ -661,8 +661,6 @@
     .ho-dim-row{display:flex;align-items:center;gap:16px;padding:12px 0}
     .ho-dim-row+.ho-dim-row{border-top:1px solid var(--so-dune)}
     .ho-dim-info{width:200px;flex-shrink:0;min-width:0}
-    .ho-dim-lbl{font-size:.92rem;font-weight:500;color:var(--so-charcoal);line-height:1.25}
-    .ho-dim-desc{font-size:.72rem;font-weight:400;color:var(--so-text-muted);margin-top:2px}
     .ho-dim-val{font-size:1rem;font-weight:500;flex-shrink:0;width:48px;text-align:right;color:var(--ho-st)}
     .ho-dim-norm{font-size:.72rem;font-weight:400;color:var(--so-text-muted);flex-shrink:0;width:64px;text-align:right;letter-spacing:.01em}
 
@@ -679,7 +677,7 @@
     .ho-section-head{font-size:.7rem;font-weight:500;letter-spacing:.1em;text-transform:uppercase;color:var(--so-text-muted);padding:8px 0 12px}
 
     /* ---- 2x2 score cards grid ---- */
-    .ho-cards-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px}
+    .ho-cards-grid{display:grid;grid-template-columns:1fr;gap:16px;margin-bottom:20px}
 
     .ho-card{background:var(--so-white);border:1px solid var(--so-border);border-radius:12px;padding:18px 20px;display:flex;flex-direction:column;gap:14px;box-shadow:0 2px 12px rgba(0,0,0,.04)}
 
@@ -687,7 +685,8 @@
     .ho-card-head{display:flex;align-items:center;gap:10px}
     .ho-card-icon{width:30px;height:30px;background:var(--so-dune);border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0}
     .ho-card-icon img{width:16px;height:16px;opacity:.7}
-    .ho-card-title{font-size:.95rem;font-weight:500;color:var(--so-charcoal);flex:1;line-height:1.2}
+    /* Card head reuses .sb-row-lbl for title; this rule lets it grow inside the flex head */
+    .ho-card-head .sb-row-lbl{flex:1}
     /* Status pill — light tinted background of the status color, dark text */
     .ho-pill{font-size:.7rem;font-weight:500;padding:3px 10px;border-radius:200px;letter-spacing:.01em;color:var(--ho-st);background:color-mix(in srgb, var(--ho-st) 14%, transparent)}
 
@@ -700,11 +699,8 @@
     .ho-bar-wrap-card{margin:-2px 0 2px}
 
     /* Mini stats row: 3 stat blocks separated by hairlines */
-    .ho-stats{display:flex;align-items:stretch;gap:0;border-top:1px solid var(--so-dune);border-bottom:1px solid var(--so-dune);padding:10px 0}
-    .ho-stat{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;padding:0 4px;min-width:0}
-    .ho-stat+.ho-stat{border-left:1px solid var(--so-dune)}
-    .ho-stat-val{font-size:1.05rem;font-weight:500;color:var(--so-charcoal);line-height:1.1}
-    .ho-stat-lbl{font-size:.7rem;font-weight:400;color:var(--so-text-muted);text-align:center;line-height:1.2}
+    /* Stats row: 3 real .stat-card boxes side by side (matches Company entity overview) */
+    .ho-stats{display:flex;gap:10px}
 
     /* Recommendations (collapsible) */
     .ho-advice{font-size:.82rem}
@@ -725,6 +721,26 @@
     .ho-spark-range{font-size:.7rem;font-weight:400;color:var(--so-text-muted)}
     .ho-spark-svg{width:100%;height:40px;display:block}
 
+    /* ---- Top focus areas (numbered list of highest-priority issues) ---- */
+    .ho-focus{background:var(--so-white);border:1px solid var(--so-border);border-radius:12px;padding:6px 0;margin-bottom:20px;box-shadow:0 2px 12px rgba(0,0,0,.04)}
+    .ho-focus-row{display:flex;align-items:center;gap:16px;padding:14px 22px;text-decoration:none;color:inherit;cursor:pointer;transition:background .12s ease}
+    .ho-focus-row+.ho-focus-row{border-top:1px solid var(--so-dune)}
+    .ho-focus-row:hover{background:var(--so-bg)}
+    .ho-focus-num{flex-shrink:0;width:28px;height:28px;border-radius:50%;background:var(--so-dune);color:var(--so-charcoal);font-size:.82rem;font-weight:600;display:flex;align-items:center;justify-content:center}
+    .ho-focus-info{flex:1;min-width:0}
+    .ho-focus-title{font-size:.88rem;font-weight:500;color:var(--so-charcoal);line-height:1.3;margin-bottom:4px}
+    .ho-focus-meta{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+    .ho-focus-owner{font-size:.72rem;color:var(--so-text-muted);font-weight:400}
+    /* Severity pill — critical=red tint, important=orange tint */
+    .ho-pill-sev{font-size:.66rem;color:#791f1f;background:#fcebeb;padding:2px 9px;border-radius:200px;font-weight:600;letter-spacing:.01em}
+    .ho-pill-sev-imp{color:#854f0b;background:#faeeda}
+    /* Right side: tiny norm-vs-actual bar */
+    .ho-focus-bar{flex-shrink:0;width:200px;display:flex;flex-direction:column;gap:5px}
+    .ho-focus-bar-vals{display:flex;justify-content:space-between;font-size:.72rem;line-height:1}
+    .ho-focus-actual{color:var(--ho-st);font-weight:600}
+    .ho-focus-norm{color:var(--so-text-muted);font-weight:400}
+    .ho-focus-chev{flex-shrink:0;color:var(--so-text-muted);display:flex;align-items:center}
+
     /* Compact layout */
     @media (max-width: 1024px){
       .ho-hero{flex-direction:column;align-items:stretch}
@@ -732,5 +748,11 @@
       .ho-hero-divider{display:none}
       .ho-dim-list{padding:18px 0 0}
       .ho-dim-info{width:160px}
-      .ho-cards-grid{grid-template-columns:1fr}
+      .ho-focus-bar{width:140px}
+    }
+    @media (max-width: 720px){
+      .ho-stats{flex-direction:column}
+      .ho-focus-row{flex-wrap:wrap}
+      .ho-focus-bar{width:100%;order:3}
+      .ho-focus-chev{display:none}
     }
