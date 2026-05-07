@@ -634,6 +634,9 @@
     .sm-select:focus{outline:none;border-color:var(--so-green)}
 
     /* === HEALTH CHECK PAGE (executive overview) === */
+    /* Cap the Health Check page at a comfortable scan width on wide screens */
+    #tab-health{max-width:1400px;margin:0 auto}
+
     /* Status palette (shared by rings, dim cards, focus rows) */
     .hc-scorecard [data-status="good"],
     .hc-dim-card[data-status="good"]{--ho-st:var(--sl-good)}
@@ -650,8 +653,8 @@
     .hc-section-head:first-child{margin-top:0}
 
     /* ---- SCORECARD ---- */
-    .hc-scorecard{background:var(--so-white);border:1px solid var(--so-border);border-radius:12px;padding:24px 26px;margin-bottom:8px;box-shadow:0 2px 12px rgba(0,0,0,.04)}
-    .hc-sc-top{display:flex;align-items:center;gap:20px;padding-bottom:22px;border-bottom:1px solid var(--so-dune);margin-bottom:22px}
+    .hc-scorecard{background:var(--so-white);border:1px solid var(--so-border);border-radius:12px;margin-bottom:8px;box-shadow:0 2px 12px rgba(0,0,0,.04);overflow:hidden}
+    .hc-sc-top{display:flex;align-items:center;gap:20px;padding:24px 26px 22px;border-bottom:1px solid var(--so-dune)}
     .hc-ring-big{width:96px;height:96px;border-radius:50%;display:flex;align-items:center;justify-content:center;position:relative;flex-shrink:0;background:conic-gradient(var(--ho-st) calc(var(--score) * 1%),var(--so-dune) 0)}
     .hc-ring-big::before{content:"";position:absolute;width:78px;height:78px;background:var(--so-white);border-radius:50%}
     .hc-ring-num{position:relative;font-size:1.6rem;font-weight:500;letter-spacing:-.01em;color:var(--so-charcoal)}
@@ -659,14 +662,14 @@
     .hc-sc-summary{flex:1;min-width:0}
     .hc-sc-h{font-size:1.05rem;font-weight:600;margin:0 0 4px;color:var(--so-charcoal)}
     .hc-sc-meta{font-size:.78rem;color:var(--so-text-muted);margin:0;line-height:1.5}
-    /* Hero — usage / account column on the right */
-    .hc-sc-divider{width:1px;background:var(--so-border);align-self:stretch;flex-shrink:0;margin:0 22px}
-    .hc-sc-usage{flex-shrink:0;min-width:170px}
-    .hc-sc-usage-h{font-size:.66rem;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--so-text-muted);margin-bottom:8px}
-    .hc-sc-usage-list{list-style:none;margin:0;padding:0;font-size:.8rem;color:var(--so-charcoal);line-height:1.7}
-    .hc-sc-usage-list b{font-weight:700;color:var(--so-green)}
-    .hc-sc-u-muted{color:var(--so-text-muted);font-size:.74rem}
-    .hc-sc-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
+    /* Hero — usage / account context strip at the bottom of the scorecard */
+    .hc-sc-context{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:12px 26px;background:#fbf9f6;border-top:1px solid var(--so-dune);border-radius:0 0 12px 12px}
+    .hc-sc-context-h{font-size:.62rem;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--so-text-muted);margin-right:6px}
+    .hc-sc-context-item{font-size:.8rem;color:var(--so-charcoal)}
+    .hc-sc-context-item b{color:var(--so-green);font-weight:700}
+    .hc-sc-context-sep{color:var(--so-border)}
+    .hc-sc-context-muted{font-size:.76rem;color:var(--so-text-muted)}
+    .hc-sc-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;padding:22px 26px 24px}
 
     /* ---- Mini dimension card ---- */
     .hc-dim-card{border:1px solid var(--so-border);border-radius:8px;padding:14px 16px;display:flex;align-items:flex-start;gap:14px;cursor:pointer;text-decoration:none;color:inherit;transition:background .12s,border-color .12s}
@@ -676,8 +679,13 @@
     .hc-ring-sm span{position:relative;font-size:1.4rem;font-weight:600;letter-spacing:-.01em;color:var(--ho-st)}
     .hc-dim-info{flex:1;min-width:0}
     .hc-dim-name{font-size:1rem;font-weight:600;color:var(--so-charcoal);line-height:1.2;margin-bottom:8px}
-    .hc-dim-stats{list-style:none;margin:0;padding:0;font-size:.86rem;color:var(--so-charcoal);line-height:1.7}
+    .hc-dim-stats{list-style:none;margin:0;padding:0;font-size:.86rem;color:var(--so-charcoal);line-height:1.45}
     .hc-dim-stats li{display:block}
+    /* Default 8px space between stats; trend hugs its parent (2px); norm gets extra space */
+    .hc-dim-stats > li{margin-top:8px}
+    .hc-dim-stats > li:first-child{margin-top:0}
+    .hc-dim-stats .hc-trend-line{margin-top:2px}
+    .hc-dim-stats .hc-norm{margin-top:14px}
     .hc-dim-stats .hc-warn{color:var(--sl-bad)}
     .hc-dim-stats .hc-norm{color:var(--so-text-muted);margin-top:2px}
     /* Ring + trend stack so the period-delta sits directly under the score */
@@ -787,8 +795,9 @@
     /* ---- Compact / mobile ---- */
     @media (max-width: 1024px){
       .hc-sc-cards{grid-template-columns:repeat(2,1fr)}
-      .hc-sc-divider{display:none}
-      .hc-sc-usage{border-top:1px solid var(--so-dune);padding-top:14px;margin-top:14px;width:100%}
+      .hc-sc-context{padding:10px 18px}
+      .hc-sc-top{padding:18px 22px}
+      .hc-sc-cards{padding:18px 22px}
       .hc-step-desc{display:none}
     }
     @media (max-width: 720px){
