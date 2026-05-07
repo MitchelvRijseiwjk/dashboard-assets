@@ -676,7 +676,7 @@
     .hc-sc-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;padding:22px 26px 24px}
 
     /* ---- Mini dimension card (vertical: clickable head + collapsible detail) ---- */
-    .hc-dim-card{border:1px solid var(--so-border);border-radius:8px;background:var(--so-white);display:flex;flex-direction:column;color:inherit;transition:border-color .12s;align-self:start}
+    .hc-dim-card{border:1px solid var(--so-border);border-radius:8px;background:var(--so-white);display:flex;flex-direction:column;color:inherit;transition:border-color .12s}
     .hc-dim-card.expanded{border-color:#ccc7c0}
     .hc-dim-card-head{display:flex;align-items:flex-start;gap:14px;padding:14px 16px;cursor:pointer;transition:background .12s;user-select:none}
     .hc-dim-card-head:hover{background:#fafaf8}
