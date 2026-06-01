@@ -26,13 +26,13 @@
         { key: 'webpage',  label: 'Webpage' }
       ],
       integrityChecks: [
-        { key: 'noPerson',      label: 'No contact person',  desc: 'No contacts means nobody to approach within the company' },
-        { key: 'unreachable',   label: 'Unreachable company', desc: 'All contacts lack working email and phone numbers' },
-        { key: 'noCategory',    label: 'No category',         desc: 'Cannot segment customers from prospects without category' },
-        { key: 'noBusiness',    label: 'No business type',    desc: 'Industry analysis and benchmarks become impossible' },
-        { key: 'noOrgNr',       label: 'No org. number',      desc: 'Duplicate detection and verification rely on this identifier' },
-        { key: 'noActivity12m', label: 'No recent activity',  desc: 'Account has gone dormant for over a year', isNew: true },
-        { key: 'noOwner',       label: 'No owner',            desc: 'Without owner, accountability and follow-up disappear', isNew: true }
+        { key: 'noPerson',      label: 'No contact person',  desc: 'No contacts means nobody to approach within the company', query: 'count(person WHERE contact_id = company) = 0' },
+        { key: 'unreachable',   label: 'Unreachable company', desc: 'All contacts lack working email and phone numbers', query: 'has_email = 0 AND has_phone = 0' },
+        { key: 'noCategory',    label: 'No category',         desc: 'Cannot segment customers from prospects without category', query: 'company.category_idx = 0' },
+        { key: 'noBusiness',    label: 'No business type',    desc: 'Industry analysis and benchmarks become impossible', query: 'company.business_idx = 0' },
+        { key: 'noOrgNr',       label: 'No org. number',      desc: 'Duplicate detection and verification rely on this identifier', query: 'company.orgNr IS EMPTY' },
+        { key: 'noActivity12m', label: 'No recent activity',  desc: 'Account has gone dormant for over a year', query: 'count(appointment WHERE activeDate >= now - 12 months) = 0', isNew: true },
+        { key: 'noOwner',       label: 'No owner',            desc: 'Without owner, accountability and follow-up disappear', query: 'company.associate_id <= 0', isNew: true }
       ],
       engagementComponents: [
         { key: 'withPerson',   label: 'Persons',    alwaysOn: false },
@@ -52,9 +52,9 @@
         { key: 'mrMrs',     label: 'Mr/Ms' }
       ],
       integrityChecks: [
-        { key: 'noEmail',     label: 'No email address',     desc: 'Contact has no email and cannot be reached digitally' },
-        { key: 'noCompany',   label: 'Not linked to company', desc: 'Orphan contact has no business context to act on' },
-        { key: 'noActivity',  label: 'No activity',          desc: 'No interaction logged for over a year, relationship dormant', isNew: true }
+        { key: 'noEmail',     label: 'No email address',     desc: 'Contact has no email and cannot be reached digitally', query: 'email_address NOT CONTAINS "@"' },
+        { key: 'noCompany',   label: 'Not linked to company', desc: 'Orphan contact has no business context to act on', query: 'person.contact_id <= 0' },
+        { key: 'noActivity',  label: 'No activity',          desc: 'No interaction logged for over a year, relationship dormant', query: 'count(appointment WHERE activeDate >= now - 12 months) = 0', isNew: true }
       ],
       engagementComponents: [
         { key: 'withActivity', label: 'Activities',    alwaysOn: false },
@@ -74,10 +74,10 @@
         { key: 'source',      label: 'Source' }
       ],
       integrityChecks: [
-        { key: 'noContact',     label: 'No contact linked',  desc: 'Sales without a contact person are hard to follow up' },
-        { key: 'staleSale',     label: 'Stale sale',         desc: 'Forecast is overstated as close-date has already passed' },
-        { key: 'noActivities',  label: 'No activities logged', desc: 'No activities suggest the deal has stalled or been forgotten' },
-        { key: 'noAmount',      label: 'No amount',          desc: 'Without amount, pipeline value cannot be forecasted', isNew: true }
+        { key: 'noContact',     label: 'No contact linked',  desc: 'Sales without a contact person are hard to follow up', query: 'sale.person_id <= 0' },
+        { key: 'staleSale',     label: 'Stale sale',         desc: 'Forecast is overstated as close-date has already passed', query: 'sale.status = Open AND sale.saledate < NOW()' },
+        { key: 'noActivities',  label: 'No activities logged', desc: 'No activities suggest the deal has stalled or been forgotten', query: 'count(appointment WHERE sale_id = sale) = 0' },
+        { key: 'noAmount',      label: 'No amount',          desc: 'Without amount, pipeline value cannot be forecasted', query: 'sale.amount <= 0', isNew: true }
       ],
       engagementComponents: [
         { key: 'withActivity',     label: 'Activities logged',  alwaysOn: false },
@@ -94,8 +94,8 @@
         { key: 'description', label: 'Description' }
       ],
       integrityChecks: [
-        { key: 'noMembers',    label: 'No members',    desc: 'Project lacks a team, delivery responsibility is unclear' },
-        { key: 'noActivities', label: 'No activities',  desc: 'No activities suggest delivery has stalled or paused' }
+        { key: 'noMembers',    label: 'No members',    desc: 'Project lacks a team, delivery responsibility is unclear', query: 'count(project_member WHERE project_id = project) = 0' },
+        { key: 'noActivities', label: 'No activities',  desc: 'No activities suggest delivery has stalled or paused', query: 'count(appointment WHERE project_id = project) = 0' }
       ],
       engagementComponents: [
         { key: 'withActivity',     label: 'Activities logged',   alwaysOn: false },
@@ -976,7 +976,7 @@
       var disabled = !cc.enabled; var rowCls = disabled ? ' s-introw-disabled' : '';
       h += '<div class="s-integrity-row' + rowCls + '" data-key="' + c.key + '" data-level="' + cc.weight + '" data-enabled="' + cc.enabled + '">';
       h += '<label class="s-integrity-check"><input type="checkbox"' + (cc.enabled ? ' checked' : '') + ' onchange="daSettings.toggleIntegrity(this,\'' + ek + '\',\'' + c.key + '\')"></label>';
-      h += '<div class="s-integrity-label"><span class="s-integrity-name">' + c.label + '</span><span class="s-integrity-desc">' + c.desc + '</span></div>';
+      h += '<div class="s-integrity-label"><span class="s-integrity-name">' + c.label + '</span><span class="s-integrity-desc">' + c.desc + (c.query ? '<span class="s-integrity-query" tabindex="0"><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M5.5 4L2 8l3.5 4M10.5 4L14 8l-3.5 4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="s-query-tip">' + c.query + '</span></span>' : '') + '</span></div>';
       h += hmlToggle('int', ek, c.key, cc.weight);
       h += '</div>';
     }
