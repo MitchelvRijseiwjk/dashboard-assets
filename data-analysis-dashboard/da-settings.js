@@ -26,13 +26,13 @@
         { key: 'webpage',  label: 'Webpage' }
       ],
       integrityChecks: [
-        { key: 'noPerson',      label: 'No contact person',  desc: 'Company has zero linked persons' },
-        { key: 'unreachable',   label: 'Unreachable company', desc: 'No person has an email or phone number' },
-        { key: 'noCategory',    label: 'No category',         desc: 'Company has no category assigned' },
-        { key: 'noBusiness',    label: 'No business type',    desc: 'Company has no business type assigned' },
-        { key: 'noOrgNr',       label: 'No org. number',      desc: 'Company has no organisation number' },
-        { key: 'noActivity12m', label: 'No recent activity',  desc: 'No activities logged in the last 12 months', isNew: true },
-        { key: 'noOwner',       label: 'No owner',            desc: 'Company has no assigned associate/owner', isNew: true }
+        { key: 'noPerson',      label: 'No contact person',  desc: 'No contacts means nobody to approach within the company' },
+        { key: 'unreachable',   label: 'Unreachable company', desc: 'All contacts lack working email and phone numbers' },
+        { key: 'noCategory',    label: 'No category',         desc: 'Cannot segment customers from prospects without category' },
+        { key: 'noBusiness',    label: 'No business type',    desc: 'Industry analysis and benchmarks become impossible' },
+        { key: 'noOrgNr',       label: 'No org. number',      desc: 'Duplicate detection and verification rely on this identifier' },
+        { key: 'noActivity12m', label: 'No recent activity',  desc: 'Account has gone dormant for over a year', isNew: true },
+        { key: 'noOwner',       label: 'No owner',            desc: 'Without owner, accountability and follow-up disappear', isNew: true }
       ],
       engagementComponents: [
         { key: 'withPerson',   label: 'Persons',    alwaysOn: false },
@@ -52,9 +52,9 @@
         { key: 'mrMrs',     label: 'Mr/Ms' }
       ],
       integrityChecks: [
-        { key: 'noEmail',     label: 'No email address',     desc: 'Person has no email — unreachable digitally' },
-        { key: 'noCompany',   label: 'Not linked to company', desc: 'Person is not associated with any company' },
-        { key: 'noActivity',  label: 'No activity',          desc: 'No logged activity in 12 months', isNew: true }
+        { key: 'noEmail',     label: 'No email address',     desc: 'Contact has no email and cannot be reached digitally' },
+        { key: 'noCompany',   label: 'Not linked to company', desc: 'Orphan contact has no business context to act on' },
+        { key: 'noActivity',  label: 'No activity',          desc: 'No interaction logged for over a year, relationship dormant', isNew: true }
       ],
       engagementComponents: [
         { key: 'withActivity', label: 'Activities',    alwaysOn: false },
@@ -74,10 +74,10 @@
         { key: 'source',      label: 'Source' }
       ],
       integrityChecks: [
-        { key: 'noContact',     label: 'No contact linked',  desc: 'Sale has no associated contact person' },
-        { key: 'staleSale',     label: 'Stale sale',         desc: 'Open sale past expected close date' },
-        { key: 'noActivities',  label: 'No activities logged', desc: 'Sale has zero linked activities' },
-        { key: 'noAmount',      label: 'No amount',          desc: 'Sale amount is zero or empty', isNew: true }
+        { key: 'noContact',     label: 'No contact linked',  desc: 'Sales without a contact person are hard to follow up' },
+        { key: 'staleSale',     label: 'Stale sale',         desc: 'Forecast is overstated as close-date has already passed' },
+        { key: 'noActivities',  label: 'No activities logged', desc: 'No activities suggest the deal has stalled or been forgotten' },
+        { key: 'noAmount',      label: 'No amount',          desc: 'Without amount, pipeline value cannot be forecasted', isNew: true }
       ],
       engagementComponents: [
         { key: 'withActivity',     label: 'Activities logged',  alwaysOn: false },
@@ -94,8 +94,8 @@
         { key: 'description', label: 'Description' }
       ],
       integrityChecks: [
-        { key: 'noMembers',    label: 'No members',    desc: 'Project has zero members assigned' },
-        { key: 'noActivities', label: 'No activities',  desc: 'Project has zero linked activities' }
+        { key: 'noMembers',    label: 'No members',    desc: 'Project lacks a team, delivery responsibility is unclear' },
+        { key: 'noActivities', label: 'No activities',  desc: 'No activities suggest delivery has stalled or paused' }
       ],
       engagementComponents: [
         { key: 'withActivity',     label: 'Activities logged',   alwaysOn: false },
