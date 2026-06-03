@@ -122,6 +122,32 @@ function getDateFilterParam() {
   return String.fromCharCode(38) + 'dateFilter=' + df;
 }
 
+// Field value-exclusions for an entity, as "field=idx,idx;field=idx,idx"
+function getExclParam(entityKey) {
+  var cfg = (typeof daSettings !== 'undefined' && daSettings.getConfig) ? daSettings.getConfig(entityKey) : null;
+  if (!cfg || !cfg.fieldExclusions) return '';
+  var pairs = [];
+  for (var f in cfg.fieldExclusions) { var ids = cfg.fieldExclusions[f]; if (ids && ids.length > 0) pairs.push(f + '=' + ids.join(',')); }
+  if (pairs.length === 0) return '';
+  return String.fromCharCode(38) + 'excl=' + encodeURIComponent(pairs.join(';'));
+}
+
+// Active rule rows for an entity, flattened to "ruleId~row~condField~condOp~condVal~reqField~reqOp"
+function _ruleRows(entityKey) {
+  var rs = (typeof daSettings !== 'undefined' && daSettings.getRules) ? daSettings.getRules(entityKey) : [];
+  var rows = [];
+  for (var i = 0; i < rs.length; i++) {
+    var r = rs[i]; if (r.active === false) continue;
+    for (var j = 0; j < r.rows.length; j++) {
+      var w = r.rows[j];
+      rows.push([r.ruleId, j, w.condField, w.condOp, w.condVal, w.reqField, w.reqOp].join('~'));
+    }
+  }
+  return rows;
+}
+function getRulesParam(entityKey) { var rows = _ruleRows(entityKey); return rows.length ? String.fromCharCode(38) + 'rules=' + encodeURIComponent(rows.join(';')) : ''; }
+function aaHasRules(entityKey) { return _ruleRows(entityKey).length > 0; }
+
 function dateFilterNotice() {
   var key = currentAnalysisEntity;
   var df = activeFilterValue[key];
@@ -303,10 +329,11 @@ function startAnalyzeAll() {
 function _aaEntitySteps(key) {
   var ec = entityConfig[key];
   if (!ec) return 1; // simple entity (selection, marketing)
-  if (key === 'company') return 6; // overview + udef + core + quality + detail + extra
-  if (key === 'activities') return 2; // momentum + overview
-  var steps = 2; // overview + extra
-  if (ec.udefId > 0 || ec.hasTicketFields) steps++;
+  var steps;
+  if (key === 'company') steps = 6; // overview + udef + core + quality + detail + extra
+  else if (key === 'activities') steps = 2; // momentum + overview
+  else { steps = 2; if (ec.udefId > 0 || ec.hasTicketFields) steps++; }
+  if (key !== 'activities' && aaHasRules(key)) steps++; // extra RulesFetch call
   return steps;
 }
 
@@ -545,7 +572,7 @@ function _aaLaunchEntity(key) {
 }
 
 function aaRunSimpleEntity(key, cb) {
-  ajax(overviewUrl + String.fromCharCode(38) + 'entity=' + key + getDateFilterParam(), function(d) {
+  ajax(overviewUrl + String.fromCharCode(38) + 'entity=' + key + getDateFilterParam() + getExclParam(key), function(d) {
     if (d) renderEntityOverview(key, d);
     _aaStepDone();
     var rs = document.getElementById(key + 'Results');
@@ -595,7 +622,7 @@ function aaRunMomentumEntity(key, cb) {
   });
 
   // Parallel 2: Overview (for Overview sub-tab)
-  ajax(overviewUrl + String.fromCharCode(38) + 'entity=' + key + dfParam, function(d) {
+  ajax(overviewUrl + String.fromCharCode(38) + 'entity=' + key + dfParam + getExclParam(key), function(d) {
     if (d) renderEntityOverview(key, d);
     checkDone();
   });
@@ -614,6 +641,8 @@ function aaRunFullEntity(key, cb, markStepDone) {
   if (ec.hasTicketFields) totalSteps++;
   if (hasDetails) totalSteps += 3; // core + quality + detail
   totalSteps++; // extra tables always
+  var doRules = aaHasRules(key);
+  if (doRules) totalSteps++; // RulesFetch when the entity has active rules
 
   var completed = 0;
   function stepDone(stepId) {
@@ -636,10 +665,18 @@ function aaRunFullEntity(key, cb, markStepDone) {
   }
 
   // === PARALLEL 1: Overview ===
-  ajax(overviewUrl + String.fromCharCode(38) + 'entity=' + key + dfParam, function(d) {
+  ajax(overviewUrl + String.fromCharCode(38) + 'entity=' + key + dfParam + getExclParam(key), function(d) {
     if (d) renderEntityOverview(key, d);
     stepDone('overview');
   });
+
+  // === PARALLEL: Conditional rules ===
+  if (doRules) {
+    ajax(rulesUrl + String.fromCharCode(38) + 'entity=' + key + dfParam + getRulesParam(key), function(d) {
+      if (d && d.rules) { if (!window.rulesData) window.rulesData = {}; window.rulesData[key] = d.rules; }
+      stepDone('rules');
+    });
+  }
 
   // === PARALLEL 2: UDEF or Ticket Fields ===
   if (ec.udefId > 0) {
@@ -673,7 +710,7 @@ function aaRunFullEntity(key, cb, markStepDone) {
     });
 
     // 3b: CompanyQualityFetch (~5s)
-    ajax(qualityUrl + dfParam + catParam, function(d) {
+    ajax(qualityUrl + dfParam + catParam + getExclParam('company'), function(d) {
       if (d) {
         if (d.quality) companyDetailData.quality = d.quality;
         if (d.funnel) companyDetailData.funnel = d.funnel;
