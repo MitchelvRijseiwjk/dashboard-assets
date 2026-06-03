@@ -161,6 +161,7 @@
   var SK = 'da_settings_v3';
   var _s = null;
   var _serverAvailable = false;
+  var _rules = {};
   var _udefFields = {};
   var _activeId = null;
   var _activeEntity = 'company';
@@ -186,6 +187,16 @@
     _s = allDefaults();
   }
 
+  // Parse the per-entity rule shards returned by SettingsFetch
+  function parseRules(rulesObj) {
+    _rules = {};
+    if (!rulesObj) return;
+    for (var ek in rulesObj) {
+      try { _rules[ek] = typeof rulesObj[ek] === 'string' ? JSON.parse(rulesObj[ek]) : rulesObj[ek]; }
+      catch (e) { _rules[ek] = []; }
+    }
+  }
+
   // Async load from server — overwrites localStorage if server has data
   function loadFromServer(callback) {
     if (typeof settingsLoadUrl === 'undefined' || !settingsLoadUrl) { if (callback) callback(false); return; }
@@ -193,6 +204,7 @@
       ajax(settingsLoadUrl, function(resp) {
         if (!resp) { if (callback) callback(false); return; }
         _serverAvailable = resp.tableExists || false;
+        parseRules(resp.rules);
         if (resp.found && resp.config) {
           try {
             var parsed = typeof resp.config === 'string' ? JSON.parse(resp.config) : resp.config;
@@ -257,6 +269,8 @@
 
   function get(entity) { if (!_s) load(); return _s[entity || 'company'] || entityDefaults(entity || 'company'); }
 
+  function getRules(entity) { return (_rules && _rules[entity]) ? _rules[entity] : []; }
+
   function migrateV3(saved) {
     var defs = allDefaults();
     for (var ek in defs) {
@@ -266,6 +280,7 @@
       if (!s.healthExclude) s.healthExclude = d.healthExclude;
       if (!s.stdFieldConfig) s.stdFieldConfig = d.stdFieldConfig;
       if (!s.udefFieldConfig) s.udefFieldConfig = {};
+      if (!s.fieldExclusions) s.fieldExclusions = {};
       if (!s.integrityConfig) s.integrityConfig = d.integrityConfig;
       if (!s.engagementConfig) s.engagementConfig = d.engagementConfig;
       if (!s.pipelineType) s.pipelineType = d.pipelineType;
@@ -1309,6 +1324,8 @@
     closeSettings: closeSettings,
     showSection: showSettingsSection,
     getSettings: getSettings,
+    getConfig: get,
+    getRules: getRules,
     computeDQScore: computeDQ,
     computeIntegrity: computeIntegrity,
     computeAdoption: computeAdoption,
