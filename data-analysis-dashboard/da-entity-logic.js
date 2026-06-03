@@ -356,7 +356,7 @@ function startFullEntity(key) {
   }
 
   // === PARALLEL LOAD 1: Overview ===
-  ajax(overviewUrl + String.fromCharCode(38) + 'entity=' + key + dfParam, function(d) {
+  ajax(overviewUrl + String.fromCharCode(38) + 'entity=' + key + dfParam + getExclParam(key), function(d) {
     if (d) renderEntityOverview(key, d);
     if (overviewEl) overviewEl.style.animation = 'fadeIn .3s ease';
     if (key === 'company') populateDetailCatFilter();
@@ -414,7 +414,7 @@ function startFullEntity(key) {
     });
 
     // Call 2: CompanyQualityFetch (quality, funnel, segments, churn) — countRows only, ~5s
-    ajax(qualityUrl + dfParam + catParam, function(d) {
+    ajax(qualityUrl + dfParam + catParam + getExclParam('company'), function(d) {
       if (!companyDetailData) companyDetailData = {};
       if (d) {
         if (d.quality) companyDetailData.quality = d.quality;
@@ -509,7 +509,7 @@ function startEntityOverview(key) {
     }
   }, 150);
 
-  ajax(overviewUrl + String.fromCharCode(38) + 'entity=' + key + getDateFilterParam(), function(d) {
+  ajax(overviewUrl + String.fromCharCode(38) + 'entity=' + key + getDateFilterParam() + getExclParam(key), function(d) {
     clearInterval(fakeTimer);
     if (d) renderEntityOverview(key, d);
     if (progressBar) { progressBar.style.width = '100' + P; progressBar.classList.remove('loading'); }
@@ -727,7 +727,7 @@ function fetchCompanyDetails(cb) {
   });
 
   // Call 2: Quality (quality, funnel, churn)
-  ajax(qualityUrl + dfParam + catParam, function(d) {
+  ajax(qualityUrl + dfParam + catParam + getExclParam('company'), function(d) {
     if (d) {
       if (d.quality) companyDetailData.quality = d.quality;
       if (d.funnel) companyDetailData.funnel = d.funnel;
@@ -1997,7 +1997,7 @@ function startMomentum(key) {
     momentumData = d;
     checkDone();
   });
-  ajax(overviewUrl + amp + 'entity=' + key + dfParam, function(d) {
+  ajax(overviewUrl + amp + 'entity=' + key + dfParam + getExclParam(key), function(d) {
     if (d) renderEntityOverview(key, d);
     checkDone();
   });
