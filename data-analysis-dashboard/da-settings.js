@@ -162,6 +162,7 @@
   var _s = null;
   var _serverAvailable = false;
   var _rules = {};
+  var _intakeFields = {};
   var _udefFields = {};
   var _activeId = null;
   var _activeEntity = 'company';
@@ -197,6 +198,78 @@
     }
   }
 
+  // Parse the per-entity field-config shards written by the intake form
+  function parseIntakeFields(fieldsObj) {
+    _intakeFields = {};
+    if (!fieldsObj) return;
+    for (var ek in fieldsObj) {
+      try { _intakeFields[ek] = typeof fieldsObj[ek] === 'string' ? JSON.parse(fieldsObj[ek]) : fieldsObj[ek]; }
+      catch (e) { _intakeFields[ek] = null; }
+    }
+  }
+
+  // Overlay intake field choices onto the in-memory settings.
+  // The intake form is authoritative for the keys it carries; any field it does
+  // not mention keeps its engine default. Runs in memory only and is never
+  // persisted back into the engine-owned config row. Entities without a scoring
+  // model in the dashboard (ticket, activity) are skipped.
+  function applyIntakeFields() {
+    if (!_s) load();
+    for (var ek in _intakeFields) {
+      var shard = _intakeFields[ek];
+      if (!shard) continue;
+      if (!ENTITY_DEFS[ek]) continue;
+      var s = _s[ek];
+      if (!s) { s = entityDefaults(ek); _s[ek] = s; }
+      if (shard.stdFieldConfig) {
+        for (var fk in shard.stdFieldConfig) s.stdFieldConfig[fk] = shard.stdFieldConfig[fk];
+      }
+      if (shard.udefFieldConfig) {
+        if (!s.udefFieldConfig) s.udefFieldConfig = {};
+        for (var uk in shard.udefFieldConfig) s.udefFieldConfig[uk] = shard.udefFieldConfig[uk];
+      }
+      if (shard.integrityConfig) {
+        if (!s.integrityConfig) s.integrityConfig = {};
+        for (var ik in shard.integrityConfig) s.integrityConfig[ik] = shard.integrityConfig[ik];
+      }
+      // Value-level exclusions are carried for the measurement layer (handled in a later slice).
+      if (shard.fieldExclusions) s.fieldExclusions = shard.fieldExclusions;
+    }
+  }
+
+  // True when the intake form owns this key for the given group (std|udef|int).
+  // Owned keys are locked in the settings modal and stripped before persisting,
+  // so the engine config row never stores intake-owned choices.
+  function intakeOwns(ek, group, key) {
+    var shard = _intakeFields[ek];
+    if (!shard) return false;
+    if (group === 'std') return !!(shard.stdFieldConfig && shard.stdFieldConfig.hasOwnProperty(key));
+    if (group === 'udef') return !!(shard.udefFieldConfig && shard.udefFieldConfig.hasOwnProperty(key));
+    if (group === 'int') return !!(shard.integrityConfig && shard.integrityConfig.hasOwnProperty(key));
+    return false;
+  }
+
+  // Deep clone of the settings with intake-owned keys removed, used for persistence.
+  // Keeps _s fully overlaid in memory while the stored config stays engine-owned.
+  function persistView() {
+    var out = clone(_s);
+    for (var ek in _intakeFields) {
+      var shard = _intakeFields[ek];
+      if (!shard || !out[ek]) continue;
+      if (shard.stdFieldConfig && out[ek].stdFieldConfig) {
+        for (var fk in shard.stdFieldConfig) delete out[ek].stdFieldConfig[fk];
+      }
+      if (shard.udefFieldConfig && out[ek].udefFieldConfig) {
+        for (var uk in shard.udefFieldConfig) delete out[ek].udefFieldConfig[uk];
+      }
+      if (shard.integrityConfig && out[ek].integrityConfig) {
+        for (var ik in shard.integrityConfig) delete out[ek].integrityConfig[ik];
+      }
+      if (out[ek].fieldExclusions) delete out[ek].fieldExclusions;
+    }
+    return out;
+  }
+
   // Async load from server — overwrites localStorage if server has data
   function loadFromServer(callback) {
     if (typeof settingsLoadUrl === 'undefined' || !settingsLoadUrl) { if (callback) callback(false); return; }
@@ -205,11 +278,13 @@
         if (!resp) { if (callback) callback(false); return; }
         _serverAvailable = resp.tableExists || false;
         parseRules(resp.rules);
+        parseIntakeFields(resp.fields);
         if (resp.found && resp.config) {
           try {
             var parsed = typeof resp.config === 'string' ? JSON.parse(resp.config) : resp.config;
             _s = migrateV3(parsed);
             saveLocal(); // sync localStorage with server data
+            applyIntakeFields(); // in-memory overlay, after saveLocal so it is not persisted
             console.log('Settings loaded from server (updated by associate ' + (resp.updatedBy || '?') + ')');
             if (callback) callback(true);
           } catch(e) {
@@ -219,6 +294,7 @@
         } else {
           // Server table exists but no row yet — push localStorage settings to server
           if (_serverAvailable && _s) saveToServer();
+          applyIntakeFields(); // overlay intake choices onto defaults even without an engine config row
           if (callback) callback(false);
         }
       });
@@ -228,7 +304,7 @@
     }
   }
 
-  function saveLocal() { try { localStorage.setItem(SK, JSON.stringify(_s)); } catch(e) {} }
+  function saveLocal() { try { localStorage.setItem(SK, JSON.stringify(persistView())); } catch(e) {} }
 
   function saveToServer(callback) {
     if (!_serverAvailable || typeof settingsSaveUrl === 'undefined' || !settingsSaveUrl) {
@@ -255,7 +331,7 @@
           } else { if (callback) callback(false); }
         }
       };
-      x.send('config=' + encodeURIComponent(JSON.stringify(_s)));
+      x.send('config=' + encodeURIComponent(JSON.stringify(persistView())));
     } catch(e) {
       console.warn('Settings server save error:', e);
       if (callback) callback(false);
@@ -587,7 +663,26 @@
     activity: '<svg viewBox="0 0 32 32" fill="none"><path d="M28.707 9.707 12.707 25.707a1 1 0 0 1-1.414 0l-7-7a1 1 0 1 1 1.414-1.414L12 23.586 27.293 8.293a1 1 0 1 1 1.414 1.414z" fill="currentColor"/></svg>'
   };
 
+  // Inject the small style block for intake-locked rows once.
+  // da-styles.css is shipped separately; keeping these self-contained here means
+  // the lock styling ships with the same asset and needs no second file.
+  function ensureIntakeStyles() {
+    if (document.getElementById('daIntakeStyles')) return;
+    var css = ''
+      + '.s-intake-badge{display:inline-block;margin-left:8px;padding:1px 7px;border-radius:10px;'
+      + 'font-size:10px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;vertical-align:middle;'
+      + 'background:rgba(99,102,241,.14);color:#6366f1;border:1px solid rgba(99,102,241,.35);}'
+      + '.s-imp-btn.s-imp-locked{cursor:not-allowed;}'
+      + '.s-imp-btn.s-imp-locked:not(.act-req):not(.act-norm):not(.act-excl):not(.act-high):not(.act-med):not(.act-low){opacity:.45;}'
+      + '.s-integrity-check input:disabled{cursor:not-allowed;}';
+    var st = document.createElement('style');
+    st.id = 'daIntakeStyles';
+    st.textContent = css;
+    document.head.appendChild(st);
+  }
+
   function openSettings() {
+    ensureIntakeStyles();
     var overlay = document.getElementById('smOverlay');
     if (!overlay) {
       overlay = document.createElement('div');
@@ -988,12 +1083,32 @@
     for (var i = 0; i < def.integrityChecks.length; i++) {
       var c = def.integrityChecks[i];
       var cc = cfg[c.key] || { enabled: false, weight: 'medium' };
+      var locked = intakeOwns(ek, 'int', c.key);
       var disabled = !cc.enabled; var rowCls = disabled ? ' s-introw-disabled' : '';
+      if (locked) rowCls += ' s-introw-intake';
       h += '<div class="s-integrity-row' + rowCls + '" data-key="' + c.key + '" data-level="' + cc.weight + '" data-enabled="' + cc.enabled + '">';
-      h += '<label class="s-integrity-check"><input type="checkbox"' + (cc.enabled ? ' checked' : '') + ' onchange="daSettings.toggleIntegrity(this,\'' + ek + '\',\'' + c.key + '\')"></label>';
-      h += '<div class="s-integrity-label"><span class="s-integrity-name">' + c.label + '</span><span class="s-integrity-desc">' + c.desc + (c.query ? '<span class="s-integrity-query" tabindex="0"><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M5.5 4L2 8l3.5 4M10.5 4L14 8l-3.5 4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="s-query-tip">' + c.query + '</span></span>' : '') + '</span></div>';
-      h += hmlToggle('int', ek, c.key, cc.weight);
+      if (locked) {
+        h += '<label class="s-integrity-check"><input type="checkbox"' + (cc.enabled ? ' checked' : '') + ' disabled aria-disabled="true"></label>';
+      } else {
+        h += '<label class="s-integrity-check"><input type="checkbox"' + (cc.enabled ? ' checked' : '') + ' onchange="daSettings.toggleIntegrity(this,\'' + ek + '\',\'' + c.key + '\')"></label>';
+      }
+      h += '<div class="s-integrity-label"><span class="s-integrity-name">' + c.label + (locked ? ' <span class="s-intake-badge" title="Set in the intake form. Managed there and locked here.">Intake</span>' : '') + '</span><span class="s-integrity-desc">' + c.desc + (c.query ? '<span class="s-integrity-query" tabindex="0"><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M5.5 4L2 8l3.5 4M10.5 4L14 8l-3.5 4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="s-query-tip">' + c.query + '</span></span>' : '') + '</span></div>';
+      h += locked ? hmlToggleLocked(cc.weight) : hmlToggle('int', ek, c.key, cc.weight);
       h += '</div>';
+    }
+    h += '</div>';
+    return h;
+  }
+
+  // Static, non-interactive H/M/L toggle for an intake-owned integrity check
+  function hmlToggleLocked(level) {
+    var h = '<div class="s-fld-toggle">';
+    var vals = ['high', 'medium', 'low'];
+    var labels = ['High', 'Medium', 'Low'];
+    var acts = { high: 'act-high', medium: 'act-med', low: 'act-low' };
+    for (var i = 0; i < vals.length; i++) {
+      var cls = level === vals[i] ? ' ' + acts[vals[i]] : '';
+      h += '<button class="s-imp-btn s-imp-locked' + cls + '" disabled aria-disabled="true">' + labels[i] + '</button>';
     }
     h += '</div>';
     return h;
@@ -1044,17 +1159,30 @@
 
   function fieldRow(label, type, extra, imp, group, key, ek) {
     var esc = key.replace(/'/g, "\\'");
-    var h = '<div class="s-fld-row' + (imp === 'excluded' ? ' s-fld-excl' : '') + '" data-grp="' + group + '" data-key="' + key + '" data-entity="' + ek + '">';
+    var locked = intakeOwns(ek, group, key);
+    var h = '<div class="s-fld-row' + (imp === 'excluded' ? ' s-fld-excl' : '') + (locked ? ' s-fld-intake' : '') + '" data-grp="' + group + '" data-key="' + key + '" data-entity="' + ek + '">';
     h += '<div class="s-fld-name">' + label;
     if (type) h += '<span class="s-fld-type">' + type + '</span>';
+    if (locked) h += '<span class="s-intake-badge" title="Set in the intake form. Managed there and locked here.">Intake</span>';
     h += '</div>';
     if (extra) h += '<div class="s-fld-extra">' + extra + '</div>';
     h += '<div class="s-fld-toggle">';
-    h += '<button class="s-imp-btn' + (imp === 'required' ? ' act-req' : '') + '" onclick="daSettings.setImp(\'' + group + '\',\'' + esc + '\',\'required\',this)">Required</button>';
-    h += '<button class="s-imp-btn' + (imp === 'normal' ? ' act-norm' : '') + '" onclick="daSettings.setImp(\'' + group + '\',\'' + esc + '\',\'normal\',this)">Normal</button>';
-    h += '<button class="s-imp-btn' + (imp === 'excluded' ? ' act-excl' : '') + '" onclick="daSettings.setImp(\'' + group + '\',\'' + esc + '\',\'excluded\',this)">Excluded</button>';
+    if (locked) {
+      h += impBtnLocked('Required', imp === 'required', 'act-req');
+      h += impBtnLocked('Normal', imp === 'normal', 'act-norm');
+      h += impBtnLocked('Excluded', imp === 'excluded', 'act-excl');
+    } else {
+      h += '<button class="s-imp-btn' + (imp === 'required' ? ' act-req' : '') + '" onclick="daSettings.setImp(\'' + group + '\',\'' + esc + '\',\'required\',this)">Required</button>';
+      h += '<button class="s-imp-btn' + (imp === 'normal' ? ' act-norm' : '') + '" onclick="daSettings.setImp(\'' + group + '\',\'' + esc + '\',\'normal\',this)">Normal</button>';
+      h += '<button class="s-imp-btn' + (imp === 'excluded' ? ' act-excl' : '') + '" onclick="daSettings.setImp(\'' + group + '\',\'' + esc + '\',\'excluded\',this)">Excluded</button>';
+    }
     h += '</div></div>';
     return h;
+  }
+
+  // Static, non-interactive importance button for an intake-owned field
+  function impBtnLocked(label, active, actCls) {
+    return '<button class="s-imp-btn s-imp-locked' + (active ? ' ' + actCls : '') + '" disabled aria-disabled="true">' + label + '</button>';
   }
 
   function pctClass(level, excluded) {
