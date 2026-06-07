@@ -234,6 +234,8 @@
       }
       // Value-level exclusions are carried for the measurement layer (handled in a later slice).
       if (shard.fieldExclusions) s.fieldExclusions = shard.fieldExclusions;
+      // Score targets (norms) are intake-owned and shown as markers on the dashboard.
+      if (shard.scoreTargets) s.scoreTargets = shard.scoreTargets;
     }
   }
 
@@ -266,6 +268,7 @@
         for (var ik in shard.integrityConfig) delete out[ek].integrityConfig[ik];
       }
       if (out[ek].fieldExclusions) delete out[ek].fieldExclusions;
+      if (out[ek].scoreTargets) delete out[ek].scoreTargets;
     }
     return out;
   }
@@ -1454,6 +1457,7 @@
     getSettings: getSettings,
     getConfig: get,
     getRules: getRules,
+    getScoreTargets: function(entity) { var s = get(entity); return (s && s.scoreTargets) ? s.scoreTargets : null; },
     computeDQScore: computeDQ,
     computeIntegrity: computeIntegrity,
     computeAdoption: computeAdoption,
