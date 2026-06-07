@@ -341,6 +341,7 @@
         parseRules(resp.rules);
         parseIntakeFields(resp.fields);
         parseScan(resp.scan);
+        if (typeof window !== 'undefined' && typeof window.daOnScanReady === 'function') { try { window.daOnScanReady(); } catch(e){} }
         if (resp.found && resp.config) {
           try {
             var parsed = typeof resp.config === 'string' ? JSON.parse(resp.config) : resp.config;
@@ -1180,6 +1181,10 @@
       var d = SCORE_TARGET_DEFS[i];
       var val = (typeof tg[d.key] === 'number') ? tg[d.key] : (SCORE_TARGET_DEFAULTS[d.key] || 0);
       var curVal = cur ? _scoreNum(cur[d.key]) : null;
+      if (curVal != null && val < curVal) {
+        val = curVal;
+        if (_s[ek]) { if (!_s[ek].scoreTargets) _s[ek].scoreTargets = {}; _s[ek].scoreTargets[d.key] = val; }
+      }
       var pos = 'calc(9px + (100% - 18px) * ' + (val / 100) + ')';
       h += '<div class="st-row" data-entity="' + ek + '" data-score="' + d.key + '">';
       h += '<div class="st-name">' + d.label + '</div>';
