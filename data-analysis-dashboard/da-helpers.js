@@ -180,6 +180,13 @@ function scanPillHtml() {
     + 'Last scan ' + _fmtScanDate(st.scannedAt) + '</span>';
 }
 
+// Coerce a score (number or { total } object) to a rounded number, or null.
+function _scoreNum(x) {
+  if (typeof x === 'number') return Math.round(x);
+  if (x && typeof x.total === 'number') return Math.round(x.total);
+  return null;
+}
+
 // Gather the per-entity scores after a full analysis and persist them as the
 // scan snapshot, so the date and current scores are available on next load.
 function _writeScanSnapshot() {
@@ -189,7 +196,12 @@ function _writeScanSnapshot() {
   var scores = {};
   for (var i = 0; i < keys.length; i++) {
     var s = computeEntityScores(keys[i]);
-    if (s) scores[keys[i]] = { dataQuality: s.dq, dataIntegrity: s.integrity, adoption: s.adoption, overall: s.health };
+    if (s) scores[keys[i]] = {
+      dataQuality: _scoreNum(s.dq),
+      dataIntegrity: _scoreNum(s.integrity),
+      adoption: _scoreNum(s.adoption),
+      overall: _scoreNum(s.health)
+    };
   }
   var d = new Date();
   function pad(n) { return (n < 10 ? '0' : '') + n; }
