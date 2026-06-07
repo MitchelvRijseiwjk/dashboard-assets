@@ -163,6 +163,13 @@
   var _serverAvailable = false;
   var _rules = {};
   var _intakeFields = {};
+  var _currentScores = {};   // optional per-entity current scores set by the host after a scan
+  var SCORE_TARGET_DEFS = [
+    { key: 'dataQuality',   label: 'Data Quality',   desc: 'How completely the important fields are filled in across records.' },
+    { key: 'dataIntegrity', label: 'Data Integrity', desc: 'How free the data is of structural problems like missing links or owners.' },
+    { key: 'adoption',      label: 'Adoption',       desc: 'How actively the CRM is used: activities, relationships and pipeline.' }
+  ];
+  var SCORE_TARGET_DEFAULTS = { dataQuality: 80, dataIntegrity: 85, adoption: 70 };
   var _udefFields = {};
   var _activeId = null;
   var _activeEntity = 'company';
@@ -234,8 +241,25 @@
       }
       // Value-level exclusions are carried for the measurement layer (handled in a later slice).
       if (shard.fieldExclusions) s.fieldExclusions = shard.fieldExclusions;
-      // Score targets (norms) are intake-owned and shown as markers on the dashboard.
-      if (shard.scoreTargets) s.scoreTargets = shard.scoreTargets;
+    }
+  }
+
+  // Seed the engine-owned score targets. Targets live in the engine config and are
+  // edited in settings. The intake only provides an initial value: when the config
+  // has no target for an entity yet, seed it from the intake shard, otherwise from
+  // the defaults. Once saved from settings, the config owns it and seeding stops.
+  function seedScoreTargets() {
+    if (!_s) load();
+    for (var i = 0; i < ENTITY_ORDER.length; i++) {
+      var ek = ENTITY_ORDER[i];
+      if (!_s[ek]) continue;
+      if (_s[ek].scoreTargets) continue;
+      var seed = (_intakeFields[ek] && _intakeFields[ek].scoreTargets) ? _intakeFields[ek].scoreTargets : null;
+      _s[ek].scoreTargets = {
+        dataQuality:   (seed && typeof seed.dataQuality === 'number') ? seed.dataQuality : SCORE_TARGET_DEFAULTS.dataQuality,
+        dataIntegrity: (seed && typeof seed.dataIntegrity === 'number') ? seed.dataIntegrity : SCORE_TARGET_DEFAULTS.dataIntegrity,
+        adoption:      (seed && typeof seed.adoption === 'number') ? seed.adoption : SCORE_TARGET_DEFAULTS.adoption
+      };
     }
   }
 
@@ -268,7 +292,6 @@
         for (var ik in shard.integrityConfig) delete out[ek].integrityConfig[ik];
       }
       if (out[ek].fieldExclusions) delete out[ek].fieldExclusions;
-      if (out[ek].scoreTargets) delete out[ek].scoreTargets;
     }
     return out;
   }
@@ -288,6 +311,7 @@
             _s = migrateV3(parsed);
             saveLocal(); // sync localStorage with server data
             applyIntakeFields(); // in-memory overlay, after saveLocal so it is not persisted
+            seedScoreTargets();  // seed engine-owned targets from intake/defaults when config lacks them
             console.log('Settings loaded from server (updated by associate ' + (resp.updatedBy || '?') + ')');
             if (callback) callback(true);
           } catch(e) {
@@ -298,6 +322,7 @@
           // Server table exists but no row yet — push localStorage settings to server
           if (_serverAvailable && _s) saveToServer();
           applyIntakeFields(); // overlay intake choices onto defaults even without an engine config row
+          seedScoreTargets();
           if (callback) callback(false);
         }
       });
@@ -677,7 +702,31 @@
       + 'background:rgba(99,102,241,.14);color:#6366f1;border:1px solid rgba(99,102,241,.35);}'
       + '.s-imp-btn.s-imp-locked{cursor:not-allowed;}'
       + '.s-imp-btn.s-imp-locked:not(.act-req):not(.act-norm):not(.act-excl):not(.act-high):not(.act-med):not(.act-low){opacity:.45;}'
-      + '.s-integrity-check input:disabled{cursor:not-allowed;}';
+      + '.s-integrity-check input:disabled{cursor:not-allowed;}'
+      + '.st-list{display:flex;flex-direction:column;gap:4px;margin-top:6px;}'
+      + '.st-row{padding:14px 0;}'
+      + '.st-row + .st-row{border-top:0.5px solid #EDE8DD;}'
+      + '.st-name{font-size:14px;font-weight:500;color:#1C1C1E;}'
+      + '.st-control{display:flex;align-items:center;gap:16px;margin-top:14px;margin-bottom:22px;}'
+      + '.st-track-wrap{position:relative;flex:1;height:18px;}'
+      + '.st-track{position:absolute;top:50%;left:0;right:0;transform:translateY(-50%);height:4px;border-radius:999px;background:#D8D2C4;z-index:0;}'
+      + '.st-fill{position:absolute;top:50%;left:0;transform:translateY(-50%);height:4px;border-radius:999px;background:#06423E;z-index:1;}'
+      + '.st-cur{position:absolute;top:50%;transform:translate(-50%,-50%);z-index:2;}'
+      + '.st-cur b{display:block;width:16px;height:16px;border-radius:50%;background:#06423E;}'
+      + '.st-curlab{position:absolute;top:22px;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:6px;white-space:nowrap;}'
+      + '.st-curlab i{font-style:normal;font-size:11px;font-weight:500;color:#9C9388;}'
+      + '.st-curlab em{font-style:normal;font-size:11px;font-weight:500;color:#5F5E5A;background:#F1EFE8;border-radius:999px;padding:2px 8px;}'
+      + '.st-thumb{position:absolute;top:50%;transform:translate(-50%,-50%);z-index:3;pointer-events:none;}'
+      + '.st-thumb b{display:block;width:18px;height:18px;border-radius:50%;background:#FFFFFF;border:2px solid #06423E;box-sizing:border-box;}'
+      + '.st-track-wrap:focus-within .st-thumb b{box-shadow:0 0 0 3px rgba(6,66,62,.18);}'
+      + '.st-slider{-webkit-appearance:none !important;appearance:none !important;position:absolute;inset:0;width:100%;height:100%;background:transparent !important;border:none !important;box-shadow:none !important;margin:0;padding:0;z-index:4;cursor:pointer;}'
+      + '.st-slider::-webkit-slider-runnable-track{height:18px !important;background:transparent !important;border:none !important;}'
+      + '.st-slider::-webkit-slider-thumb{-webkit-appearance:none !important;appearance:none !important;width:18px;height:18px;background:transparent !important;border:none !important;box-shadow:none !important;cursor:pointer;}'
+      + '.st-slider::-moz-range-track{height:18px !important;background:transparent !important;border:none !important;}'
+      + '.st-slider::-moz-range-thumb{width:18px;height:18px;background:transparent !important;border:none !important;}'
+      + '.st-readout{flex:none;width:60px;text-align:right;}'
+      + '.st-readout .st-val{font-size:20px;font-weight:500;color:#06423E;font-variant-numeric:tabular-nums;}'
+      + '.st-readout .st-pct{font-size:12px;color:#7A7268;margin-left:1px;}';
     var st = document.createElement('style');
     st.id = 'daIntakeStyles';
     st.textContent = css;
@@ -908,6 +957,9 @@
     h += renderHealthWeights(entityKey, s);
     h += '</div>';
 
+    // ── SCORE TARGETS ──
+    h += renderScoreTargets(entityKey, s);
+
     // ── ACCORDION: DATA QUALITY ──
     var dqBadge = accBadgeDQ(s, def);
     h += '<div class="s-accordion open" id="sAcc_dq_' + entityKey + '">';
@@ -1078,6 +1130,59 @@
     }
     h += '</div>';
     return h;
+  }
+
+  // Score targets card: the level aimed for per score, with the current score as a
+  // floor marker when the host has supplied it. Engine-owned and editable.
+  function renderScoreTargets(ek, s) {
+    var tg = s.scoreTargets || SCORE_TARGET_DEFAULTS;
+    var cur = _currentScores[ek] || null;
+    var h = '<div class="s-health-card"><h3>Score Targets</h3>';
+    h += '<div class="settings-desc">The level you aim for on each score. Shown as a marker on the dashboard. You can raise it over time, and it cannot be set below the current score.</div>';
+    h += '<div class="st-list">';
+    for (var i = 0; i < SCORE_TARGET_DEFS.length; i++) {
+      var d = SCORE_TARGET_DEFS[i];
+      var val = (typeof tg[d.key] === 'number') ? tg[d.key] : (SCORE_TARGET_DEFAULTS[d.key] || 0);
+      var curVal = (cur && typeof cur[d.key] === 'number') ? Math.round(cur[d.key]) : null;
+      var pos = 'calc(9px + (100% - 18px) * ' + (val / 100) + ')';
+      h += '<div class="st-row" data-entity="' + ek + '" data-score="' + d.key + '">';
+      h += '<div class="st-name">' + d.label + '</div>';
+      h += '<div class="st-control">';
+      h += '<div class="st-track-wrap">';
+      h += '<div class="st-track"></div>';
+      h += '<div class="st-fill" style="width:' + pos + '"></div>';
+      if (curVal != null) {
+        h += '<div class="st-cur" style="left:calc(9px + (100% - 18px) * ' + (curVal / 100) + ')"><b></b><div class="st-curlab"><i>current score</i><em>' + curVal + '%</em></div></div>';
+      }
+      h += '<div class="st-thumb" style="left:' + pos + '"><b></b></div>';
+      h += '<input type="range" class="st-slider" min="0" max="100" step="5" value="' + val + '"' + (curVal != null ? (' data-current="' + curVal + '"') : '') + ' oninput="daSettings.onTargetInput(this)" aria-label="' + d.label + ' target">';
+      h += '</div>';
+      h += '<div class="st-readout"><span class="st-val">' + val + '</span><span class="st-pct">%</span></div>';
+      h += '</div></div>';
+    }
+    h += '</div></div>';
+    return h;
+  }
+
+  // Live update from a target slider: clamp to the current score, move fill and
+  // handle, update the readout, and write the value into the engine settings.
+  function onTargetInput(slider) {
+    var row = slider.closest('.st-row');
+    if (!row) return;
+    var ek = row.getAttribute('data-entity');
+    var key = row.getAttribute('data-score');
+    var floor = parseInt(slider.getAttribute('data-current') || '0', 10) || 0;
+    var v = Math.round(parseInt(slider.value, 10) || 0);
+    if (v < floor) { v = floor; slider.value = floor; }
+    var pos = 'calc(9px + (100% - 18px) * ' + (v / 100) + ')';
+    var fill = row.querySelector('.st-fill'); if (fill) fill.style.width = pos;
+    var thumb = row.querySelector('.st-thumb'); if (thumb) thumb.style.left = pos;
+    var out = row.querySelector('.st-val'); if (out) out.textContent = v;
+    if (_s[ek]) {
+      if (!_s[ek].scoreTargets) _s[ek].scoreTargets = {};
+      _s[ek].scoreTargets[key] = v;
+    }
+    markUnsaved();
   }
 
   function renderIntegrityChecks(ek, s, def) {
@@ -1458,6 +1563,8 @@
     getConfig: get,
     getRules: getRules,
     getScoreTargets: function(entity) { var s = get(entity); return (s && s.scoreTargets) ? s.scoreTargets : null; },
+    onTargetInput: onTargetInput,
+    setCurrentScores: function(map) { _currentScores = map || {}; var ov = document.getElementById('smOverlay'); if (ov && ov.classList.contains('open')) { renderAllSections(); showSettingsSection(_smActiveSection); } },
     computeDQScore: computeDQ,
     computeIntegrity: computeIntegrity,
     computeAdoption: computeAdoption,
