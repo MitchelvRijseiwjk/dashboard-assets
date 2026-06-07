@@ -164,6 +164,7 @@
   var _rules = {};
   var _intakeFields = {};
   var _currentScores = {};   // optional per-entity current scores set by the host after a scan
+  var _scanState = null;     // { scannedAt, scores } from the latest scan snapshot
   var SCORE_TARGET_DEFS = [
     { key: 'dataQuality',   label: 'Data Quality',   desc: 'How completely the important fields are filled in across records.' },
     { key: 'dataIntegrity', label: 'Data Integrity', desc: 'How free the data is of structural problems like missing links or owners.' },
@@ -213,6 +214,31 @@
       try { _intakeFields[ek] = typeof fieldsObj[ek] === 'string' ? JSON.parse(fieldsObj[ek]) : fieldsObj[ek]; }
       catch (e) { _intakeFields[ek] = null; }
     }
+  }
+
+  // Parse the latest scan snapshot summary. Feeds the current-score markers in
+  // settings and the scan-status badge. Shape: { scannedAt, scores: { entity: {...} } }.
+  function parseScan(scanRaw) {
+    _scanState = null;
+    if (!scanRaw) return;
+    try { _scanState = (typeof scanRaw === 'string') ? JSON.parse(scanRaw) : scanRaw; }
+    catch (e) { _scanState = null; }
+    if (_scanState && _scanState.scores) _currentScores = _scanState.scores;
+  }
+
+  // Write the latest scan snapshot summary. Called by the dashboard after an
+  // analysis completes. Stored under the reserved scan: key namespace, which is
+  // designed to also carry the full dashboard snapshot and dated history later.
+  function saveScanState(scannedAt, scores) {
+    _scanState = { scannedAt: scannedAt, scores: scores || {} };
+    _currentScores = _scanState.scores;
+    if (typeof settingsSaveUrl === 'undefined' || !settingsSaveUrl) return;
+    try {
+      var x = new XMLHttpRequest();
+      x.open('POST', settingsSaveUrl, true);
+      x.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+      x.send('key=' + encodeURIComponent('scan:latest') + '&config=' + encodeURIComponent(JSON.stringify(_scanState)));
+    } catch (e) {}
   }
 
   // Overlay intake field choices onto the in-memory settings.
@@ -305,6 +331,7 @@
         _serverAvailable = resp.tableExists || false;
         parseRules(resp.rules);
         parseIntakeFields(resp.fields);
+        parseScan(resp.scan);
         if (resp.found && resp.config) {
           try {
             var parsed = typeof resp.config === 'string' ? JSON.parse(resp.config) : resp.config;
@@ -1565,6 +1592,8 @@
     getScoreTargets: function(entity) { var s = get(entity); return (s && s.scoreTargets) ? s.scoreTargets : null; },
     onTargetInput: onTargetInput,
     setCurrentScores: function(map) { _currentScores = map || {}; var ov = document.getElementById('smOverlay'); if (ov && ov.classList.contains('open')) { renderAllSections(); showSettingsSection(_smActiveSection); } },
+    getScanState: function() { return _scanState; },
+    saveScanState: saveScanState,
     computeDQScore: computeDQ,
     computeIntegrity: computeIntegrity,
     computeAdoption: computeAdoption,
