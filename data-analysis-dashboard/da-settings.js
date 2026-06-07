@@ -216,6 +216,15 @@
     }
   }
 
+  // Coerce a stored score (plain number or { total } breakdown object) to a
+  // rounded number, or null. Keeps the marker working regardless of which
+  // shape the scan snapshot stored.
+  function _scoreNum(x) {
+    if (typeof x === 'number') return Math.round(x);
+    if (x && typeof x.total === 'number') return Math.round(x.total);
+    return null;
+  }
+
   // Parse the latest scan snapshot summary. Feeds the current-score markers in
   // settings and the scan-status badge. Shape: { scannedAt, scores: { entity: {...} } }.
   function parseScan(scanRaw) {
@@ -1170,7 +1179,7 @@
     for (var i = 0; i < SCORE_TARGET_DEFS.length; i++) {
       var d = SCORE_TARGET_DEFS[i];
       var val = (typeof tg[d.key] === 'number') ? tg[d.key] : (SCORE_TARGET_DEFAULTS[d.key] || 0);
-      var curVal = (cur && typeof cur[d.key] === 'number') ? Math.round(cur[d.key]) : null;
+      var curVal = cur ? _scoreNum(cur[d.key]) : null;
       var pos = 'calc(9px + (100% - 18px) * ' + (val / 100) + ')';
       h += '<div class="st-row" data-entity="' + ek + '" data-score="' + d.key + '">';
       h += '<div class="st-name">' + d.label + '</div>';
