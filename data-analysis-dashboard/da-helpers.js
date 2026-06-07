@@ -153,11 +153,7 @@ function dateFilterNotice() {
   var df = activeFilterValue[key];
   var lbl = activeFilterLabel[key];
   if (!df) return '';
-  return '<div class="filter-notice" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">'
-    + '<span class="fn-icon">&#9202;</span>'
-    + '<span>Filtered: <strong>' + lbl + '</strong> (since ' + df + ')</span>'
-    + scanPillHtml()
-    + '</div>';
+  return '<div class="filter-notice"><span class="fn-icon">&#9202;</span> Filtered: <strong>' + lbl + '</strong> (since ' + df + ')</div>';
 }
 
 // Format an ISO date (2026-06-03) as a short readable date (3 Jun 2026).
@@ -170,15 +166,37 @@ function _fmtScanDate(iso) {
   return d + ' ' + (m[mo - 1] || '') + ' ' + y;
 }
 
-// Scan-status pill for the filter bar. On the dashboard there is always a scan,
-// so this shows the date. Returns empty if no scan state is loaded.
+// Scan-status pill. On the dashboard there is always a scan, so this shows the
+// date. Returns empty if no scan state is loaded.
 function scanPillHtml() {
   var st = (typeof daSettings !== 'undefined' && daSettings.getScanState) ? daSettings.getScanState() : null;
   if (!st || !st.scannedAt) return '';
-  return '<span style="margin-left:auto;display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:500;padding:5px 12px;border-radius:999px;background:#E2EFDC;color:#2E5E2A;border:1px solid #CDE2C4;white-space:nowrap">'
+  return '<span style="display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:500;padding:5px 12px;border-radius:999px;background:#E2EFDC;color:#2E5E2A;border:1px solid #CDE2C4;white-space:nowrap">'
     + '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8.5 12.5l2.5 2.5 4.5-5"/></svg>'
     + 'Last scan ' + _fmtScanDate(st.scannedAt) + '</span>';
 }
+
+// Mount (or refresh) the scan pill at the top of every entity page, above the
+// scores. One slim strip per page header, kept in sync with the latest scan.
+function _mountScanStrips() {
+  var pill = scanPillHtml();
+  if (!pill) return;
+  var headers = document.querySelectorAll('.tab-panel .page-header');
+  for (var i = 0; i < headers.length; i++) {
+    var h = headers[i];
+    var strip = h.querySelector('.page-scan-strip');
+    if (!strip) {
+      strip = document.createElement('div');
+      strip.className = 'page-scan-strip';
+      strip.style.cssText = 'display:flex;justify-content:flex-end;align-items:center;margin-top:10px';
+      h.appendChild(strip);
+    }
+    strip.innerHTML = pill;
+  }
+}
+
+// Refresh the strips as soon as the scan state has loaded from the server.
+if (typeof window !== 'undefined') { window.daOnScanReady = _mountScanStrips; }
 
 // Coerce a score (number or { total } object) to a rounded number, or null.
 function _scoreNum(x) {
@@ -457,6 +475,7 @@ function _aaOnAllDone() {
 
   // Persist the scan snapshot (date + per-entity scores) for the badge and settings
   _writeScanSnapshot();
+  _mountScanStrips();
 
   // Show "done" state: replace percentage text with a subtle checkmark inside existing circle
   setTimeout(function() {
