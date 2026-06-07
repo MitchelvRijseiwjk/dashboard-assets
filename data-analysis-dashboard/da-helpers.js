@@ -153,7 +153,48 @@ function dateFilterNotice() {
   var df = activeFilterValue[key];
   var lbl = activeFilterLabel[key];
   if (!df) return '';
-  return '<div class="filter-notice"><span class="fn-icon">&#9202;</span> Filtered: <strong>' + lbl + '</strong> (since ' + df + ')</div>';
+  return '<div class="filter-notice" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">'
+    + '<span class="fn-icon">&#9202;</span>'
+    + '<span>Filtered: <strong>' + lbl + '</strong> (since ' + df + ')</span>'
+    + scanPillHtml()
+    + '</div>';
+}
+
+// Format an ISO date (2026-06-03) as a short readable date (3 Jun 2026).
+function _fmtScanDate(iso) {
+  var m = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  var p = String(iso).split('-');
+  if (p.length !== 3) return String(iso);
+  var y = parseInt(p[0], 10), mo = parseInt(p[1], 10), d = parseInt(p[2], 10);
+  if (!mo || !d) return String(iso);
+  return d + ' ' + (m[mo - 1] || '') + ' ' + y;
+}
+
+// Scan-status pill for the filter bar. On the dashboard there is always a scan,
+// so this shows the date. Returns empty if no scan state is loaded.
+function scanPillHtml() {
+  var st = (typeof daSettings !== 'undefined' && daSettings.getScanState) ? daSettings.getScanState() : null;
+  if (!st || !st.scannedAt) return '';
+  return '<span style="margin-left:auto;display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:500;padding:5px 12px;border-radius:999px;background:#E2EFDC;color:#2E5E2A;border:1px solid #CDE2C4;white-space:nowrap">'
+    + '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8.5 12.5l2.5 2.5 4.5-5"/></svg>'
+    + 'Last scan ' + _fmtScanDate(st.scannedAt) + '</span>';
+}
+
+// Gather the per-entity scores after a full analysis and persist them as the
+// scan snapshot, so the date and current scores are available on next load.
+function _writeScanSnapshot() {
+  if (typeof daSettings === 'undefined' || !daSettings.saveScanState) return;
+  if (typeof computeEntityScores !== 'function') return;
+  var keys = ['company', 'contact', 'sale', 'project'];
+  var scores = {};
+  for (var i = 0; i < keys.length; i++) {
+    var s = computeEntityScores(keys[i]);
+    if (s) scores[keys[i]] = { dataQuality: s.dq, dataIntegrity: s.integrity, adoption: s.adoption, overall: s.health };
+  }
+  var d = new Date();
+  function pad(n) { return (n < 10 ? '0' : '') + n; }
+  var iso = d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
+  daSettings.saveScanState(iso, scores);
 }
 
 // v2: invalidate extra cache on reset
@@ -401,6 +442,9 @@ function _aaOnAllDone() {
   // Stop timer
   if (_aaElapsedTimer) { clearInterval(_aaElapsedTimer); _aaElapsedTimer = null; }
   var elapsed = Math.round((Date.now() - _aaStartTime) / 1000);
+
+  // Persist the scan snapshot (date + per-entity scores) for the badge and settings
+  _writeScanSnapshot();
 
   // Show "done" state: replace percentage text with a subtle checkmark inside existing circle
   setTimeout(function() {
