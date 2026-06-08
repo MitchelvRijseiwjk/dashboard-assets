@@ -148,9 +148,9 @@ function _ruleRows(entityKey) {
 function getRulesParam(entityKey) { var rows = _ruleRows(entityKey); return rows.length ? String.fromCharCode(38) + 'rules=' + encodeURIComponent(rows.join(';')) : ''; }
 function aaHasRules(entityKey) { return _ruleRows(entityKey).length > 0; }
 
-function dateFilterNotice() {
+function dateFilterNotice(suppressFilter) {
   var key = currentAnalysisEntity;
-  var df = activeFilterValue[key];
+  var df = suppressFilter ? '' : activeFilterValue[key];
   var lbl = activeFilterLabel[key];
   var pill = scanPillHtml();
   if (!df && !pill) return '';
