@@ -528,6 +528,7 @@ function _aaOnAllDone() {
       var extraBtn = document.getElementById('extraAnalyzeBtn');
       if (extraStartEl) extraStartEl.style.display = 'none';
       if (extraResultsEl) extraResultsEl.style.display = 'block';
+      if (extraResultsEl && !extraResultsEl.querySelector('.filter-notice')) extraResultsEl.insertAdjacentHTML('afterbegin', dateFilterNotice(true));
       if (extraExportEl) extraExportEl.style.display = '';
       if (extraBtn) { extraBtn.disabled = false; extraBtn.onclick = function(){ document.getElementById('extraResults').style.display = 'none'; document.getElementById('extraCards').innerHTML = ''; extraData = {}; invalidateExtraCache(); startExtra(); }; }
       var wr = 0;
