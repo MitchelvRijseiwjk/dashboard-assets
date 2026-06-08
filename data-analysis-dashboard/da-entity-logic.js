@@ -1646,6 +1646,8 @@ function showExtra() {
   setTimeout(function() {
     document.getElementById('extraStart').style.display = 'none';
     document.getElementById('extraResults').style.display = 'block';
+    var extraRes = document.getElementById('extraResults');
+    if (extraRes && !extraRes.querySelector('.filter-notice')) extraRes.insertAdjacentHTML('afterbegin', dateFilterNotice(true));
     document.getElementById('extraExportBtn').style.display = '';
     var btn = document.getElementById('extraAnalyzeBtn');
     if (btn) { btn.disabled = false; btn.onclick = function(){ document.getElementById('extraResults').style.display = 'none'; document.getElementById('extraCards').innerHTML = ''; extraData = {}; invalidateExtraCache(); startExtra(); }; }
@@ -2077,7 +2079,7 @@ function renderMomentum(key, d) {
   h += renderMomentumChart(monthly);
   h += renderUserAdoption(users, totalUsers, d.totalActivities + d.totalDocuments, filterMonths, filterLabel);
 
-  el.innerHTML = h;
+  el.innerHTML = dateFilterNotice(true) + h;
   mmInitChartTooltip(el, monthly);
 }
 
