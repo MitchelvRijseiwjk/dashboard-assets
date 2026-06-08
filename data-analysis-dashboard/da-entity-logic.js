@@ -1068,7 +1068,9 @@ function renderScoreBanner(key) {
   h += '</div>';
 
   h += '</div>';
-  el.insertAdjacentHTML('afterbegin', h);
+  var fn = el.querySelector('.filter-notice');
+  if (fn) fn.insertAdjacentHTML('afterend', h);
+  else el.insertAdjacentHTML('afterbegin', h);
 }
 
 // ===========================================================
