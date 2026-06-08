@@ -152,8 +152,15 @@ function dateFilterNotice() {
   var key = currentAnalysisEntity;
   var df = activeFilterValue[key];
   var lbl = activeFilterLabel[key];
-  if (!df) return '';
-  return '<div class="filter-notice"><span class="fn-icon">&#9202;</span> Filtered: <strong>' + lbl + '</strong> (since ' + df + ')</div>';
+  var pill = scanPillHtml();
+  if (!df && !pill) return '';
+  var left = df
+    ? '<span class="fn-icon">&#9202;</span><span>Filtered: <strong>' + lbl + '</strong> (since ' + df + ')</span>'
+    : '';
+  return '<div class="filter-notice" style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap">'
+    + '<div style="display:flex;align-items:center;gap:8px">' + left + '</div>'
+    + '<span class="scan-pill-slot">' + pill + '</span>'
+    + '</div>';
 }
 
 // Format an ISO date (2026-06-03) as a short readable date (3 Jun 2026).
@@ -176,27 +183,17 @@ function scanPillHtml() {
     + 'Last scan ' + _fmtScanDate(st.scannedAt) + '</span>';
 }
 
-// Mount (or refresh) the scan pill at the top of every entity page, above the
-// scores. One slim strip per page header, kept in sync with the latest scan.
-function _mountScanStrips() {
+// Refresh the scan pill inside every filter bar. Called when the scan state
+// loads and after a fresh scan, so the pill stays in sync without a full
+// re-render of the entity views.
+function _refreshScanPills() {
   var pill = scanPillHtml();
-  if (!pill) return;
-  var headers = document.querySelectorAll('.tab-panel .page-header');
-  for (var i = 0; i < headers.length; i++) {
-    var h = headers[i];
-    var strip = h.querySelector('.page-scan-strip');
-    if (!strip) {
-      strip = document.createElement('div');
-      strip.className = 'page-scan-strip';
-      strip.style.cssText = 'display:flex;justify-content:flex-end;align-items:center;margin-top:10px';
-      h.appendChild(strip);
-    }
-    strip.innerHTML = pill;
-  }
+  var slots = document.querySelectorAll('.filter-notice .scan-pill-slot');
+  for (var i = 0; i < slots.length; i++) { slots[i].innerHTML = pill; }
 }
 
-// Refresh the strips as soon as the scan state has loaded from the server.
-if (typeof window !== 'undefined') { window.daOnScanReady = _mountScanStrips; }
+// Refresh the pills as soon as the scan state has loaded from the server.
+if (typeof window !== 'undefined') { window.daOnScanReady = _refreshScanPills; }
 
 // Coerce a score (number or { total } object) to a rounded number, or null.
 function _scoreNum(x) {
@@ -475,7 +472,7 @@ function _aaOnAllDone() {
 
   // Persist the scan snapshot (date + per-entity scores) for the badge and settings
   _writeScanSnapshot();
-  _mountScanStrips();
+  _refreshScanPills();
 
   // Show "done" state: replace percentage text with a subtle checkmark inside existing circle
   setTimeout(function() {
