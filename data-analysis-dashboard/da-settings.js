@@ -15,15 +15,15 @@
     company: {
       label: 'Company', entityId: 7,
       stdFields: [
-        { key: 'email',    label: 'Email address' },
-        { key: 'phone',    label: 'Phone number' },
-        { key: 'category', label: 'Category' },
-        { key: 'business', label: 'Business type' },
-        { key: 'orgNr',    label: 'Org. number' },
-        { key: 'address',  label: 'Address' },
-        { key: 'postcode', label: 'Postcode' },
-        { key: 'country',  label: 'Country' },
-        { key: 'webpage',  label: 'Webpage' }
+        { key: 'email',    label: 'Email address', type: 'Text' },
+        { key: 'phone',    label: 'Phone number', type: 'Text' },
+        { key: 'category', label: 'Category', type: 'List' },
+        { key: 'business', label: 'Business type', type: 'List' },
+        { key: 'orgNr',    label: 'Org. number', type: 'Text' },
+        { key: 'address',  label: 'Address', type: 'Text' },
+        { key: 'postcode', label: 'Postcode', type: 'Text' },
+        { key: 'country',  label: 'Country', type: 'List' },
+        { key: 'webpage',  label: 'Webpage', type: 'Text' }
       ],
       integrityChecks: [
         { key: 'noPerson',      label: 'No contact person',  desc: 'No contacts means nobody to approach within the company', query: 'count(person WHERE contact_id = company) = 0' },
@@ -44,12 +44,12 @@
     contact: {
       label: 'Contact', entityId: 6,
       stdFields: [
-        { key: 'firstName', label: 'First name' },
-        { key: 'lastName',  label: 'Last name' },
-        { key: 'email',     label: 'Email' },
-        { key: 'phone',     label: 'Phone' },
-        { key: 'position',  label: 'Position/Title' },
-        { key: 'mrMrs',     label: 'Mr/Ms' }
+        { key: 'firstName', label: 'First name', type: 'Text' },
+        { key: 'lastName',  label: 'Last name', type: 'Text' },
+        { key: 'email',     label: 'Email', type: 'Text' },
+        { key: 'phone',     label: 'Phone', type: 'Text' },
+        { key: 'position',  label: 'Position/Title', type: 'Text' },
+        { key: 'mrMrs',     label: 'Mr/Ms', type: 'List' }
       ],
       integrityChecks: [
         { key: 'noEmail',     label: 'No email address',     desc: 'Contact has no email and cannot be reached digitally', query: 'email_address NOT CONTAINS "@"' },
@@ -65,13 +65,13 @@
     sale: {
       label: 'Sale', entityId: 10,
       stdFields: [
-        { key: 'amount',      label: 'Amount' },
-        { key: 'saleType',    label: 'Sale type' },
-        { key: 'stage',       label: 'Stage' },
-        { key: 'probability', label: 'Probability' },
-        { key: 'closeDate',   label: 'Close date' },
-        { key: 'competitor',  label: 'Competitor' },
-        { key: 'source',      label: 'Source' }
+        { key: 'amount',      label: 'Amount', type: 'Number' },
+        { key: 'saleType',    label: 'Sale type', type: 'List' },
+        { key: 'stage',       label: 'Stage', type: 'List' },
+        { key: 'probability', label: 'Probability', type: 'Number' },
+        { key: 'closeDate',   label: 'Close date', type: 'Date' },
+        { key: 'competitor',  label: 'Competitor', type: 'Text' },
+        { key: 'source',      label: 'Source', type: 'List' }
       ],
       integrityChecks: [
         { key: 'noContact',     label: 'No contact linked',  desc: 'Sales without a contact person are hard to follow up', query: 'sale.person_id <= 0' },
@@ -88,10 +88,10 @@
     project: {
       label: 'Project', entityId: 11,
       stdFields: [
-        { key: 'projectType', label: 'Project type' },
-        { key: 'status',      label: 'Status' },
-        { key: 'endDate',     label: 'End date' },
-        { key: 'description', label: 'Description' }
+        { key: 'projectType', label: 'Project type', type: 'List' },
+        { key: 'status',      label: 'Status', type: 'List' },
+        { key: 'endDate',     label: 'End date', type: 'Date' },
+        { key: 'description', label: 'Description', type: 'Text' }
       ],
       integrityChecks: [
         { key: 'noMembers',    label: 'No members',    desc: 'Project lacks a team, delivery responsibility is unclear', query: 'count(project_member WHERE project_id = project) = 0' },
@@ -764,7 +764,8 @@
       + '.st-readout{flex:none;width:60px;text-align:right;}'
       + '.st-readout .st-val{font-size:20px;font-weight:500;color:#06423E;font-variant-numeric:tabular-nums;}'
       + '.st-readout .st-pct{font-size:12px;color:#7A7268;margin-left:1px;}'
-      + '.s-fld-row2{display:grid;grid-template-columns:1fr 132px 184px 116px;align-items:center;gap:12px;padding:11px 0;border-top:0.5px solid #EDE8DD;}'
+      + '.s-fld-row2{display:grid;grid-template-columns:minmax(0,1fr) 132px max-content 104px;align-items:center;gap:14px;padding:11px 0;border-top:0.5px solid #EDE8DD;}'
+      + '.s-fld-row2 .s-fld-toggle{justify-self:start;white-space:nowrap;}'
       + '.s-field-list .s-fld-row2:first-child{border-top:none;}'
       + '.s-fld-nm{font-size:14px;color:#1C1C1E;}'
       + '.s-fld-pct{margin-left:6px;font-variant-numeric:tabular-nums;}'
@@ -773,6 +774,7 @@
       + '.s-pill-text{background:#F1EFE8;color:#6B6A64;}'
       + '.s-pill-list{background:#E1F5EE;color:#0F6E56;cursor:pointer;}'
       + '.s-pill-list[disabled]{cursor:default;opacity:.6;}'
+      + '.s-pill-flat{cursor:default;}'
       + '.s-pill-list .s-chv{width:9px;height:9px;transition:transform .15s;opacity:.8;}'
       + '.s-pill-list.open .s-chv{transform:rotate(180deg);opacity:1;}'
       + '.s-fld-st{display:flex;justify-content:flex-end;}'
@@ -1289,7 +1291,7 @@
     h += '<div class="s-field-list">';
     for (var i = 0; i < def.stdFields.length; i++) {
       var sf = def.stdFields[i]; var imp = s.stdFieldConfig[sf.key] || 'excluded';
-      h += fieldRow(sf.label, null, null, imp, 'std', sf.key, ek, null);
+      h += fieldRow(sf.label, sf.type || 'Text', null, imp, 'std', sf.key, ek, null);
     }
     h += '</div>';
     var ufields = _udefFields[ek] || [];
@@ -1329,17 +1331,19 @@
     var esc = key.replace(/'/g, "\\'");
     var locked = intakeOwns(ek, group, key);
     var hasItems = !!(items && items.length > 0);
-    var isList = hasItems || type === 'List';
+    var isList = hasItems || type === 'List' || type === 'Dropdown';
     var h = '<div class="s-fld-row2' + (imp === 'excluded' ? ' s-fld-excl' : '') + (locked ? ' s-fld-intake' : '') + '" data-grp="' + group + '" data-key="' + key + '" data-entity="' + ek + '">';
     // Field name (plus optional fill-rate hint passed in via extra)
     h += '<div class="s-fld-nm">' + label + (extra ? ' <span class="s-fld-pct">' + extra + '</span>' : '') + '</div>';
-    // Type pill: green clickable List pill with chevron, or a grey type tag
+    // Type pill: green List pill (clickable with chevron when it has values), or a grey type tag
     h += '<div class="s-fld-tp">';
-    if (isList) {
-      h += '<button type="button" class="s-pill s-pill-list" onclick="daSettings.toggleFieldValues(this)"' + (hasItems ? '' : ' disabled aria-disabled="true"') + '>';
+    if (hasItems) {
+      h += '<button type="button" class="s-pill s-pill-list" onclick="daSettings.toggleFieldValues(this)">';
       h += '<span>List</span>';
       h += '<svg class="s-chv" viewBox="0 0 10 6" fill="none" aria-hidden="true"><path d="M1 1l4 4 4-4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>';
       h += '</button>';
+    } else if (isList) {
+      h += '<span class="s-pill s-pill-list s-pill-flat" title="List field. Its values become editable with override.">List</span>';
     } else if (type) {
       h += '<span class="s-pill s-pill-text">' + type + '</span>';
     }
