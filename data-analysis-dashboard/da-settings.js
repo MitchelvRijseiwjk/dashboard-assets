@@ -474,7 +474,7 @@
     _udefFields[eKey] = [];
     for (var i = 0; i < data.fields.length; i++) {
       var f = data.fields[i];
-      _udefFields[eKey].push({ progId: f.progId || f.label || ('f' + i), label: f.label, type: f.type, percent: f.percent });
+      _udefFields[eKey].push({ progId: f.progId || f.label || ('f' + i), label: f.label, type: f.type, percent: f.percent, items: f.items || [] });
     }
     if (_activeEntity === eKey) {
       // Re-render entity section in modal if open
@@ -763,7 +763,26 @@
       + '.st-slider::-moz-range-thumb{width:18px;height:18px;background:transparent !important;border:none !important;}'
       + '.st-readout{flex:none;width:60px;text-align:right;}'
       + '.st-readout .st-val{font-size:20px;font-weight:500;color:#06423E;font-variant-numeric:tabular-nums;}'
-      + '.st-readout .st-pct{font-size:12px;color:#7A7268;margin-left:1px;}';
+      + '.st-readout .st-pct{font-size:12px;color:#7A7268;margin-left:1px;}'
+      + '.s-fld-row2{display:grid;grid-template-columns:1fr 132px 184px 116px;align-items:center;gap:12px;padding:11px 0;border-top:0.5px solid #EDE8DD;}'
+      + '.s-field-list .s-fld-row2:first-child{border-top:none;}'
+      + '.s-fld-nm{font-size:14px;color:#1C1C1E;}'
+      + '.s-fld-pct{margin-left:6px;font-variant-numeric:tabular-nums;}'
+      + '.s-fld-excl .s-fld-nm{color:#9C9388;}'
+      + '.s-pill{display:inline-flex;align-items:center;gap:5px;font-size:12px;padding:4px 9px;border-radius:999px;border:none;line-height:1.4;}'
+      + '.s-pill-text{background:#F1EFE8;color:#6B6A64;}'
+      + '.s-pill-list{background:#E1F5EE;color:#0F6E56;cursor:pointer;}'
+      + '.s-pill-list[disabled]{cursor:default;opacity:.6;}'
+      + '.s-pill-list .s-chv{width:9px;height:9px;transition:transform .15s;opacity:.8;}'
+      + '.s-pill-list.open .s-chv{transform:rotate(180deg);opacity:1;}'
+      + '.s-fld-st{display:flex;justify-content:flex-end;}'
+      + '.s-fld-st .s-intake-badge{margin-left:0;}'
+      + '.s-fld-vals{padding:2px 0 14px;}'
+      + '.s-vals-h{font-size:12px;color:#7A7268;margin:4px 0 10px;line-height:1.5;}'
+      + '.s-vals-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:4px 16px;}'
+      + '.s-val{display:flex;justify-content:space-between;align-items:baseline;gap:10px;font-size:13px;color:#1C1C1E;padding:3px 0;}'
+      + '.s-val-p{font-size:12px;color:#9C9388;font-variant-numeric:tabular-nums;}'
+      + '.s-val-unused .s-val-n,.s-val-unused .s-val-p{color:#B4B2A9;}';
     var st = document.createElement('style');
     st.id = 'daIntakeStyles';
     st.textContent = css;
@@ -1265,12 +1284,12 @@
 
   function renderCompletenessBody(ek, s, def) {
     var h = '';
-    h += '<div class="s-acc-desc">Which fields count towards completeness. <strong>Required</strong> fields count double, <strong>Excluded</strong> are ignored.</div>';
+    h += '<div class="s-acc-desc">How each field counts towards completeness. <strong>Required</strong> counts double, <strong>Normal</strong> counts once, <strong>Off</strong> is ignored.</div>';
     h += '<div class="s-cpl-sub-head">Standard Fields</div>';
     h += '<div class="s-field-list">';
     for (var i = 0; i < def.stdFields.length; i++) {
       var sf = def.stdFields[i]; var imp = s.stdFieldConfig[sf.key] || 'excluded';
-      h += fieldRow(sf.label, null, null, imp, 'std', sf.key, ek);
+      h += fieldRow(sf.label, null, null, imp, 'std', sf.key, ek, null);
     }
     h += '</div>';
     var ufields = _udefFields[ek] || [];
@@ -1287,7 +1306,7 @@
       for (var i = 0; i < ufields.length; i++) {
         var uf = ufields[i]; var imp = s.udefFieldConfig[uf.progId] || 'normal';
         var fillCol = uf.percent >= 70 ? 'var(--sl-good)' : (uf.percent >= 30 ? 'var(--sl-ok)' : 'var(--sl-bad)');
-        h += fieldRow(uf.label, uf.type, '<span style="font-weight:600;color:' + fillCol + '">' + uf.percent + '%</span>', imp, 'udef', uf.progId, ek);
+        h += fieldRow(uf.label, uf.type, '<span style="font-weight:600;color:' + fillCol + '">' + uf.percent + '%</span>', imp, 'udef', uf.progId, ek, uf.items);
       }
       h += '</div>';
     }
@@ -1306,26 +1325,56 @@
     return h;
   }
 
-  function fieldRow(label, type, extra, imp, group, key, ek) {
+  function fieldRow(label, type, extra, imp, group, key, ek, items) {
     var esc = key.replace(/'/g, "\\'");
     var locked = intakeOwns(ek, group, key);
-    var h = '<div class="s-fld-row' + (imp === 'excluded' ? ' s-fld-excl' : '') + (locked ? ' s-fld-intake' : '') + '" data-grp="' + group + '" data-key="' + key + '" data-entity="' + ek + '">';
-    h += '<div class="s-fld-name">' + label;
-    if (type) h += '<span class="s-fld-type">' + type + '</span>';
-    if (locked) h += '<span class="s-intake-badge" title="Set in the intake form. Managed there and locked here.">Intake</span>';
+    var hasItems = !!(items && items.length > 0);
+    var isList = hasItems || type === 'List';
+    var h = '<div class="s-fld-row2' + (imp === 'excluded' ? ' s-fld-excl' : '') + (locked ? ' s-fld-intake' : '') + '" data-grp="' + group + '" data-key="' + key + '" data-entity="' + ek + '">';
+    // Field name (plus optional fill-rate hint passed in via extra)
+    h += '<div class="s-fld-nm">' + label + (extra ? ' <span class="s-fld-pct">' + extra + '</span>' : '') + '</div>';
+    // Type pill: green clickable List pill with chevron, or a grey type tag
+    h += '<div class="s-fld-tp">';
+    if (isList) {
+      h += '<button type="button" class="s-pill s-pill-list" onclick="daSettings.toggleFieldValues(this)"' + (hasItems ? '' : ' disabled aria-disabled="true"') + '>';
+      h += '<span>List</span>';
+      h += '<svg class="s-chv" viewBox="0 0 10 6" fill="none" aria-hidden="true"><path d="M1 1l4 4 4-4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+      h += '</button>';
+    } else if (type) {
+      h += '<span class="s-pill s-pill-text">' + type + '</span>';
+    }
     h += '</div>';
-    if (extra) h += '<div class="s-fld-extra">' + extra + '</div>';
+    // Importance segmented control: Off | Normal | Required
     h += '<div class="s-fld-toggle">';
     if (locked) {
-      h += impBtnLocked('Required', imp === 'required', 'act-req');
+      h += impBtnLocked('Off', imp === 'excluded', 'act-excl');
       h += impBtnLocked('Normal', imp === 'normal', 'act-norm');
-      h += impBtnLocked('Excluded', imp === 'excluded', 'act-excl');
+      h += impBtnLocked('Required', imp === 'required', 'act-req');
     } else {
-      h += '<button class="s-imp-btn' + (imp === 'required' ? ' act-req' : '') + '" onclick="daSettings.setImp(\'' + group + '\',\'' + esc + '\',\'required\',this)">Required</button>';
+      h += '<button class="s-imp-btn' + (imp === 'excluded' ? ' act-excl' : '') + '" onclick="daSettings.setImp(\'' + group + '\',\'' + esc + '\',\'excluded\',this)">Off</button>';
       h += '<button class="s-imp-btn' + (imp === 'normal' ? ' act-norm' : '') + '" onclick="daSettings.setImp(\'' + group + '\',\'' + esc + '\',\'normal\',this)">Normal</button>';
-      h += '<button class="s-imp-btn' + (imp === 'excluded' ? ' act-excl' : '') + '" onclick="daSettings.setImp(\'' + group + '\',\'' + esc + '\',\'excluded\',this)">Excluded</button>';
+      h += '<button class="s-imp-btn' + (imp === 'required' ? ' act-req' : '') + '" onclick="daSettings.setImp(\'' + group + '\',\'' + esc + '\',\'required\',this)">Required</button>';
     }
-    h += '</div></div>';
+    h += '</div>';
+    // Status column: Intake badge when the intake form owns this field
+    h += '<div class="s-fld-st">';
+    if (locked) h += '<span class="s-intake-badge" title="Set in the intake form. Managed there and locked here.">Intake</span>';
+    h += '</div>';
+    h += '</div>';
+    // Read-only value preview for list fields (editable exclusions arrive with override)
+    if (hasItems) {
+      h += '<div class="s-fld-vals" style="display:none">';
+      h += '<div class="s-vals-h">Values and how often they are filled. Choosing which values count comes with override.</div>';
+      h += '<div class="s-vals-grid">';
+      for (var vi = 0; vi < items.length; vi++) {
+        var it = items[vi];
+        var nm = (it && it.n != null) ? it.n : '';
+        var pc = (it && typeof it.p === 'number') ? it.p.toFixed(1) : '0.0';
+        var un = (it && it.c === 0) ? ' s-val-unused' : '';
+        h += '<div class="s-val' + un + '"><span class="s-val-n">' + nm + '</span><span class="s-val-p">' + pc + '%</span></div>';
+      }
+      h += '</div></div>';
+    }
     return h;
   }
 
@@ -1424,6 +1473,18 @@
     var open = body.style.display !== 'none';
     body.style.display = open ? 'none' : 'block';
     if (chev) { if (open) chev.classList.remove('s-udef-open'); else chev.classList.add('s-udef-open'); }
+  }
+
+  // Expand or collapse the read-only value preview under a list field row.
+  function toggleFieldValues(btn) {
+    if (!btn) return;
+    var row = btn.closest ? btn.closest('.s-fld-row2') : null;
+    if (!row) return;
+    var panel = row.nextElementSibling;
+    if (!panel || panel.className.indexOf('s-fld-vals') === -1) return;
+    var open = panel.style.display !== 'none';
+    panel.style.display = open ? 'none' : 'block';
+    if (open) btn.classList.remove('open'); else btn.classList.add('open');
   }
 
   // ============================================================
@@ -1622,6 +1683,8 @@
     switchEntity: switchEntity, toggleAcc: toggleAcc, setHML: setHML,
     toggleHealthComp: toggleHealthComp, toggleEngComp: toggleEngComp,
     toggleIntegrity: toggleIntegrity, setImp: setImp, toggleUdef: toggleUdef,
+    toggleFieldValues: toggleFieldValues,
+    _renderCompleteness: function(ek){ return renderCompletenessBody(ek, get(ek), ENTITY_DEFS[ek]); },
     selectRadio: selectRadio, markUnsaved: markUnsaved,
     openInfo: openInfo, closeInfo: closeInfo,
     doSave: doSave, doReset: doReset,
