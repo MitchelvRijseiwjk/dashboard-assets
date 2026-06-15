@@ -396,8 +396,8 @@
     o[cfg][key] = (src && src[key]) ? src[key] : 'normal';
     if (s.fieldExclusions && s.fieldExclusions[key]) o.fieldExclusions[key] = s.fieldExclusions[key].slice();
     markUnsaved();
-    _rerenderCompleteness(ek);
-    _openFieldValues(ek, group, key);
+    try { _rerenderCompleteness(ek); } catch (e) {}
+    try { _openFieldValues(ek, group, key); } catch (e) {}
   }
 
   // Drop the override and fall back to the intake value.
@@ -438,7 +438,11 @@
     if (idx >= 0) arr.splice(idx, 1); else arr.push(name);
     s.fieldExclusions[key] = arr;
     o.fieldExclusions[key] = arr.slice();
-    if (el && el.classList) { var ex = idx < 0; el.classList.toggle('s-val-excluded', ex); el.classList.toggle('s-val-included', !ex); }
+    if (el && el.classList) {
+      var nowExcluded = idx < 0;
+      if (nowExcluded) { el.classList.add('s-val-excluded'); el.classList.remove('s-val-included'); }
+      else { el.classList.add('s-val-included'); el.classList.remove('s-val-excluded'); }
+    }
     markUnsaved();
   }
 
@@ -964,7 +968,7 @@
       + '.s-val-excluded .s-val-n{color:#9C9388;text-decoration:line-through;}'
       + '.s-vals-grid:not(.s-vals-locked) .s-val{cursor:pointer;}'
       + '.s-vals-locked{opacity:.5;}'
-      + '.s-intake-lock{display:inline-flex;align-items:center;gap:4px;cursor:pointer;font:inherit;line-height:1.4;box-sizing:border-box;}'
+      + '.s-intake-lock{display:inline-flex;align-items:center;gap:4px;cursor:pointer;font-family:inherit;font-size:10px;font-weight:700;line-height:1.4;box-sizing:border-box;}'
       + '.s-intake-lock .s-lock{width:9px;height:9px;display:block;flex:none;}'
       + '.s-intake-lock:hover{filter:brightness(.97);}'
       + '.s-introw-st{display:flex;justify-content:flex-end;align-items:center;flex:none;min-width:104px;margin-left:8px;}'
