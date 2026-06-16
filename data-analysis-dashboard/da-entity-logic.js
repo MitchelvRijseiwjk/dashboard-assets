@@ -6,50 +6,59 @@ function renderUdef(ent, idx, entityKey) {
   if (ent.fields.length === 0) {
     h += '<div style="padding:20px;color:#888"><em>No extra fields configured</em></div>';
   } else {
-    ent.fields.sort(function(a,b) { return b.percent - a.percent; });
     var udefCfg = (typeof daSettings !== 'undefined' && entityKey) ? (daSettings.getSettings(entityKey).udefFieldConfig || {}) : {};
     var Q = String.fromCharCode(39);
-    h += '<table class="data-table" id="tbl-u' + idx + '">';
+    var tid = 'tbl-u' + idx;
+    h += '<p class="tbl-cap"><b>Higher completeness is better.</b> Custom fields feed the Data Quality score. Sorted by attention, so important fields with the largest gaps sit on top.</p>';
+    h += '<table class="data-table" id="' + tid + '">';
     h += '<thead><tr>';
-    h += '<th onclick="sortT(' + Q + 'tbl-u' + idx + Q + ',0)">Field Label <span class="sort-arrow">' + svgSortN + '</span></th>';
-    h += '<th onclick="sortT(' + Q + 'tbl-u' + idx + Q + ',1)">Type <span class="sort-arrow">' + svgSortN + '</span></th>';
-    h += '<th class="col-right" style="width:110px" onclick="sortT(' + Q + 'tbl-u' + idx + Q + ',2)">Filled <span class="sort-arrow">' + svgSortN + '</span></th>';
+    h += '<th class="attn-col" onclick="sortT(' + Q + tid + Q + ',0)"><span class="sort-arrow active">' + svgSortD + '</span></th>';
+    h += '<th onclick="sortT(' + Q + tid + Q + ',1)">Field Label <span class="sort-arrow">' + svgSortN + '</span></th>';
+    h += '<th onclick="sortT(' + Q + tid + Q + ',2)">Type <span class="sort-arrow">' + svgSortN + '</span></th>';
+    h += '<th class="col-right" style="width:110px" onclick="sortT(' + Q + tid + Q + ',3)">Filled <span class="sort-arrow">' + svgSortN + '</span></th>';
     h += '<th style="text-align:center;width:90px">Importance</th>';
-    h += '<th class="col-right" style="width:130px" onclick="sortT(' + Q + 'tbl-u' + idx + Q + ',4)">Completeness <span class="sort-arrow active">' + svgSortD + '</span></th>';
+    h += '<th class="col-right" style="width:130px" onclick="sortT(' + Q + tid + Q + ',5)">Completeness <span class="sort-arrow">' + svgSortN + '</span></th>';
     h += '</tr></thead><tbody>';
+    var uRows = [];
     for (var fi = 0; fi < ent.fields.length; fi++) {
       var f = ent.fields[fi];
       var pid = f.progId || f.label || ('f' + fi);
       var imp = udefCfg[pid] || 'normal';
       var rc = '';
       if (f.filled === 0) rc = 'unused';
+      var uBad = 100 - f.percent;
+      var uAttn = attnScore(uBad, imp);
+      var uReason = '<b>' + attnBandWord(uAttn) + ' attention.</b> ' + _capFirst(imp) + ' field, ' + Math.round(uBad) + '% empty. Higher completeness lifts the Data Quality score.';
       var dimStyle = imp === 'excluded' ? ' style="opacity:0.4"' : '';
-      h += '<tr class="' + rc + '"' + dimStyle + '>';
-      h += '<td data-sort-value="' + f.label + '">' + f.label + '</td>';
-      h += '<td data-sort-value="' + f.type + '"><span class="type-badge">' + f.type + '</span>';
+      var tr = '<tr class="' + rc + '"' + dimStyle + '>';
+      tr += '<td class="attn-col" data-sort-value="' + uAttn + '">' + attnIconHtml(uAttn, uReason) + '</td>';
+      tr += '<td data-sort-value="' + f.label + '">' + f.label + '</td>';
+      tr += '<td data-sort-value="' + f.type + '"><span class="type-badge">' + f.type + '</span>';
       if (f.items && f.items.length > 0) {
         ddCnt++;
         var did = 'dd-' + ddCnt;
-        h += ' <span class="dd-toggle" id="btn-' + did + '" onclick="togDD(' + Q + did + Q + ',' + f.items.length + ')">';
-        h += svgDDChev + ' Show (' + f.items.length + ')</span>';
-        h += '<div class="dd-panel" id="' + did + '">';
+        tr += ' <span class="dd-toggle" id="btn-' + did + '" onclick="togDD(' + Q + did + Q + ',' + f.items.length + ')">';
+        tr += svgDDChev + ' Show (' + f.items.length + ')</span>';
+        tr += '<div class="dd-panel" id="' + did + '">';
         for (var ii = 0; ii < f.items.length; ii++) {
           var itm = f.items[ii];
           var ic = '';
           if (itm.c === 0) ic = 'unused';
-          h += '<div class="dd-item ' + ic + '">';
-          h += '<span>' + itm.n + '</span>';
-          h += '<span>' + itm.c + ' <span class="dd-pct">' + itm.p.toFixed(1) + P + '</span></span>';
-          h += '</div>';
+          tr += '<div class="dd-item ' + ic + '">';
+          tr += '<span>' + itm.n + '</span>';
+          tr += '<span>' + itm.c + ' <span class="dd-pct">' + itm.p.toFixed(1) + P + '</span></span>';
+          tr += '</div>';
         }
-        h += '</div>';
+        tr += '</div>';
       }
-      h += '</td>';
-      h += '<td class="col-right" data-sort-value="' + f.filled + '">' + f.filled + ' / ' + ent.total + '</td>';
-      h += '<td style="text-align:center"><span class="imp-badge ' + imp + '">' + imp + '</span></td>';
-      h += '<td class="col-right" data-sort-value="' + f.percent + '">' + barCell(f.percent, '') + '</td>';
-      h += '</tr>';
+      tr += '</td>';
+      tr += '<td class="col-right" data-sort-value="' + f.filled + '">' + f.filled + ' / ' + ent.total + '</td>';
+      tr += '<td style="text-align:center"><span class="imp-badge ' + imp + '">' + imp + '</span></td>';
+      tr += '<td class="col-right" data-sort-value="' + f.percent + '">' + barCell(f.percent, '') + '</td>';
+      tr += '</tr>';
+      uRows.push({ attn: uAttn, badness: uBad, html: tr });
     }
+    h += attnSortRows(uRows);
     h += '</tbody></table>';
   }
   h += '</div>';
@@ -1187,20 +1196,26 @@ function renderDQScore(key) {
         ];
 
         h += '<div class="entity-card">';
-        h += '<div class="entity-header"><div class="entity-info"><h3>Data Quality Issues</h3></div>';
+        h += '<div class="entity-header"><div class="entity-info"><h3>Quality flags</h3></div>';
         h += '<span class="record-badge">' + fmtNum(total) + ' companies</span></div>';
-        h += '<table class="data-table"><thead><tr><th>Issue</th><th class="col-right" style="width:80px">Count</th><th class="col-right" style="width:130px">' + P + '</th></tr></thead><tbody>';
+        h += '<p class="tbl-cap"><b>Lower is better.</b> Each flag counts against the score. Sorted by attention, so the flags hitting the most records sit on top; flags not in the score drop to the bottom.</p>';
+        h += '<table class="data-table"><thead><tr><th class="attn-col"></th><th>Flag</th><th class="col-right" style="width:80px">Count</th><th class="col-right" style="width:130px">' + P + '</th></tr></thead><tbody>';
+        var qRows = [];
         for (var i = 0; i < allIssues.length; i++) {
           var iss = allIssues[i];
           var isActive = qiFields.indexOf(iss.key) >= 0;
           var pct = Math.round((iss.val / total) * 1000) / 10;
           var col = slColorInv(pct);
+          var attn = isActive ? Math.round(pct) : -1;
+          var reason = '<b>' + attnBandWord(attn) + ' attention.</b> Active quality flag, ' + Math.round(pct) + '% of companies affected. Fewer affected lifts the score.';
           var dimStyle = isActive ? '' : ' style="opacity:0.4"';
           var badge = isActive ? '' : ' <span style="font-size:.65rem;color:var(--so-text-muted)">(not in score)</span>';
-          h += '<tr' + dimStyle + '><td>' + iss.label + badge + '</td>';
-          h += '<td class="col-right">' + fmtNum(iss.val) + '</td>';
-          h += '<td class="col-right">' + barCell(pct, col) + '</td></tr>';
+          var row = '<tr' + dimStyle + '><td class="attn-col">' + attnIconHtml(attn, reason) + '</td><td>' + iss.label + badge + '</td>';
+          row += '<td class="col-right">' + fmtNum(iss.val) + '</td>';
+          row += '<td class="col-right">' + barCell(pct, col) + '</td></tr>';
+          qRows.push({ attn: attn, badness: pct, html: row });
         }
+        h += attnSortRows(qRows);
         h += '</tbody></table></div>';
       }
     }
@@ -1218,20 +1233,27 @@ function renderDQScore(key) {
         h += '<div class="entity-card">';
         h += '<div class="entity-header"><div class="entity-info"><h3>Standard Field Completeness</h3></div>';
         h += '<span class="record-badge">' + fmtNum(total) + ' companies</span></div>';
-        h += '<table class="data-table"><thead><tr><th>Field</th><th class="col-right" style="width:80px">Filled</th><th style="text-align:center;width:90px">Importance</th><th class="col-right" style="width:130px">Completeness</th></tr></thead><tbody>';
+        h += '<p class="tbl-cap"><b>Higher completeness is better.</b> Drives the Data Quality score. Sorted by attention, so required fields with the largest gaps sit on top.</p>';
+        h += '<table class="data-table"><thead><tr><th class="attn-col"></th><th>Field</th><th class="col-right" style="width:80px">Filled</th><th style="text-align:center;width:90px">Importance</th><th class="col-right" style="width:130px">Completeness</th></tr></thead><tbody>';
+        var cRows = [];
         for (var j = 0; j < def.stdFields.length; j++) {
           var fk = def.stdFields[j].key;
           var label = def.stdFields[j].label;
           var imp = cfg.stdFieldConfig[fk] || 'excluded';
           var val = daSettings.getCompletenessValue(fk, c, q, total);
           var pct = Math.round((val / total) * 1000) / 10;
+          var badness = 100 - pct;
+          var attn = attnScore(badness, imp);
+          var reason = '<b>' + attnBandWord(attn) + ' attention.</b> ' + _capFirst(imp) + ' field, ' + Math.round(badness) + '% empty. Higher completeness lifts the Data Quality score.';
           var dimStyle = imp === 'excluded' ? ' style="opacity:0.4"' : '';
           var badgeHtml = '<span class="imp-badge ' + imp + '">' + imp + '</span>';
-          h += '<tr' + dimStyle + '><td>' + label + '</td>';
-          h += '<td class="col-right">' + fmtNum(val) + '</td>';
-          h += '<td style="text-align:center">' + badgeHtml + '</td>';
-          h += '<td class="col-right">' + barCell(pct, '') + '</td></tr>';
+          var row = '<tr' + dimStyle + '><td class="attn-col">' + attnIconHtml(attn, reason) + '</td><td>' + label + '</td>';
+          row += '<td class="col-right">' + fmtNum(val) + '</td>';
+          row += '<td style="text-align:center">' + badgeHtml + '</td>';
+          row += '<td class="col-right">' + barCell(pct, '') + '</td></tr>';
+          cRows.push({ attn: attn, badness: badness, html: row });
         }
+        h += attnSortRows(cRows);
         h += '</tbody></table></div>';
       }
     }
@@ -1251,20 +1273,27 @@ function renderDQScore(key) {
       h += '<div class="entity-card">';
       h += '<div class="entity-header"><div class="entity-info"><h3>Standard Field Completeness</h3></div>';
       h += '<span class="record-badge">' + fmtNum(eTotal) + ' ' + eLabel.toLowerCase() + 's</span></div>';
-      h += '<table class="data-table"><thead><tr><th>Field</th><th class="col-right" style="width:80px">Filled</th><th style="text-align:center;width:90px">Importance</th><th class="col-right" style="width:130px">Completeness</th></tr></thead><tbody>';
+      h += '<p class="tbl-cap"><b>Higher completeness is better.</b> Drives the Data Quality score. Sorted by attention, so required fields with the largest gaps sit on top.</p>';
+      h += '<table class="data-table"><thead><tr><th class="attn-col"></th><th>Field</th><th class="col-right" style="width:80px">Filled</th><th style="text-align:center;width:90px">Importance</th><th class="col-right" style="width:130px">Completeness</th></tr></thead><tbody>';
+      var eRows = [];
       for (var fi = 0; fi < def.stdFields.length; fi++) {
         var fk = def.stdFields[fi].key;
         var fLabel = def.stdFields[fi].label;
         var imp = cfg.stdFieldConfig[fk] || 'excluded';
         var fVal = cpl[fk] || 0;
         var fPct = Math.round((fVal / eTotal) * 1000) / 10;
+        var fBad = 100 - fPct;
+        var fAttn = attnScore(fBad, imp);
+        var fReason = '<b>' + attnBandWord(fAttn) + ' attention.</b> ' + _capFirst(imp) + ' field, ' + Math.round(fBad) + '% empty. Higher completeness lifts the Data Quality score.';
         var dimStyle = imp === 'excluded' ? ' style="opacity:0.4"' : '';
         var badgeHtml = '<span class="imp-badge ' + imp + '">' + imp + '</span>';
-        h += '<tr' + dimStyle + '><td>' + fLabel + '</td>';
-        h += '<td class="col-right">' + fmtNum(fVal) + '</td>';
-        h += '<td style="text-align:center">' + badgeHtml + '</td>';
-        h += '<td class="col-right">' + barCell(fPct, '') + '</td></tr>';
+        var eRow = '<tr' + dimStyle + '><td class="attn-col">' + attnIconHtml(fAttn, fReason) + '</td><td>' + fLabel + '</td>';
+        eRow += '<td class="col-right">' + fmtNum(fVal) + '</td>';
+        eRow += '<td style="text-align:center">' + badgeHtml + '</td>';
+        eRow += '<td class="col-right">' + barCell(fPct, '') + '</td></tr>';
+        eRows.push({ attn: fAttn, badness: fBad, html: eRow });
       }
+      h += attnSortRows(eRows);
       h += '</tbody></table></div>';
     }
   }
@@ -1317,18 +1346,25 @@ function renderAdoptionTab(key) {
     h += '<h3>Adoption Score</h3>';
     h += '</div>';
     h += '<span class="record-badge" style="background:' + ac + ';color:#fff;font-size:1.1rem;padding:4px 14px;border-radius:12px">' + ad.total + P + '</span></div>';
-    h += '<table class="data-table"><thead><tr><th>Component</th><th class="col-right" style="width:80px">Count</th><th class="col-right" style="width:80px">of Total</th><th style="text-align:center;width:90px">Weight</th><th class="col-right" style="width:130px">Completeness</th></tr></thead><tbody>';
+    h += '<p class="tbl-cap"><b>Higher coverage is better.</b> Drives the Adoption score. Sorted by attention, so heavily weighted components with the largest gaps sit on top.</p>';
+    h += '<table class="data-table"><thead><tr><th class="attn-col"></th><th>Component</th><th class="col-right" style="width:80px">Count</th><th class="col-right" style="width:80px">of Total</th><th style="text-align:center;width:90px">Weight</th><th class="col-right" style="width:130px">Completeness</th></tr></thead><tbody>';
+    var adRows = [];
     for (var i = 0; i < ad.details.length; i++) {
       var d = ad.details[i];
       var cnt = (data && data.componentData) ? (data.componentData[d.key] || 0) : 0;
       var col = slColor(d.pct);
       var wCls = d.weight === 'high' ? 'required' : (d.weight === 'medium' ? 'normal' : 'excluded');
-      h += '<tr><td>' + d.label + '</td>';
-      h += '<td class="col-right">' + fmtNum(cnt) + '</td>';
-      h += '<td class="col-right">' + fmtNum(data ? data.adoptionTotal : total) + '</td>';
-      h += '<td style="text-align:center"><span class="imp-badge ' + wCls + '">' + d.weight + '</span></td>';
-      h += '<td class="col-right">' + barCell(d.pct, col) + '</td></tr>';
+      var adBad = 100 - d.pct;
+      var adAttn = attnScore(adBad, d.weight);
+      var adReason = '<b>' + attnBandWord(adAttn) + ' attention.</b> ' + _capFirst(d.weight) + ' weight, ' + Math.round(adBad) + '% of records not covered. Higher coverage lifts Adoption.';
+      var adRow = '<tr><td class="attn-col">' + attnIconHtml(adAttn, adReason) + '</td><td>' + d.label + '</td>';
+      adRow += '<td class="col-right">' + fmtNum(cnt) + '</td>';
+      adRow += '<td class="col-right">' + fmtNum(data ? data.adoptionTotal : total) + '</td>';
+      adRow += '<td style="text-align:center"><span class="imp-badge ' + wCls + '">' + d.weight + '</span></td>';
+      adRow += '<td class="col-right">' + barCell(d.pct, col) + '</td></tr>';
+      adRows.push({ attn: adAttn, badness: adBad, html: adRow });
     }
+    h += attnSortRows(adRows);
     h += '</tbody></table></div>';
   }
 
@@ -1342,19 +1378,25 @@ function renderAdoptionTab(key) {
     h += '<h3>Data Integrity</h3>';
     h += '</div>';
     h += '<span class="record-badge" style="background:' + ic + ';color:#fff;font-size:1.1rem;padding:4px 14px;border-radius:12px">' + ig.total + P + '</span></div>';
-    h += '<table class="data-table"><thead><tr><th>Check</th><th class="col-right" style="width:80px">Affected</th><th class="col-right" style="width:80px">of Total</th><th style="text-align:center;width:90px">Weight</th><th class="col-right" style="width:130px">Completeness</th></tr></thead><tbody>';
+    h += '<p class="tbl-cap"><b>Lower is better.</b> Drives the Data Integrity score. Sorted by attention, so heavily weighted checks affecting the most records sit on top.</p>';
+    h += '<table class="data-table"><thead><tr><th class="attn-col"></th><th>Check</th><th class="col-right" style="width:80px">Affected</th><th class="col-right" style="width:80px">of Total</th><th style="text-align:center;width:90px">Weight</th><th class="col-right" style="width:130px">Completeness</th></tr></thead><tbody>';
+    var igRows = [];
     for (var j = 0; j < ig.details.length; j++) {
       var c = ig.details[j];
       var cnt2 = (data2 && data2.checkData) ? (data2.checkData[c.key] || 0) : 0;
       var col2 = slColorInv(c.affected);
       var iTotal = (data2 && data2.integrityTotal) ? data2.integrityTotal : total;
       var wCls2 = c.weight === 'high' ? 'required' : (c.weight === 'medium' ? 'normal' : 'excluded');
-      h += '<tr><td>' + c.label + '</td>';
-      h += '<td class="col-right">' + fmtNum(cnt2) + '</td>';
-      h += '<td class="col-right">' + fmtNum(iTotal) + '</td>';
-      h += '<td style="text-align:center"><span class="imp-badge ' + wCls2 + '">' + c.weight + '</span></td>';
-      h += '<td class="col-right">' + barCell(c.affected, col2) + '</td></tr>';
+      var igAttn = attnScore(c.affected, c.weight);
+      var igReason = '<b>' + attnBandWord(igAttn) + ' attention.</b> ' + _capFirst(c.weight) + ' weight, ' + Math.round(c.affected) + '% of records affected. Fewer affected lifts Data Integrity.';
+      var igRow = '<tr><td class="attn-col">' + attnIconHtml(igAttn, igReason) + '</td><td>' + c.label + '</td>';
+      igRow += '<td class="col-right">' + fmtNum(cnt2) + '</td>';
+      igRow += '<td class="col-right">' + fmtNum(iTotal) + '</td>';
+      igRow += '<td style="text-align:center"><span class="imp-badge ' + wCls2 + '">' + c.weight + '</span></td>';
+      igRow += '<td class="col-right">' + barCell(c.affected, col2) + '</td></tr>';
+      igRows.push({ attn: igAttn, badness: c.affected, html: igRow });
     }
+    h += attnSortRows(igRows);
     h += '</tbody></table></div>';
   }
 
