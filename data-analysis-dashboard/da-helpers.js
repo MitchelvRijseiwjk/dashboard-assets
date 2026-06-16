@@ -1000,10 +1000,15 @@ function slColorInv(pct) {
 }
 // Verdict word for a score, thresholds aligned 1:1 with slColor (70/40/15)
 function slBand(pct) {
-  if (pct >= 70) return { w: 'Good', c: 'var(--sl-good)' };
-  if (pct >= 40) return { w: 'Moderate', c: 'var(--sl-ok)' };
-  if (pct >= 15) return { w: 'Needs attention', c: 'var(--sl-warn)' };
-  return { w: 'Critical', c: 'var(--sl-bad)' };
+  if (pct >= 70) return { w: 'Good', c: 'var(--sl-good)', cls: 'sb-band-good' };
+  if (pct >= 40) return { w: 'Moderate', c: 'var(--sl-ok)', cls: 'sb-band-moderate' };
+  if (pct >= 15) return { w: 'Needs attention', c: 'var(--sl-warn)', cls: 'sb-band-warn' };
+  return { w: 'Critical', c: 'var(--sl-bad)', cls: 'sb-band-bad' };
+}
+// Inline info icon with a hover tooltip (no icon font dependency)
+var SB_INFO_SVG = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><line x1="12" y1="11" x2="12" y2="16"/><line x1="12" y1="7.5" x2="12.01" y2="7.5"/></svg>';
+function sbInfoIcon(text) {
+  return '<span class="sb-iw">' + SB_INFO_SVG + '<span class="sb-itip">' + text + '</span></span>';
 }
 // Plain-language health adjective for the verdict sentence
 function slHealthWord(pct) {
