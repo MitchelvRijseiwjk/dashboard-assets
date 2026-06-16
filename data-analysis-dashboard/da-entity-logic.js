@@ -1056,6 +1056,13 @@ var sbDescs = {
   requests: { dq: 'Field completeness across records', int: 'Unassigned tickets without an owner', adopt: 'Resolution rate and replies to customers' }
 };
 
+var sbTips = {
+  health: 'Weighted average of Data Quality, Data Integrity and Adoption, using the weights set in the dashboard settings.',
+  dq: 'Weighted completeness of the fields you marked as important. Required fields count double, Normal once, Off is ignored.',
+  int: 'Share of records free from structural problems such as missing links or missing owners. 100 means no records are affected.',
+  adopt: 'Share of records showing real CRM usage, such as activities and pipeline. For requests it reflects resolution and replies.'
+};
+
 function _capFirst(s) { return s ? s.charAt(0).toUpperCase() + s.slice(1) : s; }
 
 // Auto-generated verdict sentence for the score banner.
@@ -1072,8 +1079,8 @@ function sbVerdict(key, scores) {
   subs.sort(function(a, b) { return b.t - a.t; });
   var best = subs[0], worst = subs[subs.length - 1];
   var parts = [label + ' data is ' + slHealthWord(scores.health.total) + ' overall.'];
-  if (best.t >= 70) parts.push(_capFirst(best.k) + ' is strong.');
-  if (worst.t < 70 && worst.k !== best.k) parts.push(_capFirst(worst.k) + ' is the main gap and offers the clearest wins.');
+  if (best.t >= 70) parts.push('<b>' + _capFirst(best.k) + ' is strong.</b>');
+  if (worst.t < 70 && worst.k !== best.k) parts.push('<b>' + _capFirst(worst.k) + '</b> is the main gap and offers the clearest wins.');
   return parts.join(' ');
 }
 
@@ -1110,8 +1117,8 @@ function renderScoreBanner(key) {
     h += '<div class="sb-ring sb-ring-lg" style="--score:' + scores.health.total + ';--color:' + hc + '">';
     h += '<span class="sb-val sb-val-lg">' + scores.health.total + '<small>%</small></span>';
     h += '</div>';
-    h += '<div class="sb-main-lbl">Overall Health</div>';
-    h += '<span class="sb-band" style="color:' + hb.c + '"><span class="sb-band-dot"></span>' + hb.w + '</span>';
+    h += '<div class="sb-main-lbl">Overall Health' + sbInfoIcon(sbTips.health) + '</div>';
+    h += '<span class="sb-band" style="background:' + hb.bg + ';color:' + hb.fg + '"><span class="sb-band-dot" style="background:' + hb.dot + '"></span>' + hb.w + '</span>';
     h += '</div>';
   }
 
@@ -1119,9 +1126,9 @@ function renderScoreBanner(key) {
 
   // Right: 3 sub-score rows
   var subs = [];
-  if (scores.dq) subs.push({ label: 'Data Quality', desc: desc.dq, score: scores.dq.total });
-  if (scores.integrity) subs.push({ label: 'Data Integrity', desc: desc.int, score: scores.integrity.total });
-  if (scores.adoption) subs.push({ label: 'Adoption', desc: desc.adopt, score: scores.adoption.total });
+  if (scores.dq) subs.push({ label: 'Data Quality', desc: desc.dq, score: scores.dq.total, tip: sbTips.dq });
+  if (scores.integrity) subs.push({ label: 'Data Integrity', desc: desc.int, score: scores.integrity.total, tip: sbTips.int });
+  if (scores.adoption) subs.push({ label: 'Adoption', desc: desc.adopt, score: scores.adoption.total, tip: sbTips.adopt });
 
   h += '<div class="sb-list">';
   for (var i = 0; i < subs.length; i++) {
@@ -1129,8 +1136,8 @@ function renderScoreBanner(key) {
     var col = slColor(s.score);
     var bnd = slBand(s.score);
     h += '<div class="sb-row">';
-    h += '<div class="sb-row-info"><div class="sb-row-lbl">' + s.label + '</div><div class="sb-row-desc">' + s.desc + '</div></div>';
-    h += '<div class="sb-row-band"><span class="sb-band" style="color:' + bnd.c + '"><span class="sb-band-dot"></span>' + bnd.w + '</span></div>';
+    h += '<div class="sb-row-info"><div class="sb-row-lbl">' + s.label + sbInfoIcon(s.tip) + '</div><div class="sb-row-desc">' + s.desc + '</div></div>';
+    h += '<div class="sb-row-band"><span class="sb-band" style="background:' + bnd.bg + ';color:' + bnd.fg + '"><span class="sb-band-dot" style="background:' + bnd.dot + '"></span>' + bnd.w + '</span></div>';
     h += '<div class="sb-row-val" style="color:' + col + '">' + s.score + '%</div>';
     h += '<div class="sb-row-bar"><div class="sb-row-fill" style="width:' + s.score + '%;background:' + col + '"></div></div>';
     h += '</div>';
