@@ -1015,9 +1015,10 @@
       + '.st-track{position:absolute;top:50%;left:0;right:0;transform:translateY(-50%);height:4px;border-radius:999px;background:#D8D2C4;z-index:0;}'
       + '.st-fill{position:absolute;top:50%;left:0;transform:translateY(-50%);height:4px;border-radius:999px;background:#06423E;z-index:1;}'
       + '.st-cur{position:absolute;top:50%;transform:translate(-50%,-50%);z-index:2;}'
-      + '.st-cur b{display:block;width:14px;height:14px;border-radius:50%;background:#06423E;box-shadow:0 0 0 3px #FFFFFF;}'
-      + '.st-curcall{position:absolute;top:15px;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:4px;white-space:nowrap;background:#06423E;color:#CFE3DF;font-size:10.5px;font-weight:600;line-height:1;padding:4px 9px;border-radius:999px;}'
-      + '.st-curcall::before{content:"";position:absolute;top:-3px;left:50%;transform:translateX(-50%);width:0;height:0;border-left:4px solid transparent;border-right:4px solid transparent;border-bottom:4px solid #06423E;}'
+      + '.st-cur b{display:block;width:14px;height:14px;border-radius:50%;background:#06423E;box-shadow:0 0 0 3px #FFFFFF;position:relative;}'
+      + '.st-cur b::after{content:"";position:absolute;left:50%;top:18px;transform:translateX(-50%);width:1.5px;height:4px;background:#06423E;opacity:.55;border-radius:1px;}'
+      + '.st-curcall{position:absolute;top:24px;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:4px;white-space:nowrap;background:#06423E;color:#CFE3DF;font-size:10.5px;font-weight:600;line-height:1;padding:4px 9px;border-radius:999px;}'
+      + '.st-curcall::before{content:"";position:absolute;top:-6px;left:50%;transform:translateX(-50%);width:0;height:0;border-left:6px solid transparent;border-right:6px solid transparent;border-bottom:6px solid #06423E;}'
       + '.st-curcall em{font-style:normal;font-weight:700;color:#FFFFFF;}'
       + '.st-thumb{position:absolute;top:50%;transform:translate(-50%,-50%);z-index:3;pointer-events:none;}'
       + '.st-thumb b{display:block;width:18px;height:18px;border-radius:50%;background:#FFFFFF;border:2px solid #06423E;box-sizing:border-box;}'
@@ -1519,7 +1520,7 @@
         h += '<div class="st-cur" style="left:calc(9px + (100% - 18px) * ' + (curVal / 100) + ')"><b></b><div class="st-curcall">current <em>' + curVal + '%</em></div></div>';
       }
       h += '<div class="st-thumb" style="left:' + pos + '"><b></b></div>';
-      h += '<input type="range" class="st-slider" min="0" max="100" step="5" value="' + val + '"' + (curVal != null ? (' data-current="' + curVal + '"') : '') + (locked ? ' disabled aria-disabled="true"' : ' oninput="daSettings.onTargetInput(this)"') + ' aria-label="' + d.label + ' target">';
+      h += '<input type="range" class="st-slider" min="0" max="100" step="1" value="' + val + '"' + (curVal != null ? (' data-current="' + curVal + '"') : '') + (locked ? ' disabled aria-disabled="true"' : ' oninput="daSettings.onTargetInput(this)"') + ' aria-label="' + d.label + ' target">';
       h += '</div>';
       h += '<div class="st-readout"><span class="st-val">' + val + '</span><span class="st-pct">%</span></div>';
       h += '</div>';
