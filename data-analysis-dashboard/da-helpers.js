@@ -998,12 +998,13 @@ function slColorInv(pct) {
   if (pct < 60) return 'var(--sl-warn)';
   return 'var(--sl-bad)';
 }
-// Verdict word for a score, thresholds aligned 1:1 with slColor (70/40/15)
+// Verdict word + inline tint colours for a score, thresholds aligned 1:1 with slColor (70/40/15).
+// Colours are returned inline so the pill renders correctly even if CSS and JS are briefly out of sync.
 function slBand(pct) {
-  if (pct >= 70) return { w: 'Good', c: 'var(--sl-good)', cls: 'sb-band-good' };
-  if (pct >= 40) return { w: 'Moderate', c: 'var(--sl-ok)', cls: 'sb-band-moderate' };
-  if (pct >= 15) return { w: 'Needs attention', c: 'var(--sl-warn)', cls: 'sb-band-warn' };
-  return { w: 'Critical', c: 'var(--sl-bad)', cls: 'sb-band-bad' };
+  if (pct >= 70) return { w: 'Good', bg: '#e7f3e8', fg: '#1e5e22', dot: 'var(--sl-good)' };
+  if (pct >= 40) return { w: 'Moderate', bg: '#fdf3df', fg: '#9a6800', dot: 'var(--sl-ok)' };
+  if (pct >= 15) return { w: 'Needs attention', bg: '#fceee2', fg: '#aa4a00', dot: 'var(--sl-warn)' };
+  return { w: 'Critical', bg: '#fbeaea', fg: '#a32d2d', dot: 'var(--sl-bad)' };
 }
 // Inline info icon with a hover tooltip (no icon font dependency)
 var SB_INFO_SVG = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><line x1="12" y1="11" x2="12" y2="16"/><line x1="12" y1="7.5" x2="12.01" y2="7.5"/></svg>';
