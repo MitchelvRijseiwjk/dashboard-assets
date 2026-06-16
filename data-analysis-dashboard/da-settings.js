@@ -1015,8 +1015,8 @@
   function ensureIntakeStyles() {
     if (document.getElementById('daIntakeStyles')) return;
     var css = ''
-      + '.s-intake-badge{display:inline-flex;align-items:center;margin-left:8px;padding:6px 11px;border-radius:999px;'
-      + 'font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;vertical-align:middle;line-height:1.2;'
+      + '.s-intake-badge{display:inline-flex;align-items:center;margin-left:8px;padding:4px 11px;border-radius:999px;'
+      + 'font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;vertical-align:middle;line-height:14px;'
       + 'background:rgba(99,102,241,.14);color:#6366f1;border:1px solid rgba(99,102,241,.35);}'
       + '.s-imp-btn.s-imp-locked{cursor:not-allowed;}'
       + '.s-imp-btn.s-imp-locked:not(.act-req):not(.act-norm):not(.act-excl):not(.act-high):not(.act-med):not(.act-low){opacity:.45;}'
@@ -1057,7 +1057,7 @@
       + '.s-fl-na{font-size:12px;color:#B4B2A9;}'
       + '.s-fld-tp{margin-left:8px;flex:none;}'
       + '.s-fld-rt{margin-left:auto;display:flex;align-items:center;gap:12px;flex:none;}'
-      + '.s-pill{position:relative;display:inline-flex;align-items:center;justify-content:center;width:84px;box-sizing:border-box;font-size:12px;padding:5px 11px;border-radius:999px;border:1px solid transparent;line-height:1.2;}'
+      + '.s-pill{position:relative;display:inline-flex;align-items:center;justify-content:center;width:84px;box-sizing:border-box;font-size:12px;padding:4px 11px;border-radius:999px;border:1px solid transparent;line-height:14px;}'
       + '.s-pill-text{background:#F1EFE8;color:#6B6A64;}'
       + '.s-pill-list{background:#E1F5EE;color:#0F6E56;cursor:pointer;}'
       + '.s-pill-list[disabled]{cursor:default;opacity:.6;}'
@@ -1065,7 +1065,7 @@
       + '.s-pill-list .s-chv{position:absolute;right:9px;top:50%;transform:translateY(-50%);width:9px;height:9px;transition:transform .15s;opacity:.85;}'
       + '.s-pill-list.open .s-chv{transform:translateY(-50%) rotate(180deg);opacity:1;}'
       + '.s-prio-wrap{position:relative;}'
-      + '.s-prio{display:inline-flex;align-items:center;width:106px;box-sizing:border-box;font-size:12px;font-weight:500;padding:5px 12px;border-radius:999px;border:1px solid transparent;cursor:pointer;user-select:none;line-height:1.2;font-family:inherit;}'
+      + '.s-prio{display:inline-flex;align-items:center;width:106px;box-sizing:border-box;font-size:12px;font-weight:500;padding:4px 12px;border-radius:999px;border:1px solid transparent;cursor:pointer;user-select:none;line-height:14px;font-family:inherit;}'
       + '.s-prio .s-prio-lbl{margin-right:auto;}'
       + '.s-prio .s-prio-chv{width:9px;height:9px;flex:none;opacity:.85;margin-left:6px;}'
       + '.s-prio-off{background:#EDEAE1;color:#5F5E5A;}'
@@ -1076,7 +1076,7 @@
       + '.s-prio-md{background:#CBD7EC;color:#2B4A73;}'
       + '.s-prio-lo{background:#EDEAE1;color:#5F5E5A;}'
       + '.s-hmlcell{border:none !important;background:none !important;padding:0 !important;width:auto !important;min-width:0 !important;overflow:visible !important;display:inline-flex !important;align-items:center;justify-self:start;}'
-      + '.s-prio-menu{position:absolute;top:calc(100% + 5px);right:0;width:152px;border:0.5px solid #E4E0D6;border-radius:12px;background:#FFFFFF;padding:5px;z-index:60;box-shadow:0 12px 32px rgba(0,0,0,.13);}'
+      + '.s-prio-menu{position:absolute;top:calc(100% + 5px);right:0;width:152px;border:0.5px solid #E4E0D6;border-radius:12px;background:#FFFFFF;padding:5px;z-index:100001;box-shadow:0 12px 32px rgba(0,0,0,.13);}'
       + '.s-prio-opt{display:flex;align-items:center;gap:9px;padding:7px 10px;border-radius:999px;font-size:12px;color:#3A3A38;cursor:pointer;}'
       + '.s-prio-opt:hover{background:#F4F2EC;}'
       + '.s-prio-sw{width:9px;height:9px;border-radius:50%;flex:none;}'
@@ -1097,7 +1097,7 @@
       + '.s-val-excluded .s-val-n{color:#9C9388;text-decoration:line-through;}'
       + '.s-vals-grid:not(.s-vals-locked) .s-val{cursor:pointer;}'
       + '.s-vals-locked{opacity:.5;}'
-      + '.s-intake-lock{display:inline-flex;align-items:center;gap:4px;cursor:pointer;font-family:inherit;font-size:11px;font-weight:700;line-height:1.2;box-sizing:border-box;}'
+      + '.s-intake-lock{display:inline-flex;align-items:center;gap:4px;cursor:pointer;font-family:inherit;font-size:11px;font-weight:700;line-height:14px;box-sizing:border-box;}'
       + '.s-intake-lock .s-lock{width:9px;height:9px;display:block;flex:none;}'
       + '.s-intake-lock:hover{filter:brightness(.97);}'
       + '.s-introw-st{display:flex;justify-content:flex-end;align-items:center;flex:none;min-width:104px;margin-left:8px;}'
@@ -1700,15 +1700,36 @@
   function _closePrioMenus() {
     var m = document.querySelectorAll('.s-prio-menu');
     for (var i = 0; i < m.length; i++) { if (m[i].parentNode) m[i].parentNode.removeChild(m[i]); }
+    var pls = document.querySelectorAll('.s-prio');
+    for (var j = 0; j < pls.length; j++) { pls[j]._menuOpen = false; }
+  }
+
+  // Place a menu with fixed positioning on the body so it never clips behind
+  // rows below or against the modal's overflow / stacking context.
+  function _placeMenuFixed(el, menu) {
+    menu.style.position = 'fixed';
+    menu.style.right = 'auto';
+    menu.style.left = '0px';
+    menu.style.top = '0px';
+    menu.style.zIndex = '100001';
+    document.body.appendChild(menu);
+    var r = el.getBoundingClientRect();
+    var mw = menu.offsetWidth || 152;
+    var mh = menu.offsetHeight || 120;
+    var left = r.right - mw; if (left < 8) left = 8;
+    var top = r.bottom + 5;
+    var vh = window.innerHeight || (document.documentElement ? document.documentElement.clientHeight : 0);
+    if (vh && top + mh > vh - 8) top = r.top - mh - 5;
+    menu.style.left = left + 'px';
+    menu.style.top = top + 'px';
   }
 
   // Open (or toggle) the importance dropdown for a pill.
   function togglePrio(el, e) {
     if (e && e.stopPropagation) e.stopPropagation();
-    var wrap = el.parentNode;
-    var open = wrap.querySelector('.s-prio-menu');
+    var already = el._menuOpen;
     _closePrioMenus();
-    if (open) return;
+    if (already) return;
     var cur = el.getAttribute('data-val');
     var menu = document.createElement('div');
     menu.className = 's-prio-menu';
@@ -1723,10 +1744,8 @@
         menu.appendChild(row);
       })(_PRIO_OPTS[i]);
     }
-    wrap.appendChild(menu);
-    var r = menu.getBoundingClientRect ? menu.getBoundingClientRect() : null;
-    var vh = window.innerHeight || (document.documentElement ? document.documentElement.clientHeight : 0);
-    if (r && vh && r.bottom > vh - 8) { menu.style.top = 'auto'; menu.style.bottom = 'calc(100% + 5px)'; }
+    _placeMenuFixed(el, menu);
+    el._menuOpen = true;
   }
 
   function prioKey(el, e) {
@@ -1775,10 +1794,9 @@
 
   function toggleHml(el, e) {
     if (e && e.stopPropagation) e.stopPropagation();
-    var wrap = el.parentNode;
-    var open = wrap.querySelector('.s-prio-menu');
+    var already = el._menuOpen;
     _closePrioMenus();
-    if (open) return;
+    if (already) return;
     var cur = el.getAttribute('data-val');
     var menu = document.createElement('div');
     menu.className = 's-prio-menu';
@@ -1793,10 +1811,8 @@
         menu.appendChild(row);
       })(_HML_OPTS[i]);
     }
-    wrap.appendChild(menu);
-    var r = menu.getBoundingClientRect ? menu.getBoundingClientRect() : null;
-    var vh = window.innerHeight || (document.documentElement ? document.documentElement.clientHeight : 0);
-    if (r && vh && r.bottom > vh - 8) { menu.style.top = 'auto'; menu.style.bottom = 'calc(100% + 5px)'; }
+    _placeMenuFixed(el, menu);
+    el._menuOpen = true;
   }
 
   function hmlKey(el, e) {
@@ -2245,6 +2261,7 @@
   }
   document.addEventListener('keydown', _onEscKey);
   document.addEventListener('click', function() { _closePrioMenus(); });
+  document.addEventListener('scroll', function() { _closePrioMenus(); }, true);
 
   // ============================================================
   // PUBLIC API
