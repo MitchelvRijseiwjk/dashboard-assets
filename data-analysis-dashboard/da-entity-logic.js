@@ -1056,6 +1056,36 @@ var sbDescs = {
   requests: { dq: 'Field completeness across records', int: 'Unassigned tickets without an owner', adopt: 'Resolution rate and replies to customers' }
 };
 
+function _capFirst(s) { return s ? s.charAt(0).toUpperCase() + s.slice(1) : s; }
+
+// Auto-generated verdict sentence for the score banner.
+// Stays factual: names the overall level, the strongest area and the main gap.
+// A manual override field is planned on top of this later.
+function sbVerdict(key, scores) {
+  if (!scores || !scores.health) return '';
+  var label = _capFirst(key);
+  var subs = [];
+  if (scores.dq) subs.push({ k: 'field completeness', t: scores.dq.total });
+  if (scores.integrity) subs.push({ k: 'data integrity', t: scores.integrity.total });
+  if (scores.adoption) subs.push({ k: 'adoption', t: scores.adoption.total });
+  if (subs.length === 0) return '';
+  subs.sort(function(a, b) { return b.t - a.t; });
+  var best = subs[0], worst = subs[subs.length - 1];
+  var parts = [label + ' data is ' + slHealthWord(scores.health.total) + ' overall.'];
+  if (best.t >= 70) parts.push(_capFirst(best.k) + ' is strong.');
+  if (worst.t < 70 && worst.k !== best.k) parts.push(_capFirst(worst.k) + ' is the main gap and offers the clearest wins.');
+  return parts.join(' ');
+}
+
+function sbFoot(key, scores) {
+  var h = '<div class="sb-foot">';
+  var v = sbVerdict(key, scores);
+  if (v) h += '<div class="sb-verdict">' + v + '</div>';
+  h += slKeyHtml();
+  h += '</div>';
+  return h;
+}
+
 function renderScoreBanner(key) {
   var el = document.getElementById(key + 'OverviewContent');
   if (!el) return;
@@ -1070,15 +1100,18 @@ function renderScoreBanner(key) {
 
   var desc = sbDescs[key] || sbDescs.company;
   var h = '<div class="scores-banner">';
+  h += '<div class="sb-top">';
 
-  // Left: Overall Health ring
+  // Left: Overall Health ring + verdict word
   if (scores.health) {
     var hc = slColor(scores.health.total);
+    var hb = slBand(scores.health.total);
     h += '<div class="sb-main">';
     h += '<div class="sb-ring sb-ring-lg" style="--score:' + scores.health.total + ';--color:' + hc + '">';
     h += '<span class="sb-val sb-val-lg">' + scores.health.total + '<small>%</small></span>';
     h += '</div>';
     h += '<div class="sb-main-lbl">Overall Health</div>';
+    h += '<span class="sb-band" style="color:' + hb.c + '"><span class="sb-band-dot"></span>' + hb.w + '</span>';
     h += '</div>';
   }
 
@@ -1094,15 +1127,19 @@ function renderScoreBanner(key) {
   for (var i = 0; i < subs.length; i++) {
     var s = subs[i];
     var col = slColor(s.score);
+    var bnd = slBand(s.score);
     h += '<div class="sb-row">';
     h += '<div class="sb-row-info"><div class="sb-row-lbl">' + s.label + '</div><div class="sb-row-desc">' + s.desc + '</div></div>';
+    h += '<div class="sb-row-band"><span class="sb-band" style="color:' + bnd.c + '"><span class="sb-band-dot"></span>' + bnd.w + '</span></div>';
     h += '<div class="sb-row-val" style="color:' + col + '">' + s.score + '%</div>';
     h += '<div class="sb-row-bar"><div class="sb-row-fill" style="width:' + s.score + '%;background:' + col + '"></div></div>';
     h += '</div>';
   }
   h += '</div>';
 
-  h += '</div>';
+  h += '</div>'; // end sb-top
+  h += sbFoot(key, scores);
+  h += '</div>'; // end scores-banner
   var fn = el.querySelector('.filter-notice');
   if (fn) fn.insertAdjacentHTML('afterend', h);
   else el.insertAdjacentHTML('afterbegin', h);
