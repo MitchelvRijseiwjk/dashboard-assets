@@ -165,6 +165,7 @@
   var _intakeFields = {};
   var _overrides = {};       // engine-owned deviations from the intake, per entity (override:<entity> shards)
   var _stdListItems = {};    // standard list-field values per entity, from analysis distributions
+  var _stdFill = {};         // standard-field fill rates (%) per entity, captured during score compute
   var _currentScores = {};   // optional per-entity current scores set by the host after a scan
   var _scanState = null;     // { scannedAt, scores } from the latest scan snapshot
   var SCORE_TARGET_DEFS = [
@@ -762,6 +763,15 @@
     return 0;
   }
 
+  // True when a standard field actually has completeness data (so its fill rate
+  // is meaningful), as opposed to defaulting to zero for an unmeasured field.
+  function _hasFillData(key, ovCpl, qData) {
+    if (ovCpl && ovCpl[key] !== undefined) return true;
+    var qm = { person:'noPerson', category:'noCategory', business:'noBusiness' };
+    if (qm[key] && qData && qData[qm[key]] !== undefined) return true;
+    return false;
+  }
+
   // Sum of record counts for the values the user excluded on a field.
   // Used to lower the effective fill rate so exclusions move the score.
   function _excludedFillCount(entity, key, items) {
@@ -780,6 +790,11 @@
     if (!s || !def) return null;
     var scores = {};
     if (ovCpl && total > 0) {
+      if (!_stdFill[entity]) _stdFill[entity] = {};
+      for (var fi = 0; fi < def.stdFields.length; fi++) {
+        var fk = def.stdFields[fi].key;
+        _stdFill[entity][fk] = _hasFillData(fk, ovCpl, qData) ? ((getCompletenessValue(fk, ovCpl, qData, total) / total) * 100) : null;
+      }
       var sum = 0; var wt = 0;
       for (var i = 0; i < def.stdFields.length; i++) {
         var k = def.stdFields[i].key;
@@ -1031,20 +1046,38 @@
       + '.st-readout{flex:none;width:60px;text-align:right;}'
       + '.st-readout .st-val{font-size:20px;font-weight:500;color:#06423E;font-variant-numeric:tabular-nums;}'
       + '.st-readout .st-pct{font-size:12px;color:#7A7268;margin-left:1px;}'
-      + '.s-fld-row2{display:grid;grid-template-columns:minmax(0,1fr) 132px max-content 104px;align-items:center;gap:14px;padding:11px 0;border-top:0.5px solid #EDE8DD;}'
-      + '.s-fld-row2 .s-fld-toggle{justify-self:start;white-space:nowrap;}'
+      + '.s-fld-row2{display:flex;align-items:center;gap:12px;padding:11px 0;border-top:0.5px solid #EDE8DD;}'
       + '.s-field-list .s-fld-row2:first-child{border-top:none;}'
-      + '.s-fld-nm{font-size:14px;color:#1C1C1E;}'
-      + '.s-fld-pct{margin-left:6px;font-variant-numeric:tabular-nums;}'
+      + '.s-fld-nm{width:188px;flex:none;font-size:14px;color:#1C1C1E;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}'
       + '.s-fld-excl .s-fld-nm{color:#9C9388;}'
-      + '.s-pill{display:inline-flex;align-items:center;gap:5px;font-size:12px;padding:4px 9px;border-radius:999px;border:none;line-height:1.4;}'
+      + '.s-fld-fl{width:88px;flex:none;display:flex;align-items:center;gap:8px;}'
+      + '.s-fl-bar{width:34px;height:4px;border-radius:999px;background:#E4DECE;position:relative;flex:none;}'
+      + '.s-fl-bar i{position:absolute;left:0;top:0;height:100%;border-radius:999px;display:block;}'
+      + '.s-fl-n{font-size:12px;font-weight:600;font-variant-numeric:tabular-nums;}'
+      + '.s-fl-na{font-size:12px;color:#B4B2A9;}'
+      + '.s-fld-tp{margin-left:8px;flex:none;}'
+      + '.s-fld-rt{margin-left:auto;display:flex;align-items:center;gap:12px;flex:none;}'
+      + '.s-pill{position:relative;display:inline-flex;align-items:center;justify-content:center;width:84px;box-sizing:border-box;font-size:12px;padding:5px 11px;border-radius:999px;border:1px solid transparent;line-height:1.2;}'
       + '.s-pill-text{background:#F1EFE8;color:#6B6A64;}'
       + '.s-pill-list{background:#E1F5EE;color:#0F6E56;cursor:pointer;}'
       + '.s-pill-list[disabled]{cursor:default;opacity:.6;}'
-      + '.s-pill-flat{background:#FFFFFF;color:#7E8C88;border:1px solid #CDDAD6;cursor:default;font-weight:500;padding:3px 8px;}'
-      + '.s-pill-list .s-chv{width:9px;height:9px;transition:transform .15s;opacity:.8;}'
-      + '.s-pill-list.open .s-chv{transform:rotate(180deg);opacity:1;}'
-      + '.s-fld-st{display:flex;justify-content:flex-end;}'
+      + '.s-pill-flat{background:#FFFFFF;color:#7E8C88;border-color:#CDDAD6;cursor:default;font-weight:500;}'
+      + '.s-pill-list .s-chv{position:absolute;right:9px;top:50%;transform:translateY(-50%);width:9px;height:9px;transition:transform .15s;opacity:.85;}'
+      + '.s-pill-list.open .s-chv{transform:translateY(-50%) rotate(180deg);opacity:1;}'
+      + '.s-prio-wrap{position:relative;}'
+      + '.s-prio{display:inline-flex;align-items:center;width:106px;box-sizing:border-box;font-size:12px;font-weight:500;padding:5px 12px;border-radius:999px;border:1px solid transparent;cursor:pointer;user-select:none;line-height:1.2;font-family:inherit;}'
+      + '.s-prio .s-prio-lbl{margin-right:auto;}'
+      + '.s-prio .s-prio-chv{width:9px;height:9px;flex:none;opacity:.85;margin-left:6px;}'
+      + '.s-prio-off{background:#EDEAE1;color:#5F5E5A;}'
+      + '.s-prio-norm{background:#CBD7EC;color:#2B4A73;}'
+      + '.s-prio-req{background:#06423E;color:#FFFFFF;}'
+      + '.s-prio-locked{cursor:default;opacity:.6;}'
+      + '.s-prio-menu{position:absolute;top:calc(100% + 5px);right:0;width:152px;border:0.5px solid #E4E0D6;border-radius:12px;background:#FFFFFF;padding:5px;z-index:60;box-shadow:0 12px 32px rgba(0,0,0,.13);}'
+      + '.s-prio-opt{display:flex;align-items:center;gap:9px;padding:7px 10px;border-radius:999px;font-size:12px;color:#3A3A38;cursor:pointer;}'
+      + '.s-prio-opt:hover{background:#F4F2EC;}'
+      + '.s-prio-sw{width:9px;height:9px;border-radius:50%;flex:none;}'
+      + '.s-prio-ck{margin-left:auto;width:13px;height:13px;color:#2B4A73;flex:none;}'
+      + '.s-fld-st{width:116px;flex:none;display:flex;justify-content:flex-start;align-items:center;}'
       + '.s-fld-st .s-intake-badge{margin-left:0;}'
       + '.s-fld-vals{padding:2px 0 14px;}'
       + '.s-vals-h{font-size:12px;color:#7A7268;margin:4px 0 10px;line-height:1.5;}'
@@ -1065,7 +1098,7 @@
       + '.s-intake-lock:hover{filter:brightness(.97);}'
       + '.s-introw-st{display:flex;justify-content:flex-end;align-items:center;flex:none;min-width:104px;margin-left:8px;}'
       + '.s-integrity-row .s-integrity-label{flex:1 1 auto;min-width:0;}'
-      + '.s-over-wrap{display:flex;flex-direction:column;align-items:flex-end;gap:2px;}'
+      + '.s-over-wrap{display:flex;flex-direction:column;align-items:flex-start;gap:2px;}'
       + '.s-over-badge{display:inline-block;padding:1px 7px;border-radius:10px;font-size:10px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;background:rgba(186,117,23,.16);color:#9A5A06;border:1px solid rgba(186,117,23,.4);}'
       + '.s-reset{background:none;border:none;padding:0;font-size:11px;color:#0F6E56;cursor:pointer;white-space:nowrap;}'
       + '.s-reset:hover{text-decoration:underline;}'
@@ -1613,7 +1646,8 @@
     h += '<div class="s-field-list">';
     for (var i = 0; i < def.stdFields.length; i++) {
       var sf = def.stdFields[i]; var imp = s.stdFieldConfig[sf.key] || 'excluded';
-      h += fieldRow(sf.label, sf.type || 'Text', null, imp, 'std', sf.key, ek, (_stdListItems[ek] && _stdListItems[ek][sf.key]) ? _stdListItems[ek][sf.key] : null);
+      var stdPct = (_stdFill[ek] && typeof _stdFill[ek][sf.key] === 'number') ? _stdFill[ek][sf.key] : null;
+      h += fieldRow(sf.label, sf.type || 'Text', stdPct, imp, 'std', sf.key, ek, (_stdListItems[ek] && _stdListItems[ek][sf.key]) ? _stdListItems[ek][sf.key] : null);
     }
     h += '</div>';
     var ufields = _udefFields[ek] || [];
@@ -1629,8 +1663,7 @@
       h += '<div class="s-field-list">';
       for (var i = 0; i < ufields.length; i++) {
         var uf = ufields[i]; var imp = s.udefFieldConfig[uf.progId] || 'normal';
-        var fillCol = uf.percent >= 70 ? 'var(--sl-good)' : (uf.percent >= 30 ? 'var(--sl-ok)' : 'var(--sl-bad)');
-        h += fieldRow(uf.label, uf.type, '<span style="font-weight:600;color:' + fillCol + '">' + uf.percent + '%</span>', imp, 'udef', uf.progId, ek, uf.items);
+        h += fieldRow(uf.label, uf.type, (typeof uf.percent === 'number' ? uf.percent : null), imp, 'udef', uf.progId, ek, uf.items);
       }
       h += '</div>';
     }
@@ -1649,7 +1682,94 @@
     return h;
   }
 
-  function fieldRow(label, type, extra, imp, group, key, ek, items) {
+  // Colour for a fill percentage: red under 20, amber 20-60, green from 60.
+  function _fillColor(p) { return p < 20 ? '#A32D2D' : (p < 60 ? '#BA7517' : '#0F6E56'); }
+
+  // Fill-rate cell: a small bar plus the percentage, or a dash when no data exists.
+  function _fillCell(pct) {
+    if (pct == null || typeof pct !== 'number' || isNaN(pct)) return '<span class="s-fl-na">\u2014</span>';
+    var p = pct < 0 ? 0 : (pct > 100 ? 100 : pct);
+    var col = _fillColor(p);
+    var lbl = p < 10 ? p.toFixed(1) : String(Math.round(p));
+    return '<span class="s-fl-bar"><i style="width:' + p + '%;background:' + col + '"></i></span><span class="s-fl-n" style="color:' + col + '">' + lbl + '%</span>';
+  }
+
+  var _PRIO_MAP = { excluded: { lbl: 'Off', cls: 's-prio-off' }, normal: { lbl: 'Normal', cls: 's-prio-norm' }, required: { lbl: 'Required', cls: 's-prio-req' } };
+  var _PRIO_OPTS = [ { v: 'excluded', l: 'Off', c: '#B4B2A9' }, { v: 'normal', l: 'Normal', c: '#7E9BC4' }, { v: 'required', l: 'Required', c: '#06423E' } ];
+
+  // Importance pill: a colour-coded dropdown trigger (read-only when intake-locked).
+  function _prioPill(imp, locked) {
+    var cur = _PRIO_MAP[imp] || _PRIO_MAP.normal;
+    var chv = '<svg class="s-prio-chv" viewBox="0 0 10 6" fill="none" aria-hidden="true"><path d="M1 1l4 4 4-4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+    var h = '<div class="s-prio-wrap">';
+    if (locked) {
+      h += '<span class="s-prio ' + cur.cls + ' s-prio-locked" data-val="' + imp + '" title="Set in the intake form. Override it to change."><span class="s-prio-lbl">' + cur.lbl + '</span>' + chv + '</span>';
+    } else {
+      h += '<span class="s-prio ' + cur.cls + '" role="button" tabindex="0" aria-haspopup="listbox" data-val="' + imp + '" onclick="daSettings.togglePrio(this,event)" onkeydown="daSettings.prioKey(this,event)"><span class="s-prio-lbl">' + cur.lbl + '</span>' + chv + '</span>';
+    }
+    h += '</div>';
+    return h;
+  }
+
+  function _closePrioMenus() {
+    var m = document.querySelectorAll('.s-prio-menu');
+    for (var i = 0; i < m.length; i++) { if (m[i].parentNode) m[i].parentNode.removeChild(m[i]); }
+  }
+
+  // Open (or toggle) the importance dropdown for a pill.
+  function togglePrio(el, e) {
+    if (e && e.stopPropagation) e.stopPropagation();
+    var wrap = el.parentNode;
+    var open = wrap.querySelector('.s-prio-menu');
+    _closePrioMenus();
+    if (open) return;
+    var cur = el.getAttribute('data-val');
+    var menu = document.createElement('div');
+    menu.className = 's-prio-menu';
+    for (var i = 0; i < _PRIO_OPTS.length; i++) {
+      (function(o) {
+        var row = document.createElement('div');
+        row.className = 's-prio-opt';
+        var ck = (o.v === cur) ? '<svg class="s-prio-ck" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="3 6.4 5 8.4 9 4"/></svg>' : '';
+        row.innerHTML = '<span class="s-prio-sw" style="background:' + o.c + '"></span>' + o.l + ck;
+        if (o.v === cur) row.style.background = '#F4F2EC';
+        row.onclick = function(ev) { if (ev && ev.stopPropagation) ev.stopPropagation(); setPrio(el, o.v); _closePrioMenus(); };
+        menu.appendChild(row);
+      })(_PRIO_OPTS[i]);
+    }
+    wrap.appendChild(menu);
+    var r = menu.getBoundingClientRect ? menu.getBoundingClientRect() : null;
+    var vh = window.innerHeight || (document.documentElement ? document.documentElement.clientHeight : 0);
+    if (r && vh && r.bottom > vh - 8) { menu.style.top = 'auto'; menu.style.bottom = 'calc(100% + 5px)'; }
+  }
+
+  function prioKey(el, e) {
+    if (e && (e.key === 'Enter' || e.key === ' ' || e.key === 'Spacebar')) { if (e.preventDefault) e.preventDefault(); togglePrio(el, e); }
+  }
+
+  // Apply a new importance value: recolour the pill and write it into settings.
+  function setPrio(el, imp) {
+    var cur = _PRIO_MAP[imp] || _PRIO_MAP.normal;
+    el.setAttribute('data-val', imp);
+    el.className = 's-prio ' + cur.cls;
+    var lblEl = el.querySelector('.s-prio-lbl'); if (lblEl) lblEl.textContent = cur.lbl;
+    var row = el.closest ? el.closest('.s-fld-row2') : null;
+    if (row) {
+      if (imp === 'excluded') row.classList.add('s-fld-excl'); else row.classList.remove('s-fld-excl');
+      var ek = row.getAttribute('data-entity');
+      var grp = row.getAttribute('data-grp');
+      var k = row.getAttribute('data-key');
+      if (ek && _OV_CFG[grp]) {
+        var s = get(ek);
+        if (grp === 'udef') { if (!s.udefFieldConfig) s.udefFieldConfig = {}; s.udefFieldConfig[k] = imp; }
+        else s.stdFieldConfig[k] = imp;
+        if (isOverridden(ek, grp, k)) { var o = _ovShard(ek); o[_OV_CFG[grp]][k] = imp; }
+      }
+    }
+    markUnsaved();
+  }
+
+  function fieldRow(label, type, pct, imp, group, key, ek, items) {
     var esc = key.replace(/'/g, "\\'");
     var canOverride = (group === 'std' || group === 'udef');
     var overridden = canOverride && isOverridden(ek, group, key);
@@ -1660,9 +1780,11 @@
     var exclArr = _exclNames(fx[key], items);
     var rowCls = 's-fld-row2' + (imp === 'excluded' ? ' s-fld-excl' : '') + (locked ? ' s-fld-intake' : '') + (overridden ? ' s-fld-over' : '');
     var h = '<div class="' + rowCls + '" data-grp="' + group + '" data-key="' + key + '" data-entity="' + ek + '">';
-    // Field name (plus optional fill-rate hint passed in via extra)
-    h += '<div class="s-fld-nm">' + label + (extra ? ' <span class="s-fld-pct">' + extra + '</span>' : '') + '</div>';
-    // Type pill: green List pill (clickable with chevron when it has values), or a grey type tag
+    // Field name
+    h += '<div class="s-fld-nm">' + label + '</div>';
+    // Fill-rate column: bar + percentage, colour-coded; dash when no data is available yet
+    h += '<div class="s-fld-fl">' + _fillCell(pct) + '</div>';
+    // Type pill: green List pill (clickable with chevron when it has values), or a type tag
     h += '<div class="s-fld-tp">';
     if (hasItems) {
       h += '<button type="button" class="s-pill s-pill-list" onclick="daSettings.toggleFieldValues(this)">';
@@ -1671,29 +1793,20 @@
       h += '</button>';
     } else if (isList) {
       h += '<span class="s-pill s-pill-list s-pill-flat" title="Reference only. The individual values of this field cannot be adjusted here.">List</span>';
-    } else if (type) {
-      h += '<span class="s-pill s-pill-text">' + type + '</span>';
-    }
-    h += '</div>';
-    // Importance segmented control: Off | Normal | Required (locked while intake owns it)
-    h += '<div class="s-fld-toggle">';
-    if (locked) {
-      h += impBtnLocked('Off', imp === 'excluded', 'act-excl');
-      h += impBtnLocked('Normal', imp === 'normal', 'act-norm');
-      h += impBtnLocked('Required', imp === 'required', 'act-req');
     } else {
-      h += '<button class="s-imp-btn' + (imp === 'excluded' ? ' act-excl' : '') + '" onclick="daSettings.setImp(\'' + group + '\',\'' + esc + '\',\'excluded\',this)">Off</button>';
-      h += '<button class="s-imp-btn' + (imp === 'normal' ? ' act-norm' : '') + '" onclick="daSettings.setImp(\'' + group + '\',\'' + esc + '\',\'normal\',this)">Normal</button>';
-      h += '<button class="s-imp-btn' + (imp === 'required' ? ' act-req' : '') + '" onclick="daSettings.setImp(\'' + group + '\',\'' + esc + '\',\'required\',this)">Required</button>';
+      h += '<span class="s-pill s-pill-text">' + (type || 'Text') + '</span>';
     }
     h += '</div>';
-    // Status column: lockable Intake badge, or Overridden + reset
+    // Right group: importance dropdown + status, aligned to the right
+    h += '<div class="s-fld-rt">';
+    h += _prioPill(imp, locked);
     h += '<div class="s-fld-st">';
     if (locked) {
       h += '<button type="button" class="s-intake-badge s-intake-lock" title="Set in the intake form. Click to override it here." onclick="daSettings.requestOverride(\'' + ek + '\',\'' + group + '\',\'' + esc + '\')">Intake<svg class="s-lock" viewBox="0 0 12 12" fill="none" aria-hidden="true"><rect x="2.5" y="5.5" width="7" height="5" rx="1" stroke="currentColor" stroke-width="1.1"/><path d="M4 5.5V4a2 2 0 0 1 4 0v1.5" stroke="currentColor" stroke-width="1.1"/></svg></button>';
     } else if (overridden) {
       h += '<span class="s-over-wrap"><span class="s-over-badge">Overridden</span><button type="button" class="s-reset" onclick="daSettings.resetFieldToIntake(\'' + ek + '\',\'' + group + '\',\'' + esc + '\')">Reset to intake</button></span>';
     }
+    h += '</div>';
     h += '</div>';
     h += '</div>';
     // Value grid for list fields. Editable (checkboxes) only when overridden.
@@ -1942,8 +2055,8 @@
       s.stdFieldConfig = {};
       for (var i = 0; i < stdRows.length; i++) {
         var k = stdRows[i].getAttribute('data-key');
-        var act = stdRows[i].querySelector('.s-imp-btn.act-req,.s-imp-btn.act-norm,.s-imp-btn.act-excl');
-        if (act) { if (act.classList.contains('act-req')) s.stdFieldConfig[k] = 'required'; else if (act.classList.contains('act-norm')) s.stdFieldConfig[k] = 'normal'; else s.stdFieldConfig[k] = 'excluded'; }
+        var prio = stdRows[i].querySelector('.s-prio');
+        if (prio) { var v = prio.getAttribute('data-val'); if (v) s.stdFieldConfig[k] = v; }
       }
     }
     // UDEF
@@ -1952,8 +2065,8 @@
       s.udefFieldConfig = {};
       for (var i = 0; i < uRows.length; i++) {
         var k = uRows[i].getAttribute('data-key');
-        var act = uRows[i].querySelector('.s-imp-btn.act-req,.s-imp-btn.act-norm,.s-imp-btn.act-excl');
-        if (act) { if (act.classList.contains('act-req')) s.udefFieldConfig[k] = 'required'; else if (act.classList.contains('act-excl')) s.udefFieldConfig[k] = 'excluded'; else s.udefFieldConfig[k] = 'normal'; }
+        var prio = uRows[i].querySelector('.s-prio');
+        if (prio) { var v = prio.getAttribute('data-val'); if (v) s.udefFieldConfig[k] = v; }
       }
     }
     // Integrity
@@ -2074,6 +2187,7 @@
     if (e.key === 'Escape') closeSettings();
   }
   document.addEventListener('keydown', _onEscKey);
+  document.addEventListener('click', function() { _closePrioMenus(); });
 
   // ============================================================
   // PUBLIC API
@@ -2106,6 +2220,7 @@
     switchEntity: switchEntity, toggleAcc: toggleAcc, setHML: setHML,
     toggleHealthComp: toggleHealthComp, toggleEngComp: toggleEngComp,
     toggleIntegrity: toggleIntegrity, setImp: setImp, toggleUdef: toggleUdef,
+    togglePrio: togglePrio, prioKey: prioKey,
     toggleFieldValues: toggleFieldValues,
     requestOverride: requestOverride, overrideField: overrideField,
     _confirmOverride: _confirmOverride, _closeOverrideConfirm: _closeOverrideConfirm,
