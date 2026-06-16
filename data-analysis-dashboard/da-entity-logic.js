@@ -526,8 +526,43 @@ function startEntityOverview(key) {
   });
 }
 
+// Map analysis distribution titles to the standard list fields in the settings,
+// so those fields can expand and have their values excluded like custom fields.
+var STD_DIST_MAP = {
+  company: { 'Category': 'category', 'Business': 'business' },
+  sale:    { 'Sale Type': 'saleType', 'Stage': 'stage' },
+  project: { 'Project Type': 'projectType', 'Project Status': 'status' }
+};
+
+function pushStdListValues(key, d) {
+  if (typeof daSettings === 'undefined' || !daSettings.notifyStdListLoaded) return;
+  if (!d || !d.distributions) return;
+  var map = STD_DIST_MAP[key];
+  if (!map) { daSettings.notifyStdListLoaded(key, {}); return; }
+  var out = {};
+  for (var i = 0; i < d.distributions.length; i++) {
+    var dist = d.distributions[i];
+    if (!dist || !dist.items) continue;
+    var sk = map[dist.title];
+    if (!sk) continue;
+    var tot = dist.total || 0;
+    if (!tot) { for (var t = 0; t < dist.items.length; t++) tot += (dist.items[t].count || 0); }
+    var items = [];
+    for (var j = 0; j < dist.items.length; j++) {
+      var it = dist.items[j];
+      var nm = it.name;
+      if (nm === '(No value)') continue; // empty bucket is not a selectable value
+      var c = it.count || 0;
+      items.push({ n: nm, c: c, p: tot > 0 ? (c / tot * 100) : 0, i: it.idx });
+    }
+    out[sk] = items;
+  }
+  daSettings.notifyStdListLoaded(key, out);
+}
+
 function renderEntityOverview(key, d) {
   overviewData[key] = d;
+  pushStdListValues(key, d);
   var cfg = ovLabels[key];
   var o = d.overview;
   var totalKey = cfg.stats[0][0];
@@ -2079,7 +2114,7 @@ function renderMomentum(key, d) {
   h += renderMomentumChart(monthly);
   h += renderUserAdoption(users, totalUsers, d.totalActivities + d.totalDocuments, filterMonths, filterLabel);
 
-  el.innerHTML = dateFilterNotice(true) + h;
+  el.innerHTML = dateFilterNotice() + h;
   mmInitChartTooltip(el, monthly);
 }
 
