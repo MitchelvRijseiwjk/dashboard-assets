@@ -1015,8 +1015,8 @@
   function ensureIntakeStyles() {
     if (document.getElementById('daIntakeStyles')) return;
     var css = ''
-      + '.s-intake-badge{display:inline-block;margin-left:8px;padding:1px 7px;border-radius:10px;'
-      + 'font-size:10px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;vertical-align:middle;'
+      + '.s-intake-badge{display:inline-flex;align-items:center;margin-left:8px;padding:6px 11px;border-radius:999px;'
+      + 'font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;vertical-align:middle;line-height:1.2;'
       + 'background:rgba(99,102,241,.14);color:#6366f1;border:1px solid rgba(99,102,241,.35);}'
       + '.s-imp-btn.s-imp-locked{cursor:not-allowed;}'
       + '.s-imp-btn.s-imp-locked:not(.act-req):not(.act-norm):not(.act-excl):not(.act-high):not(.act-med):not(.act-low){opacity:.45;}'
@@ -1072,6 +1072,10 @@
       + '.s-prio-norm{background:#CBD7EC;color:#2B4A73;}'
       + '.s-prio-req{background:#06423E;color:#FFFFFF;}'
       + '.s-prio-locked{cursor:default;opacity:.6;}'
+      + '.s-prio-hi{background:#06423E;color:#FFFFFF;}'
+      + '.s-prio-md{background:#CBD7EC;color:#2B4A73;}'
+      + '.s-prio-lo{background:#EDEAE1;color:#5F5E5A;}'
+      + '.s-hmlcell{border:none !important;background:none !important;padding:0 !important;width:auto !important;min-width:0 !important;overflow:visible !important;display:inline-flex !important;align-items:center;justify-self:start;}'
       + '.s-prio-menu{position:absolute;top:calc(100% + 5px);right:0;width:152px;border:0.5px solid #E4E0D6;border-radius:12px;background:#FFFFFF;padding:5px;z-index:60;box-shadow:0 12px 32px rgba(0,0,0,.13);}'
       + '.s-prio-opt{display:flex;align-items:center;gap:9px;padding:7px 10px;border-radius:999px;font-size:12px;color:#3A3A38;cursor:pointer;}'
       + '.s-prio-opt:hover{background:#F4F2EC;}'
@@ -1093,7 +1097,7 @@
       + '.s-val-excluded .s-val-n{color:#9C9388;text-decoration:line-through;}'
       + '.s-vals-grid:not(.s-vals-locked) .s-val{cursor:pointer;}'
       + '.s-vals-locked{opacity:.5;}'
-      + '.s-intake-lock{display:inline-flex;align-items:center;gap:4px;cursor:pointer;font-family:inherit;font-size:10px;font-weight:700;line-height:1.4;box-sizing:border-box;}'
+      + '.s-intake-lock{display:inline-flex;align-items:center;gap:4px;cursor:pointer;font-family:inherit;font-size:11px;font-weight:700;line-height:1.2;box-sizing:border-box;}'
       + '.s-intake-lock .s-lock{width:9px;height:9px;display:block;flex:none;}'
       + '.s-intake-lock:hover{filter:brightness(.97);}'
       + '.s-introw-st{display:flex;justify-content:flex-end;align-items:center;flex:none;min-width:104px;margin-left:8px;}'
@@ -1511,16 +1515,7 @@
   }
 
   function hmlToggle(group, ek, key, level) {
-    var h = '<div class="s-fld-toggle">';
-    var vals = ['high', 'medium', 'low'];
-    var labels = ['High', 'Medium', 'Low'];
-    var acts = { high: 'act-high', medium: 'act-med', low: 'act-low' };
-    for (var i = 0; i < vals.length; i++) {
-      var cls = level === vals[i] ? ' ' + acts[vals[i]] : '';
-      h += '<button class="s-imp-btn' + cls + '" onclick="daSettings.setHML(\'' + group + '\',\'' + ek + '\',\'' + key + '\',\'' + vals[i] + '\',this)">' + labels[i] + '</button>';
-    }
-    h += '</div>';
-    return h;
+    return _hmlPill(group, ek, key, level, false);
   }
 
   // Score targets card: the level aimed for per score, with the current score as a
@@ -1625,18 +1620,9 @@
     return h;
   }
 
-  // Static, non-interactive H/M/L toggle for an intake-owned integrity check
+  // Static, non-interactive H/M/L pill for an intake-owned integrity check
   function hmlToggleLocked(level) {
-    var h = '<div class="s-fld-toggle">';
-    var vals = ['high', 'medium', 'low'];
-    var labels = ['High', 'Medium', 'Low'];
-    var acts = { high: 'act-high', medium: 'act-med', low: 'act-low' };
-    for (var i = 0; i < vals.length; i++) {
-      var cls = level === vals[i] ? ' ' + acts[vals[i]] : '';
-      h += '<button class="s-imp-btn s-imp-locked' + cls + '" disabled aria-disabled="true">' + labels[i] + '</button>';
-    }
-    h += '</div>';
-    return h;
+    return _hmlPill('int', '', '', level, true);
   }
 
   function renderCompletenessBody(ek, s, def) {
@@ -1765,6 +1751,77 @@
         else s.stdFieldConfig[k] = imp;
         if (isOverridden(ek, grp, k)) { var o = _ovShard(ek); o[_OV_CFG[grp]][k] = imp; }
       }
+    }
+    markUnsaved();
+  }
+
+  var _HML_MAP = { high:{lbl:'High',cls:'s-prio-hi'}, medium:{lbl:'Medium',cls:'s-prio-md'}, low:{lbl:'Low',cls:'s-prio-lo'} };
+  var _HML_OPTS = [ {v:'high',l:'High',c:'#06423E'}, {v:'medium',l:'Medium',c:'#7E9BC4'}, {v:'low',l:'Low',c:'#B4B2A9'} ];
+
+  // Weight selector as a colour-coded pill dropdown, dropped into the existing
+  // toggle slot so the surrounding row layout stays intact.
+  function _hmlPill(group, ek, key, level, locked) {
+    var cur = _HML_MAP[level] || _HML_MAP.medium;
+    var kEsc = (key == null ? '' : String(key)).replace(/'/g, "\\'");
+    var chv = '<svg class="s-prio-chv" viewBox="0 0 10 6" fill="none" aria-hidden="true"><path d="M1 1l4 4 4-4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+    var inner;
+    if (locked) {
+      inner = '<span class="s-prio ' + cur.cls + ' s-prio-locked" data-val="' + level + '" title="Set in the intake form. Override it to change."><span class="s-prio-lbl">' + cur.lbl + '</span>' + chv + '</span>';
+    } else {
+      inner = '<span class="s-prio ' + cur.cls + '" role="button" tabindex="0" aria-haspopup="listbox" data-val="' + level + '" data-hgrp="' + group + '" data-hek="' + ek + '" data-hkey="' + kEsc + '" onclick="daSettings.toggleHml(this,event)" onkeydown="daSettings.hmlKey(this,event)"><span class="s-prio-lbl">' + cur.lbl + '</span>' + chv + '</span>';
+    }
+    return '<div class="s-fld-toggle s-hmlcell"><div class="s-prio-wrap">' + inner + '</div></div>';
+  }
+
+  function toggleHml(el, e) {
+    if (e && e.stopPropagation) e.stopPropagation();
+    var wrap = el.parentNode;
+    var open = wrap.querySelector('.s-prio-menu');
+    _closePrioMenus();
+    if (open) return;
+    var cur = el.getAttribute('data-val');
+    var menu = document.createElement('div');
+    menu.className = 's-prio-menu';
+    for (var i = 0; i < _HML_OPTS.length; i++) {
+      (function(o) {
+        var row = document.createElement('div');
+        row.className = 's-prio-opt';
+        var ck = (o.v === cur) ? '<svg class="s-prio-ck" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="3 6.4 5 8.4 9 4"/></svg>' : '';
+        row.innerHTML = '<span class="s-prio-sw" style="background:' + o.c + '"></span>' + o.l + ck;
+        if (o.v === cur) row.style.background = '#F4F2EC';
+        row.onclick = function(ev) { if (ev && ev.stopPropagation) ev.stopPropagation(); setHmlValue(el, o.v); _closePrioMenus(); };
+        menu.appendChild(row);
+      })(_HML_OPTS[i]);
+    }
+    wrap.appendChild(menu);
+    var r = menu.getBoundingClientRect ? menu.getBoundingClientRect() : null;
+    var vh = window.innerHeight || (document.documentElement ? document.documentElement.clientHeight : 0);
+    if (r && vh && r.bottom > vh - 8) { menu.style.top = 'auto'; menu.style.bottom = 'calc(100% + 5px)'; }
+  }
+
+  function hmlKey(el, e) {
+    if (e && (e.key === 'Enter' || e.key === ' ' || e.key === 'Spacebar')) { if (e.preventDefault) e.preventDefault(); toggleHml(el, e); }
+  }
+
+  // Apply a weight level: recolour the pill, update the row's data-level, and
+  // recompute percentages / write integrity config (same paths as before).
+  function setHmlValue(el, level) {
+    var cur = _HML_MAP[level] || _HML_MAP.medium;
+    el.setAttribute('data-val', level);
+    el.className = 's-prio ' + cur.cls;
+    var l = el.querySelector('.s-prio-lbl'); if (l) l.textContent = cur.lbl;
+    var group = el.getAttribute('data-hgrp');
+    var ek = el.getAttribute('data-hek');
+    var key = el.getAttribute('data-hkey');
+    var row = el.closest ? (el.closest('.s-weight-row') || el.closest('.s-integrity-row')) : null;
+    if (row) row.setAttribute('data-level', level);
+    if (group === 'health') recalcWeightGroup('health', ek);
+    else if (group === 'eng') recalcWeightGroup('eng', ek);
+    else if (group === 'int') {
+      var s = get(ek); if (!s.integrityConfig) s.integrityConfig = {};
+      if (!s.integrityConfig[key]) s.integrityConfig[key] = { enabled: row ? row.getAttribute('data-enabled') === 'true' : true, weight: level };
+      else s.integrityConfig[key].weight = level;
+      if (isOverridden(ek, 'int', key)) { var o = _ovShard(ek); o.integrityConfig[key] = { enabled: s.integrityConfig[key].enabled !== false, weight: level }; }
     }
     markUnsaved();
   }
@@ -2221,6 +2278,7 @@
     toggleHealthComp: toggleHealthComp, toggleEngComp: toggleEngComp,
     toggleIntegrity: toggleIntegrity, setImp: setImp, toggleUdef: toggleUdef,
     togglePrio: togglePrio, prioKey: prioKey,
+    toggleHml: toggleHml, hmlKey: hmlKey,
     toggleFieldValues: toggleFieldValues,
     requestOverride: requestOverride, overrideField: overrideField,
     _confirmOverride: _confirmOverride, _closeOverrideConfirm: _closeOverrideConfirm,
