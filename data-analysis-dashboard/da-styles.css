@@ -490,7 +490,8 @@
     .dq-score-desc{font-size:.78rem;color:var(--so-text-muted);line-height:1.4}
 
     /* === SCORE BANNER (Overview tab — ring left, rows right) === */
-    .scores-banner{margin-bottom:20px;background:var(--so-white);border:1px solid var(--so-border);border-radius:12px;padding:20px 28px;display:flex;align-items:center;gap:0}
+    .scores-banner{margin-bottom:20px;background:var(--so-white);border:1px solid var(--so-border);border-radius:12px;padding:20px 28px}
+    .sb-top{display:flex;align-items:center;gap:0}
     .sb-main{display:flex;flex-direction:column;align-items:center;gap:6px;padding-right:28px;flex-shrink:0}
     .sb-main-lbl{font-size:.76rem;font-weight:600;color:var(--so-charcoal);text-align:center}
     .sb-divider{width:1px;background:var(--so-border);align-self:stretch;flex-shrink:0}
@@ -692,7 +693,7 @@
 .s-pill{position:relative;display:inline-flex;align-items:center;justify-content:center;width:84px;box-sizing:border-box;font-size:12px;padding:4px 11px;border-radius:999px;border:1px solid transparent;line-height:14px;}
 .s-pill-text{background:#F1EFE8;color:#6B6A64;}
 .s-pill-list{background:#E1F5EE;color:#0F6E56;cursor:pointer;}
-.s-pill-list[disabled]{cursor:default;opacity:.6;}
+.s-pill-list[disabled]{cursor:default;}
 .s-pill-flat{background:#FFFFFF;color:#7E8C88;border-color:#CDDAD6;cursor:default;font-weight:500;}
 .s-pill-list .s-chv{position:absolute;right:9px;top:50%;transform:translateY(-50%);width:9px;height:9px;transition:transform .15s;opacity:.85;}
 .s-pill-list.open .s-chv{transform:translateY(-50%) rotate(180deg);opacity:1;}
@@ -703,7 +704,7 @@
 .s-prio-off{background:#EDEAE1;color:#5F5E5A;}
 .s-prio-norm{background:#CBD7EC;color:#2B4A73;}
 .s-prio-req{background:#06423E;color:#FFFFFF;}
-.s-prio-locked{cursor:default;opacity:.6;}
+.s-prio-locked{cursor:default;}
 .s-prio-hi{background:#06423E;color:#FFFFFF;}
 .s-prio-md{background:#CBD7EC;color:#2B4A73;}
 .s-prio-lo{background:#EDEAE1;color:#5F5E5A;}
@@ -728,7 +729,7 @@
 .s-val-excluded .s-val-chk{background:transparent;border:1.5px solid #C7C2B6;color:transparent;}
 .s-val-excluded .s-val-n{color:#9C9388;text-decoration:line-through;}
 .s-vals-grid:not(.s-vals-locked) .s-val{cursor:pointer;}
-.s-vals-locked{opacity:.5;}
+/* locked value grids keep full opacity (intake lock shown by badge, not dimming) */
 .s-intake-lock{display:inline-flex;align-items:center;gap:4px;cursor:pointer;font-family:inherit;font-size:11px;font-weight:700;line-height:14px;box-sizing:border-box;}
 .s-intake-lock .s-lock{width:9px;height:9px;display:block;flex:none;}
 .s-intake-lock:hover{filter:brightness(.97);}
@@ -752,5 +753,21 @@
 .s-ovc-ok:hover{background:#0A5C54;}
 .st-row{align-items:center;}
 .st-tgt-st{display:flex;justify-content:flex-end;align-items:center;flex:none;min-width:104px;margin-left:10px;}
-.st-slider:disabled{opacity:.45;cursor:default;}
-.st-row-locked .st-thumb,.st-row-locked .st-fill{opacity:.5;}
+.st-slider:disabled{cursor:default;}
+/* locked target rows keep full opacity; the INTAKE badge signals the lock */
+
+/* uniform pill height: avoid sub-pixel variance between badge, prio and pill
+   (a <button> badge renders auto-height slightly differently than a <div>) */
+.s-pill,.s-prio,.s-intake-badge,.s-intake-lock{height:24px;}
+
+/* score banner: verdict word, verdict sentence and shared colour key */
+.sb-band{display:inline-flex;align-items:center;gap:4px;font-size:.64rem;font-weight:600;padding:2px 8px;border-radius:999px;border:1px solid;line-height:1.4;white-space:nowrap}
+.sb-band-dot{width:6px;height:6px;border-radius:50%;background:currentColor;flex:none}
+.sb-main .sb-band{margin-top:1px}
+.sb-row-band{width:124px;flex:none}
+.sb-foot{border-top:1px solid var(--so-dune);margin-top:14px;padding-top:11px}
+.sb-verdict{font-size:.82rem;color:var(--so-charcoal);line-height:1.55;margin-bottom:9px}
+.sb-key{display:flex;align-items:center;gap:13px;flex-wrap:wrap}
+.sb-keychip{display:inline-flex;align-items:center;gap:5px;font-size:.67rem;color:var(--so-text-muted)}
+.sb-kdot{width:6px;height:6px;border-radius:50%;flex:none}
+.sb-keynote{font-size:.67rem;color:var(--so-text-muted);margin-left:auto}
