@@ -998,6 +998,30 @@ function slColorInv(pct) {
   if (pct < 60) return 'var(--sl-warn)';
   return 'var(--sl-bad)';
 }
+// Verdict word for a score, thresholds aligned 1:1 with slColor (70/40/15)
+function slBand(pct) {
+  if (pct >= 70) return { w: 'Good', c: 'var(--sl-good)' };
+  if (pct >= 40) return { w: 'Moderate', c: 'var(--sl-ok)' };
+  if (pct >= 15) return { w: 'Needs attention', c: 'var(--sl-warn)' };
+  return { w: 'Critical', c: 'var(--sl-bad)' };
+}
+// Plain-language health adjective for the verdict sentence
+function slHealthWord(pct) {
+  if (pct >= 70) return 'healthy';
+  if (pct >= 40) return 'moderately healthy';
+  if (pct >= 15) return 'below par';
+  return 'in poor shape';
+}
+// Shared colour key shown once per scored page
+function slKeyHtml() {
+  return '<div class="sb-key">'
+    + '<span class="sb-keychip"><span class="sb-kdot" style="background:var(--sl-bad)"></span>&lt;15</span>'
+    + '<span class="sb-keychip"><span class="sb-kdot" style="background:var(--sl-warn)"></span>15\u201339</span>'
+    + '<span class="sb-keychip"><span class="sb-kdot" style="background:var(--sl-ok)"></span>40\u201369</span>'
+    + '<span class="sb-keychip"><span class="sb-kdot" style="background:var(--sl-good)"></span>70+ Good</span>'
+    + '<span class="sb-keynote">Absolute, measured against your own data</span>'
+    + '</div>';
+}
 function sortT(tid, col) {
   var t = document.getElementById(tid);
   if (!t) return;
