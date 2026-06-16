@@ -1011,6 +1011,52 @@ var SB_INFO_SVG = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" s
 function sbInfoIcon(text) {
   return '<span class="sb-iw">' + SB_INFO_SVG + '<span class="sb-itip">' + text + '</span></span>';
 }
+
+// === Attention helper ===
+// badness = how-bad percentage (0-100). For completeness/adoption pass the gap (100 - filled%),
+// for integrity/quality flags pass the affected%. weightKey is the row's importance or weight.
+// Rows that carry no weight in the score return -1 so they sort to the bottom and show no icon.
+function attnWeightFactor(weightKey) {
+  var w = (weightKey || '').toString().toLowerCase();
+  if (w === 'required' || w === 'high') return 1;
+  if (w === 'normal' || w === 'medium') return 0.5;
+  return 0;
+}
+function attnScore(badness, weightKey) {
+  var f = attnWeightFactor(weightKey);
+  if (f === 0) return -1;
+  var b = badness; if (b < 0) b = 0; if (b > 100) b = 100;
+  return Math.round(b * f);
+}
+function attnBand(score) {
+  if (score < 0) return 'none';
+  if (score >= 50) return 'high';
+  if (score >= 25) return 'medium';
+  return 'low';
+}
+function attnBandWord(score) {
+  var b = attnBand(score);
+  return b === 'high' ? 'High' : (b === 'medium' ? 'Medium' : 'Low');
+}
+var ATTN_HIGH_SVG = '<svg width="18" height="18" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="#c62828"/><rect x="11" y="6.5" width="2" height="7" rx="1" fill="#fff"/><circle cx="12" cy="16.5" r="1.2" fill="#fff"/></svg>';
+var ATTN_MED_SVG = '<svg width="18" height="18" viewBox="0 0 24 24"><path d="M12 3 L22 20 L2 20 Z" fill="#ef6c00"/><rect x="11" y="9" width="2" height="6" rx="1" fill="#fff"/><circle cx="12" cy="17.5" r="1.1" fill="#fff"/></svg>';
+// Icon + hover tooltip for an attention cell. Empty string for rows that carry no weight.
+function attnIconHtml(score, reason) {
+  var band = attnBand(score);
+  if (band === 'none') return '';
+  var icon = band === 'high' ? ATTN_HIGH_SVG : (band === 'medium' ? ATTN_MED_SVG : '<span class="attn-dot"></span>');
+  return '<span class="attn-iw">' + icon + '<span class="attn-tip">' + reason + '</span></span>';
+}
+// Sort row objects {attn, badness, html} by attention desc, worst-percentage first on ties, then join.
+function attnSortRows(rows) {
+  rows.sort(function(a, b) {
+    if (b.attn !== a.attn) return b.attn - a.attn;
+    return b.badness - a.badness;
+  });
+  var out = '';
+  for (var i = 0; i < rows.length; i++) out += rows[i].html;
+  return out;
+}
 // Plain-language health adjective for the verdict sentence
 function slHealthWord(pct) {
   if (pct >= 70) return 'healthy';
