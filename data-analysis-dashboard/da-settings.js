@@ -1015,10 +1015,10 @@
       + '.st-track{position:absolute;top:50%;left:0;right:0;transform:translateY(-50%);height:4px;border-radius:999px;background:#D8D2C4;z-index:0;}'
       + '.st-fill{position:absolute;top:50%;left:0;transform:translateY(-50%);height:4px;border-radius:999px;background:#06423E;z-index:1;}'
       + '.st-cur{position:absolute;top:50%;transform:translate(-50%,-50%);z-index:2;}'
-      + '.st-cur b{display:block;width:16px;height:16px;border-radius:50%;background:#06423E;}'
-      + '.st-curlab{position:absolute;top:22px;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:6px;white-space:nowrap;}'
-      + '.st-curlab i{font-style:normal;font-size:11px;font-weight:500;color:#9C9388;}'
-      + '.st-curlab em{font-style:normal;font-size:11px;font-weight:500;color:#5F5E5A;background:#F1EFE8;border-radius:999px;padding:2px 8px;}'
+      + '.st-cur b{display:block;width:14px;height:14px;border-radius:50%;background:#06423E;box-shadow:0 0 0 3px #FFFFFF;}'
+      + '.st-curcall{position:absolute;top:15px;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:4px;white-space:nowrap;background:#06423E;color:#CFE3DF;font-size:10.5px;font-weight:600;line-height:1;padding:4px 9px;border-radius:999px;}'
+      + '.st-curcall::before{content:"";position:absolute;top:-3px;left:50%;transform:translateX(-50%);width:0;height:0;border-left:4px solid transparent;border-right:4px solid transparent;border-bottom:4px solid #06423E;}'
+      + '.st-curcall em{font-style:normal;font-weight:700;color:#FFFFFF;}'
       + '.st-thumb{position:absolute;top:50%;transform:translate(-50%,-50%);z-index:3;pointer-events:none;}'
       + '.st-thumb b{display:block;width:18px;height:18px;border-radius:50%;background:#FFFFFF;border:2px solid #06423E;box-sizing:border-box;}'
       + '.st-track-wrap:focus-within .st-thumb b{box-shadow:0 0 0 3px rgba(6,66,62,.18);}'
@@ -1040,7 +1040,7 @@
       + '.s-pill-text{background:#F1EFE8;color:#6B6A64;}'
       + '.s-pill-list{background:#E1F5EE;color:#0F6E56;cursor:pointer;}'
       + '.s-pill-list[disabled]{cursor:default;opacity:.6;}'
-      + '.s-pill-flat{cursor:default;}'
+      + '.s-pill-flat{background:#FFFFFF;color:#7E8C88;border:1px solid #CDDAD6;cursor:default;font-weight:500;padding:3px 8px;}'
       + '.s-pill-list .s-chv{width:9px;height:9px;transition:transform .15s;opacity:.8;}'
       + '.s-pill-list.open .s-chv{transform:rotate(180deg);opacity:1;}'
       + '.s-fld-st{display:flex;justify-content:flex-end;}'
@@ -1516,7 +1516,7 @@
       h += '<div class="st-track"></div>';
       h += '<div class="st-fill" style="width:' + pos + '"></div>';
       if (curVal != null) {
-        h += '<div class="st-cur" style="left:calc(9px + (100% - 18px) * ' + (curVal / 100) + ')"><b></b><div class="st-curlab"><i>current score</i><em>' + curVal + '%</em></div></div>';
+        h += '<div class="st-cur" style="left:calc(9px + (100% - 18px) * ' + (curVal / 100) + ')"><b></b><div class="st-curcall">current <em>' + curVal + '%</em></div></div>';
       }
       h += '<div class="st-thumb" style="left:' + pos + '"><b></b></div>';
       h += '<input type="range" class="st-slider" min="0" max="100" step="5" value="' + val + '"' + (curVal != null ? (' data-current="' + curVal + '"') : '') + (locked ? ' disabled aria-disabled="true"' : ' oninput="daSettings.onTargetInput(this)"') + ' aria-label="' + d.label + ' target">';
@@ -1669,7 +1669,7 @@
       h += '<svg class="s-chv" viewBox="0 0 10 6" fill="none" aria-hidden="true"><path d="M1 1l4 4 4-4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>';
       h += '</button>';
     } else if (isList) {
-      h += '<span class="s-pill s-pill-list s-pill-flat" title="' + (group === 'std' ? 'Standard list field. Its individual values are not available to edit here yet.' : 'No values are filled in for this field yet.') + '">List</span>';
+      h += '<span class="s-pill s-pill-list s-pill-flat" title="Reference only. The individual values of this field cannot be adjusted here.">List</span>';
     } else if (type) {
       h += '<span class="s-pill s-pill-text">' + type + '</span>';
     }
@@ -1993,6 +1993,25 @@
       var ek = ENTITY_ORDER[i];
       if (typeof renderDQScore === 'function') renderDQScore(ek);
       if (typeof renderScoreBanner === 'function') renderScoreBanner(ek);
+    }
+    // Keep the settings current-score markers in sync with the freshly
+    // recalculated scores, and refresh the persisted scan snapshot while
+    // preserving the original scan date (this is a re-weight, not a new scan).
+    if (typeof computeEntityScores === 'function') {
+      var freshScores = {};
+      for (var si = 0; si < ENTITY_ORDER.length; si++) {
+        var sek = ENTITY_ORDER[si];
+        var es = computeEntityScores(sek);
+        if (es) freshScores[sek] = {
+          dataQuality: _scoreNum(es.dq),
+          dataIntegrity: _scoreNum(es.integrity),
+          adoption: _scoreNum(es.adoption),
+          overall: _scoreNum(es.health)
+        };
+      }
+      _currentScores = freshScores;
+      var prevAt = (_scanState && _scanState.scannedAt) ? _scanState.scannedAt : null;
+      if (prevAt) saveScanState(prevAt, freshScores);
     }
     if (typeof renderCrossEntityFunnel === 'function' && typeof companyDetailData !== 'undefined' && companyDetailData) renderCrossEntityFunnel(companyDetailData);
     if (typeof renderCompanyDetails === 'function' && typeof companyDetailData !== 'undefined' && companyDetailData) renderCompanyDetails(companyDetailData);
