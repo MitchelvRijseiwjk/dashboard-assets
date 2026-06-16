@@ -761,12 +761,27 @@
 .s-pill,.s-prio,.s-intake-badge,.s-intake-lock{height:24px;}
 
 /* score banner: verdict word, verdict sentence and shared colour key */
-.sb-band{display:inline-flex;align-items:center;gap:4px;font-size:.64rem;font-weight:600;padding:2px 8px;border-radius:999px;border:1px solid;line-height:1.4;white-space:nowrap}
-.sb-band-dot{width:6px;height:6px;border-radius:50%;background:currentColor;flex:none}
+.sb-band{display:inline-flex;align-items:center;gap:5px;font-size:.64rem;font-weight:600;padding:3px 9px;border-radius:999px;line-height:1.4;white-space:nowrap}
+.sb-band-dot{width:6px;height:6px;border-radius:50%;flex:none}
+.sb-band-good{background:#e7f3e8;color:#1e5e22}
+.sb-band-good .sb-band-dot{background:var(--sl-good)}
+.sb-band-moderate{background:#fdf3df;color:#9a6800}
+.sb-band-moderate .sb-band-dot{background:var(--sl-ok)}
+.sb-band-warn{background:#fceee2;color:#aa4a00}
+.sb-band-warn .sb-band-dot{background:var(--sl-warn)}
+.sb-band-bad{background:#fbeaea;color:#a32d2d}
+.sb-band-bad .sb-band-dot{background:var(--sl-bad)}
 .sb-main .sb-band{margin-top:1px}
-.sb-row-band{width:124px;flex:none}
+.sb-row-band{width:128px;flex:none}
+/* info icon + hover tooltip */
+.sb-iw{position:relative;display:inline-flex;align-items:center;margin-left:5px;color:var(--so-text-muted);vertical-align:middle}
+.sb-iw svg{cursor:help;opacity:.65}
+.sb-iw:hover svg{opacity:1}
+.sb-itip{display:none;position:absolute;top:21px;left:-8px;z-index:30;width:222px;background:var(--so-white);border:1px solid var(--so-border);border-radius:8px;box-shadow:0 5px 16px rgba(0,0,0,.12);padding:9px 11px;font-size:.72rem;font-weight:400;line-height:1.5;color:#5f5e5a;letter-spacing:0;text-transform:none}
+.sb-iw:hover .sb-itip{display:block}
 .sb-foot{border-top:1px solid var(--so-dune);margin-top:14px;padding-top:11px}
-.sb-verdict{font-size:.82rem;color:var(--so-charcoal);line-height:1.55;margin-bottom:9px}
+.sb-verdict{font-size:.82rem;color:#5a5953;line-height:1.55;margin-bottom:9px}
+.sb-verdict b{color:var(--so-charcoal);font-weight:600}
 .sb-key{display:flex;align-items:center;gap:13px;flex-wrap:wrap}
 .sb-keychip{display:inline-flex;align-items:center;gap:5px;font-size:.67rem;color:var(--so-text-muted)}
 .sb-kdot{width:6px;height:6px;border-radius:50%;flex:none}
