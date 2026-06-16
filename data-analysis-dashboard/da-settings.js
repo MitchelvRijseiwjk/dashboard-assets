@@ -164,6 +164,7 @@
   var _rules = {};
   var _intakeFields = {};
   var _overrides = {};       // engine-owned deviations from the intake, per entity (override:<entity> shards)
+  var _stdListItems = {};    // standard list-field values per entity, from analysis distributions
   var _currentScores = {};   // optional per-entity current scores set by the host after a scan
   var _scanState = null;     // { scannedAt, scores } from the latest scan snapshot
   var SCORE_TARGET_DEFS = [
@@ -286,16 +287,19 @@
   // the defaults. Once saved from settings, the config owns it and seeding stops.
   function seedScoreTargets() {
     if (!_s) load();
+    var keys = ['dataQuality', 'dataIntegrity', 'adoption'];
     for (var i = 0; i < ENTITY_ORDER.length; i++) {
       var ek = ENTITY_ORDER[i];
       if (!_s[ek]) continue;
-      if (_s[ek].scoreTargets) continue;
-      var seed = (_intakeFields[ek] && _intakeFields[ek].scoreTargets) ? _intakeFields[ek].scoreTargets : null;
-      _s[ek].scoreTargets = {
-        dataQuality:   (seed && typeof seed.dataQuality === 'number') ? seed.dataQuality : SCORE_TARGET_DEFAULTS.dataQuality,
-        dataIntegrity: (seed && typeof seed.dataIntegrity === 'number') ? seed.dataIntegrity : SCORE_TARGET_DEFAULTS.dataIntegrity,
-        adoption:      (seed && typeof seed.adoption === 'number') ? seed.adoption : SCORE_TARGET_DEFAULTS.adoption
-      };
+      if (!_s[ek].scoreTargets) _s[ek].scoreTargets = {};
+      var st = _s[ek].scoreTargets;
+      var intk = (_intakeFields[ek] && _intakeFields[ek].scoreTargets) ? _intakeFields[ek].scoreTargets : null;
+      for (var j = 0; j < keys.length; j++) {
+        var kk = keys[j];
+        if (typeof st[kk] !== 'number') {
+          st[kk] = (intk && typeof intk[kk] === 'number') ? intk[kk] : SCORE_TARGET_DEFAULTS[kk];
+        }
+      }
     }
   }
 
@@ -308,6 +312,7 @@
     if (group === 'std') return !!(shard.stdFieldConfig && shard.stdFieldConfig.hasOwnProperty(key));
     if (group === 'udef') return !!(shard.udefFieldConfig && shard.udefFieldConfig.hasOwnProperty(key));
     if (group === 'int') return !!(shard.integrityConfig && shard.integrityConfig.hasOwnProperty(key));
+    if (group === 'target') return !!(shard.scoreTargets && shard.scoreTargets.hasOwnProperty(key));
     return false;
   }
 
@@ -337,6 +342,7 @@
   // explicitly overrode live here. Stored in their own override:<entity> shard,
   // never folded into the intake shard or the engine config row.
   var _OV_CFG = { std: 'stdFieldConfig', udef: 'udefFieldConfig' };
+  var _pendingOverride = null;
 
   function parseOverrides(obj) {
     _overrides = {};
@@ -347,12 +353,40 @@
     }
   }
 
+  // Items (with names, counts and optional idx) for a list field, if loaded.
+  function _itemsFor(ek, group, key) {
+    if (group === 'std') return (_stdListItems[ek] && _stdListItems[ek][key]) ? _stdListItems[ek][key] : null;
+    if (group === 'udef') {
+      var arr = _udefFields[ek]; if (!arr) return null;
+      for (var i = 0; i < arr.length; i++) { if (arr[i].progId === key) return arr[i].items || null; }
+    }
+    return null;
+  }
+
+  // Normalize an exclusion list to value NAMES. The intake stores exclusions by
+  // value index (number); the dashboard stores them by name (string). Numbers are
+  // resolved to names via the items' idx, when the backend provides it.
+  function _exclNames(rawArr, items) {
+    if (!rawArr || !rawArr.length) return [];
+    var out = [];
+    for (var i = 0; i < rawArr.length; i++) {
+      var v = rawArr[i];
+      if (typeof v === 'number') {
+        if (items) { for (var j = 0; j < items.length; j++) { if (items[j].i != null && items[j].i === v) { out.push(items[j].n); break; } } }
+      } else {
+        out.push(v);
+      }
+    }
+    return out;
+  }
+
   function _ovShard(ek) {
     if (!_overrides[ek]) _overrides[ek] = {};
     var o = _overrides[ek];
     if (!o.stdFieldConfig) o.stdFieldConfig = {};
     if (!o.udefFieldConfig) o.udefFieldConfig = {};
     if (!o.integrityConfig) o.integrityConfig = {};
+    if (!o.scoreTargets) o.scoreTargets = {};
     if (!o.fieldExclusions) o.fieldExclusions = {};
     return o;
   }
@@ -361,6 +395,7 @@
   function isOverridden(ek, group, key) {
     var o = _overrides[ek]; if (!o) return false;
     if (group === 'int') return !!(o.integrityConfig && o.integrityConfig.hasOwnProperty(key));
+    if (group === 'target') return !!(o.scoreTargets && o.scoreTargets.hasOwnProperty(key));
     var cfg = _OV_CFG[group]; if (!cfg || !o[cfg]) return false;
     return o[cfg].hasOwnProperty(key);
   }
@@ -375,6 +410,7 @@
       if (o.stdFieldConfig) for (var fk in o.stdFieldConfig) s.stdFieldConfig[fk] = o.stdFieldConfig[fk];
       if (o.udefFieldConfig) { if (!s.udefFieldConfig) s.udefFieldConfig = {}; for (var uk in o.udefFieldConfig) s.udefFieldConfig[uk] = o.udefFieldConfig[uk]; }
       if (o.integrityConfig) { if (!s.integrityConfig) s.integrityConfig = {}; for (var ik in o.integrityConfig) s.integrityConfig[ik] = o.integrityConfig[ik]; }
+      if (o.scoreTargets) { if (!s.scoreTargets) s.scoreTargets = {}; for (var tk in o.scoreTargets) s.scoreTargets[tk] = o.scoreTargets[tk]; }
       if (o.fieldExclusions) { if (!s.fieldExclusions) s.fieldExclusions = {}; for (var xk in o.fieldExclusions) s.fieldExclusions[xk] = o.fieldExclusions[xk]; }
     }
   }
@@ -391,10 +427,20 @@
       _rerenderIntegrity(ek);
       return;
     }
+    if (group === 'target') {
+      o.scoreTargets[key] = (s.scoreTargets && typeof s.scoreTargets[key] === 'number') ? s.scoreTargets[key] : 0;
+      markUnsaved();
+      _rerenderTargets(ek);
+      return;
+    }
     var cfg = _OV_CFG[group]; if (!cfg) return;
     var src = group === 'udef' ? s.udefFieldConfig : s.stdFieldConfig;
     o[cfg][key] = (src && src[key]) ? src[key] : 'normal';
-    if (s.fieldExclusions && s.fieldExclusions[key]) o.fieldExclusions[key] = s.fieldExclusions[key].slice();
+    if (s.fieldExclusions && s.fieldExclusions[key]) {
+      var nmEx = _exclNames(s.fieldExclusions[key], _itemsFor(ek, group, key));
+      s.fieldExclusions[key] = nmEx;
+      o.fieldExclusions[key] = nmEx.slice();
+    }
     markUnsaved();
     try { _rerenderCompleteness(ek); } catch (e) {}
     try { _openFieldValues(ek, group, key); } catch (e) {}
@@ -410,6 +456,13 @@
       if (shard && shard.integrityConfig && shard.integrityConfig.hasOwnProperty(key)) { if (!s.integrityConfig) s.integrityConfig = {}; s.integrityConfig[key] = shard.integrityConfig[key]; }
       markUnsaved();
       _rerenderIntegrity(ek);
+      return;
+    }
+    if (group === 'target') {
+      if (o && o.scoreTargets) delete o.scoreTargets[key];
+      if (shard && shard.scoreTargets && shard.scoreTargets.hasOwnProperty(key)) { if (!s.scoreTargets) s.scoreTargets = {}; s.scoreTargets[key] = shard.scoreTargets[key]; }
+      markUnsaved();
+      _rerenderTargets(ek);
       return;
     }
     var cfg = _OV_CFG[group];
@@ -454,6 +507,7 @@
     if (o.stdFieldConfig) for (var k in o.stdFieldConfig) { if (s.stdFieldConfig && s.stdFieldConfig[k] != null) o.stdFieldConfig[k] = s.stdFieldConfig[k]; }
     if (o.udefFieldConfig) for (var u in o.udefFieldConfig) { if (s.udefFieldConfig && s.udefFieldConfig[u] != null) o.udefFieldConfig[u] = s.udefFieldConfig[u]; }
     if (o.integrityConfig) for (var ic in o.integrityConfig) { if (s.integrityConfig && s.integrityConfig[ic] != null) o.integrityConfig[ic] = { enabled: s.integrityConfig[ic].enabled !== false, weight: s.integrityConfig[ic].weight || 'medium' }; }
+    if (o.scoreTargets) for (var tc in o.scoreTargets) { if (s.scoreTargets && s.scoreTargets[tc] != null) o.scoreTargets[tc] = s.scoreTargets[tc]; }
   }
 
   function saveOverrides() {
@@ -483,6 +537,12 @@
   function _rerenderIntegrity(ek) {
     var host = document.getElementById('sInt_' + ek);
     if (host) host.innerHTML = renderIntegrityChecks(ek, get(ek), ENTITY_DEFS[ek]);
+  }
+
+  // Re-render just the score-target rows of an entity.
+  function _rerenderTargets(ek) {
+    var host = document.getElementById('sTgt_' + ek);
+    if (host) host.innerHTML = renderScoreTargets(ek, get(ek));
   }
 
   // Open the value panel under a specific list field (used right after override).
@@ -521,8 +581,8 @@
             _s = migrateV3(parsed);
             saveLocal(); // sync localStorage with server data
             applyIntakeFields(); // in-memory overlay, after saveLocal so it is not persisted
+            seedScoreTargets();  // intake/default targets, before override so override wins
             applyOverrides();    // local override deviations on top of intake
-            seedScoreTargets();  // seed engine-owned targets from intake/defaults when config lacks them
             console.log('Settings loaded from server (updated by associate ' + (resp.updatedBy || '?') + ')');
             if (callback) callback(true);
           } catch(e) {
@@ -533,8 +593,8 @@
           // Server table exists but no row yet — push localStorage settings to server
           if (_serverAvailable && _s) saveToServer();
           applyIntakeFields(); // overlay intake choices onto defaults even without an engine config row
-          applyOverrides();
           seedScoreTargets();
+          applyOverrides();
           if (callback) callback(false);
         }
       });
@@ -666,6 +726,16 @@
     }
   }
 
+  // Standard list-field values (from the analysis distributions) so std List
+  // fields can expand and have their values excluded, like custom fields.
+  function notifyStdListLoaded(entityKey, map) {
+    if (!entityKey || !ENTITY_DEFS[entityKey]) return;
+    _stdListItems[entityKey] = map || {};
+    if (document.getElementById('sCpl_' + entityKey)) {
+      try { _rerenderCompleteness(entityKey); } catch (e) {}
+    }
+  }
+
   // ============================================================
   // WEIGHT CALC HELPERS
   // ============================================================
@@ -692,6 +762,18 @@
     return 0;
   }
 
+  // Sum of record counts for the values the user excluded on a field.
+  // Used to lower the effective fill rate so exclusions move the score.
+  function _excludedFillCount(entity, key, items) {
+    var s = get(entity);
+    var raw = (s.fieldExclusions && s.fieldExclusions[key]) ? s.fieldExclusions[key] : null;
+    var exc = _exclNames(raw, items);
+    if (!exc.length || !items || !items.length) return 0;
+    var sum = 0;
+    for (var i = 0; i < items.length; i++) { if (exc.indexOf(items[i].n) >= 0) sum += (items[i].c || 0); }
+    return sum;
+  }
+
   function computeDQ(entity, ovCpl, qData, uData, total) {
     var s = get(entity);
     var def = ENTITY_DEFS[entity];
@@ -704,7 +786,9 @@
         var imp = s.stdFieldConfig[k] || 'excluded';
         if (imp === 'excluded') continue;
         var w = imp === 'required' ? 2 : 1;
-        sum += (getCompletenessValue(k, ovCpl, qData, total) / total * 100) * w;
+        var fillC = getCompletenessValue(k, ovCpl, qData, total) - _excludedFillCount(entity, k, (_stdListItems[entity] ? _stdListItems[entity][k] : null));
+        if (fillC < 0) fillC = 0;
+        sum += (fillC / total * 100) * w;
         wt += w;
       }
       if (wt > 0) scores.completeness = sum / wt;
@@ -718,7 +802,14 @@
         var imp = cfg[pid] || 'normal';
         if (imp === 'excluded') continue;
         var w = imp === 'required' ? 2 : 1;
-        uS += f.percent * w; uW += w;
+        var pct = f.percent;
+        var exc = _exclNames((s.fieldExclusions && s.fieldExclusions[pid]) ? s.fieldExclusions[pid] : null, f.items);
+        if (exc.length && f.items && f.items.length && total > 0) {
+          var filled = 0;
+          for (var j = 0; j < f.items.length; j++) { if (exc.indexOf(f.items[j].n) < 0) filled += (f.items[j].c || 0); }
+          pct = filled / total * 100;
+        }
+        uS += pct * w; uW += w;
       }
       if (uW > 0) scores.udef = uS / uW;
     }
@@ -977,7 +1068,22 @@
       + '.s-over-badge{display:inline-block;padding:1px 7px;border-radius:10px;font-size:10px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;background:rgba(186,117,23,.16);color:#9A5A06;border:1px solid rgba(186,117,23,.4);}'
       + '.s-reset{background:none;border:none;padding:0;font-size:11px;color:#0F6E56;cursor:pointer;white-space:nowrap;}'
       + '.s-reset:hover{text-decoration:underline;}'
-      + '.sm-modal{max-width:1140px !important;width:96vw !important;}';
+      + '.sm-modal{max-width:1140px !important;width:96vw !important;}'
+      + '.s-ovc-overlay{position:fixed;inset:0;background:rgba(6,66,62,.30);display:flex;align-items:center;justify-content:center;z-index:100000;opacity:0;transition:opacity .12s ease;}'
+      + '.s-ovc-overlay.open{opacity:1;}'
+      + '.s-ovc-box{background:#fff;border-radius:14px;max-width:430px;width:92%;padding:22px 22px 18px;box-shadow:0 18px 50px rgba(0,0,0,.25);font-family:inherit;}'
+      + '.s-ovc-title{font-size:16px;font-weight:700;color:#06423E;margin-bottom:8px;}'
+      + '.s-ovc-msg{font-size:13.5px;line-height:1.5;color:#3A3A3A;margin-bottom:18px;}'
+      + '.s-ovc-actions{display:flex;justify-content:flex-end;gap:10px;}'
+      + '.s-ovc-cancel,.s-ovc-ok{border-radius:8px;padding:9px 16px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;border:1px solid transparent;}'
+      + '.s-ovc-cancel{background:#F1EDE4;color:#4A4A4A;border-color:#E2DCCF;}'
+      + '.s-ovc-cancel:hover{background:#E9E4D8;}'
+      + '.s-ovc-ok{background:#06423E;color:#fff;}'
+      + '.s-ovc-ok:hover{background:#0A5C54;}'
+      + '.st-row{align-items:center;}'
+      + '.st-tgt-st{display:flex;justify-content:flex-end;align-items:center;flex:none;min-width:104px;margin-left:10px;}'
+      + '.st-slider:disabled{opacity:.45;cursor:default;}'
+      + '.st-row-locked .st-thumb,.st-row-locked .st-fill{opacity:.5;}';
     var st = document.createElement('style');
     st.id = 'daIntakeStyles';
     st.textContent = css;
@@ -1209,7 +1315,7 @@
     h += '</div>';
 
     // ── SCORE TARGETS ──
-    h += renderScoreTargets(entityKey, s);
+    h += '<div id="sTgt_' + entityKey + '">' + renderScoreTargets(entityKey, s) + '</div>';
 
     // ── ACCORDION: DATA QUALITY ──
     var dqBadge = accBadgeDQ(s, def);
@@ -1399,8 +1505,11 @@
         val = curVal;
         if (_s[ek]) { if (!_s[ek].scoreTargets) _s[ek].scoreTargets = {}; _s[ek].scoreTargets[d.key] = val; }
       }
+      var overridden = isOverridden(ek, 'target', d.key);
+      var locked = intakeOwns(ek, 'target', d.key) && !overridden;
+      var kEsc = d.key.replace(/'/g, "\\'");
       var pos = 'calc(9px + (100% - 18px) * ' + (val / 100) + ')';
-      h += '<div class="st-row" data-entity="' + ek + '" data-score="' + d.key + '">';
+      h += '<div class="st-row' + (locked ? ' st-row-locked' : '') + '" data-entity="' + ek + '" data-score="' + d.key + '">';
       h += '<div class="st-name">' + d.label + '</div>';
       h += '<div class="st-control">';
       h += '<div class="st-track-wrap">';
@@ -1410,10 +1519,18 @@
         h += '<div class="st-cur" style="left:calc(9px + (100% - 18px) * ' + (curVal / 100) + ')"><b></b><div class="st-curlab"><i>current score</i><em>' + curVal + '%</em></div></div>';
       }
       h += '<div class="st-thumb" style="left:' + pos + '"><b></b></div>';
-      h += '<input type="range" class="st-slider" min="0" max="100" step="5" value="' + val + '"' + (curVal != null ? (' data-current="' + curVal + '"') : '') + ' oninput="daSettings.onTargetInput(this)" aria-label="' + d.label + ' target">';
+      h += '<input type="range" class="st-slider" min="0" max="100" step="5" value="' + val + '"' + (curVal != null ? (' data-current="' + curVal + '"') : '') + (locked ? ' disabled aria-disabled="true"' : ' oninput="daSettings.onTargetInput(this)"') + ' aria-label="' + d.label + ' target">';
       h += '</div>';
       h += '<div class="st-readout"><span class="st-val">' + val + '</span><span class="st-pct">%</span></div>';
-      h += '</div></div>';
+      h += '</div>';
+      h += '<div class="st-tgt-st">';
+      if (locked) {
+        h += '<button type="button" class="s-intake-badge s-intake-lock" title="Set in the intake form. Click to override it here." onclick="daSettings.requestOverride(\'' + ek + '\',\'target\',\'' + kEsc + '\')">Intake<svg class="s-lock" viewBox="0 0 12 12" fill="none" aria-hidden="true"><rect x="2.5" y="5.5" width="7" height="5" rx="1" stroke="currentColor" stroke-width="1.1"/><path d="M4 5.5V4a2 2 0 0 1 4 0v1.5" stroke="currentColor" stroke-width="1.1"/></svg></button>';
+      } else if (overridden) {
+        h += '<span class="s-over-wrap"><span class="s-over-badge">Overridden</span><button type="button" class="s-reset" onclick="daSettings.resetFieldToIntake(\'' + ek + '\',\'target\',\'' + kEsc + '\')">Reset to intake</button></span>';
+      }
+      h += '</div>';
+      h += '</div>';
     }
     h += '</div></div>';
     return h;
@@ -1437,6 +1554,7 @@
       if (!_s[ek].scoreTargets) _s[ek].scoreTargets = {};
       _s[ek].scoreTargets[key] = v;
     }
+    if (isOverridden(ek, 'target', key)) { var o = _ovShard(ek); o.scoreTargets[key] = v; }
     markUnsaved();
   }
 
@@ -1494,7 +1612,7 @@
     h += '<div class="s-field-list">';
     for (var i = 0; i < def.stdFields.length; i++) {
       var sf = def.stdFields[i]; var imp = s.stdFieldConfig[sf.key] || 'excluded';
-      h += fieldRow(sf.label, sf.type || 'Text', null, imp, 'std', sf.key, ek, null);
+      h += fieldRow(sf.label, sf.type || 'Text', null, imp, 'std', sf.key, ek, (_stdListItems[ek] && _stdListItems[ek][sf.key]) ? _stdListItems[ek][sf.key] : null);
     }
     h += '</div>';
     var ufields = _udefFields[ek] || [];
@@ -1538,7 +1656,7 @@
     var hasItems = !!(items && items.length > 0);
     var isList = hasItems || type === 'List' || type === 'Dropdown';
     var fx = (get(ek).fieldExclusions) || {};
-    var exclArr = fx[key] || [];
+    var exclArr = _exclNames(fx[key], items);
     var rowCls = 's-fld-row2' + (imp === 'excluded' ? ' s-fld-excl' : '') + (locked ? ' s-fld-intake' : '') + (overridden ? ' s-fld-over' : '');
     var h = '<div class="' + rowCls + '" data-grp="' + group + '" data-key="' + key + '" data-entity="' + ek + '">';
     // Field name (plus optional fill-rate hint passed in via extra)
@@ -1604,9 +1722,39 @@
 
   // Ask for confirmation, then unlock an intake field for override.
   function requestOverride(ek, group, key) {
-    var msg = 'This field is managed by the intake form. If you override it here, later changes in the intake will no longer apply to this field on the dashboard. Continue?';
-    if (typeof window !== 'undefined' && typeof window.confirm === 'function' && !window.confirm(msg)) return;
-    overrideField(ek, group, key);
+    _showOverrideConfirm(ek, group, key);
+  }
+
+  function _showOverrideConfirm(ek, group, key) {
+    _pendingOverride = { ek: ek, group: group, key: key };
+    var old = document.getElementById('sOvConfirm'); if (old && old.parentNode) old.parentNode.removeChild(old);
+    var msg = 'This field is managed by the intake form. If you override it here, later changes in the intake will no longer apply to this field on the dashboard.';
+    var html = '<div class="s-ovc-overlay" id="sOvConfirm">'
+      + '<div class="s-ovc-box">'
+      + '<div class="s-ovc-title">Override this field?</div>'
+      + '<div class="s-ovc-msg">' + msg + '</div>'
+      + '<div class="s-ovc-actions">'
+      + '<button type="button" class="s-ovc-cancel" onclick="daSettings._closeOverrideConfirm()">Cancel</button>'
+      + '<button type="button" class="s-ovc-ok" onclick="daSettings._confirmOverride()">Override field</button>'
+      + '</div></div></div>';
+    if (document.body && document.body.insertAdjacentHTML) document.body.insertAdjacentHTML('beforeend', html);
+    var ov = document.getElementById('sOvConfirm');
+    if (ov) {
+      ov.onclick = function(e) { if (e.target === ov) _closeOverrideConfirm(); };
+      setTimeout(function() { var o = document.getElementById('sOvConfirm'); if (o && o.classList) o.classList.add('open'); }, 10);
+    }
+  }
+
+  function _confirmOverride() {
+    var p = _pendingOverride;
+    _closeOverrideConfirm();
+    if (p) overrideField(p.ek, p.group, p.key);
+  }
+
+  function _closeOverrideConfirm() {
+    _pendingOverride = null;
+    var ov = document.getElementById('sOvConfirm');
+    if (ov && ov.parentNode) ov.parentNode.removeChild(ov);
   }
 
   // Static, non-interactive importance button for an intake-owned field
@@ -1932,6 +2080,7 @@
     getPipelineLabel: getPipelineLabel,
     getPipelineType: getPipelineType,
     notifyUdefLoaded: notifyUdefLoaded,
+    notifyStdListLoaded: notifyStdListLoaded,
     COMPLETENESS_OPTIONS: ENTITY_DEFS.company.stdFields.map(function(f){ return { key: f.key, label: f.label }; }),
     QUALITY_ISSUE_OPTIONS: ENTITY_DEFS.company.integrityChecks.map(function(c){ return { key: c.key, label: c.label }; }),
     switchEntity: switchEntity, toggleAcc: toggleAcc, setHML: setHML,
@@ -1939,10 +2088,12 @@
     toggleIntegrity: toggleIntegrity, setImp: setImp, toggleUdef: toggleUdef,
     toggleFieldValues: toggleFieldValues,
     requestOverride: requestOverride, overrideField: overrideField,
+    _confirmOverride: _confirmOverride, _closeOverrideConfirm: _closeOverrideConfirm,
     resetFieldToIntake: resetFieldToIntake, toggleValueExclude: toggleValueExclude,
     isOverridden: isOverridden,
     _renderCompleteness: function(ek){ return renderCompletenessBody(ek, get(ek), ENTITY_DEFS[ek]); },
     _renderIntegrity: function(ek){ return renderIntegrityChecks(ek, get(ek), ENTITY_DEFS[ek]); },
+    _renderTargets: function(ek){ return renderScoreTargets(ek, get(ek)); },
     selectRadio: selectRadio, markUnsaved: markUnsaved,
     openInfo: openInfo, closeInfo: closeInfo,
     doSave: doSave, doReset: doReset,
