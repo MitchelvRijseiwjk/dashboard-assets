@@ -778,3 +778,13 @@
 .sb-keychip{display:inline-flex;align-items:center;gap:5px;font-size:.67rem;color:var(--so-text-muted)}
 .sb-kdot{width:6px;height:6px;border-radius:50%;flex:none}
 .sb-keynote{font-size:.67rem;color:var(--so-text-muted);margin-left:auto}
+
+/* attention column: icon + hover tooltip, one-line table caption */
+.attn-col{width:30px;text-align:center;padding-left:0;padding-right:0}
+.attn-iw{position:relative;display:inline-flex;cursor:help;vertical-align:middle}
+.attn-dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#d2cfc9}
+.attn-tip{display:none;position:absolute;top:24px;left:-6px;z-index:30;width:230px;background:var(--so-white);border:1px solid var(--so-border);border-radius:8px;box-shadow:0 6px 18px rgba(0,0,0,.13);padding:9px 11px;font-size:.72rem;font-weight:400;line-height:1.5;color:#5a5953;text-align:left;text-transform:none;letter-spacing:0;white-space:normal}
+.attn-iw:hover .attn-tip{display:block}
+.attn-tip b{color:var(--so-charcoal);font-weight:600}
+.tbl-cap{font-size:.72rem;color:var(--so-text-muted);line-height:1.5;margin:0 0 12px}
+.tbl-cap b{color:#5a5953;font-weight:600}
