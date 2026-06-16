@@ -246,15 +246,7 @@ function loadingPlaceholder(label) {
     '<span style="font-size:.85rem">' + label + '</span></div>';
 }
 
-// Add CSS animation for spinner (inject once)
-(function() {
-  if (document.getElementById('progressiveLoadStyles')) return;
-  var style = document.createElement('style');
-  style.id = 'progressiveLoadStyles';
-  style.textContent = '.section-loaded{animation:fadeIn .3s ease}' +
-    '@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}';
-  document.head.appendChild(style);
-})();
+// Spinner/fadeIn keyframes moved to da-styles.css
 
 // ===========================================================
 // PROGRESSIVE startFullEntity — parallel loads, show as ready
@@ -1016,6 +1008,13 @@ function gatherEntityData(key) {
     if (!cpl) {
       cpl = { projectType: total, status: total, endDate: total };
     }
+  } else if (key === 'requests') {
+    // Adoption: resolution rate (closed) and engagement (tickets replied to).
+    // Integrity: unassigned tickets (owned_by = 1 system user). No DQ model yet,
+    // so completeness stays null and the ticket-fields tab is left untouched.
+    if (o.unassigned !== undefined) checkData.noOwner = o.unassigned;
+    compData.resolutionRate = o.closed || 0;
+    compData.engagement = o.engaged || 0;
   }
 
   return { total: total, completeness: cpl, qualityData: qData, udefData: ud, checkData: checkData, componentData: compData, adoptionTotal: adoptionTotal, integrityTotal: adoptionTotal };
@@ -1053,7 +1052,8 @@ var sbDescs = {
   company:  { dq: 'Field completeness across records', int: 'Missing contacts and reachability', adopt: 'Contact coverage, activities and pipeline' },
   contact:  { dq: 'Field completeness across records', int: 'Missing email and activity gaps', adopt: 'Activities and sales involvement' },
   sale:     { dq: 'Field completeness across records', int: 'Missing contacts and activities', adopt: 'Activities and stage progression' },
-  project:  { dq: 'Field completeness across records', int: 'Missing members and activities', adopt: 'Activities and member engagement' }
+  project:  { dq: 'Field completeness across records', int: 'Missing members and activities', adopt: 'Activities and member engagement' },
+  requests: { dq: 'Field completeness across records', int: 'Unassigned tickets without an owner', adopt: 'Resolution rate and replies to customers' }
 };
 
 function renderScoreBanner(key) {
