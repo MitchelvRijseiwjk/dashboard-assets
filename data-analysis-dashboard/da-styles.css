@@ -781,8 +781,22 @@
 .sb-itip{display:none;position:absolute;top:21px;left:-8px;z-index:30;width:222px;background:var(--so-white);border:1px solid var(--so-border);border-radius:8px;box-shadow:0 5px 16px rgba(0,0,0,.12);padding:9px 11px;font-size:.72rem;font-weight:400;line-height:1.5;color:#5f5e5a;letter-spacing:0;text-transform:none}
 .sb-iw:hover .sb-itip{display:block}
 .sb-foot{border-top:1px solid var(--so-dune);margin-top:14px;padding-top:11px}
-.sb-verdict{font-size:.82rem;color:#5a5953;line-height:1.55;margin-bottom:9px}
+.sb-verdict{display:flex;align-items:flex-start;gap:8px;font-size:.82rem;color:#5a5953;line-height:1.55;margin-bottom:9px}
 .sb-verdict b{color:var(--so-charcoal);font-weight:600}
+.sb-verdict-text{flex:1 1 auto;min-width:0}
+.sb-verdict-empty{color:var(--so-text-muted);font-style:italic}
+.sb-verdict-tag{flex:none;align-self:center;font-size:.6rem;font-weight:600;letter-spacing:.03em;text-transform:uppercase;color:#2B4A73;background:#CBD7EC;border-radius:200px;padding:1px 7px}
+.sb-verdict-edit{flex:none;display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;padding:0;border:1px solid var(--so-border);border-radius:6px;background:#fff;color:var(--so-text-muted);cursor:pointer;transition:color .12s,border-color .12s}
+.sb-verdict-edit:hover{color:var(--so-green);border-color:var(--so-green)}
+.sb-verdict-editing{display:block}
+.sb-verdict-input{width:100%;box-sizing:border-box;font-family:inherit;font-size:.82rem;line-height:1.5;color:var(--so-charcoal);border:1px solid var(--so-border);border-radius:7px;padding:8px 10px;resize:vertical;background:#fff}
+.sb-verdict-input:focus{outline:none;border-color:var(--so-green)}
+.sb-verdict-actions{display:flex;gap:8px;margin-top:8px}
+.sb-vbtn{font-family:inherit;font-size:.74rem;font-weight:500;padding:5px 12px;border-radius:6px;border:1px solid var(--so-border);background:#fff;color:var(--so-charcoal);cursor:pointer}
+.sb-vbtn:hover{background:#f6f4ef}
+.sb-vbtn-save{background:var(--so-green);border-color:var(--so-green);color:#fff}
+.sb-vbtn-save:hover{background:#06423e}
+.sb-vbtn-reset{margin-left:auto;color:var(--so-text-muted)}
 .sb-key{display:flex;align-items:center;gap:13px;flex-wrap:wrap}
 .sb-keychip{display:inline-flex;align-items:center;gap:5px;font-size:.67rem;color:var(--so-text-muted)}
 .sb-kdot{width:6px;height:6px;border-radius:50%;flex:none}
