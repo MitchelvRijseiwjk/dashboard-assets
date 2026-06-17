@@ -542,6 +542,15 @@
     .mm-ug-label{font-size:.78rem;font-weight:600;margin-top:4px}
     .mm-ug-desc{font-size:.68rem;color:var(--so-text-muted);margin-top:2px}
     .mm-ug-pct{font-size:.68rem;color:var(--so-text-muted);margin-top:8px}
+    .mm-ug-dot{display:inline-block;width:7px;height:7px;border-radius:50%;vertical-align:middle;margin-right:5px}
+    .mm-ug-share{height:5px;border-radius:3px;background:#eee;overflow:hidden;margin:9px auto 0;max-width:130px}
+    .mm-ug-share i{display:block;height:100%;border-radius:3px}
+    .mm-legend{display:flex;gap:16px;margin-top:6px;flex-wrap:wrap}
+    .mm-leg-item{font-size:.75rem;color:#666;display:flex;align-items:center;gap:5px}
+    .mm-leg-sw{width:11px;height:11px;border-radius:2px;display:inline-block}
+    .mm-leg-line{width:13px;height:3px;border-radius:2px;display:inline-block}
+    .mm-chart-defs{font-size:.7rem;color:var(--so-text-muted);line-height:1.5;margin-top:9px;max-width:680px}
+    .mm-chart-defs b{color:#5a5953;font-weight:600}
 
     /* Rank circles + level badges */
     .mm-rank{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;font-size:.68rem;font-weight:700;color:#fff}
