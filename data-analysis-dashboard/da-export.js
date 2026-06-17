@@ -1,5 +1,5 @@
 // === EXPORT ===
-function exportFullEntity(key, entityName, udefEntityId) {
+function exportFullEntity(key, entityName, udefEntityId, returnWb) {
   var wb = XLSX.utils.book_new();
   var cfg = ovLabels[key];
   var ec = entityConfig[key];
@@ -239,15 +239,16 @@ function exportFullEntity(key, entityName, udefEntityId) {
   }
 
   var fileName = entityName + '_Analysis_' + new Date().toISOString().split('T')[0] + '.xlsx';
+  if (returnWb) return wb;
   XLSX.writeFile(wb, fileName);
 }
 
-function exportUdef() { exportFullEntity('company', 'Company', 7); }
-function exportContactUdef() { exportFullEntity('contact', 'Contact', 8); }
-function exportSaleUdef() { exportFullEntity('sale', 'Sale', 10); }
-function exportProjectUdef() { exportFullEntity('project', 'Project', 9); }
+function exportUdef() { exportAllEntities(); }
+function exportContactUdef() { exportAllEntities(); }
+function exportSaleUdef() { exportAllEntities(); }
+function exportProjectUdef() { exportAllEntities(); }
 
-function exportTicket() {
+function exportTicketWb() {
   var wb = XLSX.utils.book_new();
   var cfg = ovLabels['requests'];
   var od = overviewData['requests'];
@@ -333,10 +334,10 @@ function exportTicket() {
       XLSX.utils.book_append_sheet(wb, wsExt, 'Extra Tables');
     }
   }
-  XLSX.writeFile(wb, 'Requests_Analysis_' + new Date().toISOString().split('T')[0] + '.xlsx');
+  return wb;
 }
 
-function exportExtra() {
+function exportExtraWb() {
   var wb = XLSX.utils.book_new();
   var ov = [];
   ov.push(['Table Name','Display Name','Total Records','Relation Fields','Other Fields','Has Relations']);
@@ -373,10 +374,10 @@ function exportExtra() {
   var ws2 = XLSX.utils.aoa_to_sheet(fr);
   ws2['!cols'] = [{wch:25},{wch:25},{wch:25},{wch:12},{wch:15},{wch:10},{wch:8},{wch:10},{wch:12},{wch:10},{wch:12},{wch:10}];
   XLSX.utils.book_append_sheet(wb, ws2, 'All Fields');
-  XLSX.writeFile(wb, 'ExtraTables_Analysis_' + new Date().toISOString().split('T')[0] + '.xlsx');
+  return wb;
 }
 
-function exportSimpleEntity(key, entityName) {
+function exportSimpleEntity(key, entityName, returnWb) {
   var wb = XLSX.utils.book_new();
   var cfg = ovLabels[key];
   var od = overviewData[key];
@@ -438,12 +439,84 @@ function exportSimpleEntity(key, entityName) {
     XLSX.utils.book_append_sheet(wb, wsOv, 'Overview');
   }
 
+  if (returnWb) return wb;
   XLSX.writeFile(wb, entityName + '_Analysis_' + new Date().toISOString().split('T')[0] + '.xlsx');
 }
 
-function exportActivities() { exportSimpleEntity('activities', 'Activities'); }
-function exportSelection() { exportSimpleEntity('selection', 'Selection'); }
-function exportMarketing() { exportSimpleEntity('marketing', 'Marketing'); }
+function exportActivities() { exportAllEntities(); }
+function exportSelection() { exportAllEntities(); }
+function exportMarketing() { exportAllEntities(); }
+
+function exportTicket() { exportAllEntities(); }
+function exportExtra() { exportAllEntities(); }
+
+// Copy every sheet from a per-entity workbook into the combined workbook,
+// prefixing each sheet name with the entity name and keeping names unique and within 31 chars.
+function addPrefixedSheets(combined, sub, prefix) {
+  if (!sub || !sub.SheetNames) return;
+  for (var s = 0; s < sub.SheetNames.length; s++) {
+    var sn = sub.SheetNames[s];
+    var nm = (prefix + sn).substring(0, 31);
+    var base = nm;
+    var k = 2;
+    while (combined.SheetNames.indexOf(nm) >= 0) {
+      nm = (base.substring(0, 28) + '~' + k).substring(0, 31);
+      k++;
+    }
+    XLSX.utils.book_append_sheet(combined, sub.Sheets[sn], nm);
+  }
+}
+
+// Build one workbook containing every analyzed entity, each as its own group of prefixed sheets.
+function exportAllEntities() {
+  var combined = XLSX.utils.book_new();
+  var specs = [
+    { key: 'company', name: 'Company', type: 'full', udef: 7 },
+    { key: 'contact', name: 'Contact', type: 'full', udef: 8 },
+    { key: 'sale', name: 'Sale', type: 'full', udef: 10 },
+    { key: 'project', name: 'Project', type: 'full', udef: 9 },
+    { key: 'requests', name: 'Requests', type: 'ticket' },
+    { key: 'activities', name: 'Activities', type: 'simple' },
+    { key: 'selection', name: 'Selection', type: 'simple' },
+    { key: 'marketing', name: 'Marketing', type: 'simple' }
+  ];
+
+  var added = 0;
+  for (var i = 0; i < specs.length; i++) {
+    var sp = specs[i];
+    if (!overviewData[sp.key]) continue;
+    var sub = null;
+    if (sp.type === 'full') sub = exportFullEntity(sp.key, sp.name, sp.udef, true);
+    else if (sp.type === 'ticket') sub = exportTicketWb();
+    else if (sp.type === 'simple') sub = exportSimpleEntity(sp.key, sp.name, true);
+    if (sub && sub.SheetNames && sub.SheetNames.length > 0) {
+      addPrefixedSheets(combined, sub, sp.name + ' - ');
+      added++;
+    }
+  }
+
+  // Global extra tables, if any have been analyzed.
+  if (typeof extraData !== 'undefined' && typeof extraTables !== 'undefined' && extraTables && extraTables.length > 0) {
+    var hasExtra = false;
+    for (var e = 0; e < extraTables.length; e++) {
+      if (extraData[extraTables[e].id]) { hasExtra = true; break; }
+    }
+    if (hasExtra) {
+      var subE = exportExtraWb();
+      if (subE && subE.SheetNames && subE.SheetNames.length > 0) {
+        addPrefixedSheets(combined, subE, 'Extra Tables - ');
+        added++;
+      }
+    }
+  }
+
+  if (added === 0 || combined.SheetNames.length === 0) {
+    alert('No analyzed data to export yet. Run an analysis first.');
+    return;
+  }
+
+  XLSX.writeFile(combined, 'HealthCheck_FullExport_' + new Date().toISOString().split('T')[0] + '.xlsx');
+}
 
 // Safe roundedRect — falls back to plain rect if roundedRect fails
 function pdfRRect(doc, x, y, w, h, rx, ry, style) {
