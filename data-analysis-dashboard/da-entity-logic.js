@@ -9,7 +9,7 @@ function renderUdef(ent, idx, entityKey) {
     var udefCfg = (typeof daSettings !== 'undefined' && entityKey) ? (daSettings.getSettings(entityKey).udefFieldConfig || {}) : {};
     var Q = String.fromCharCode(39);
     var tid = 'tbl-u' + idx;
-    h += '<p class="tbl-cap"><b>Higher completeness is better.</b> Custom fields feed the Data Quality score. Sorted by attention, so important fields with the largest gaps sit on top.</p>';
+    h += '<div class="tbl-cap"><b>Higher completeness is better.</b> Custom fields feed the Data Quality score. Sorted by attention, so important fields with the largest gaps sit on top.</div>';
     h += '<table class="data-table" id="' + tid + '">';
     h += '<thead><tr>';
     h += '<th class="attn-col" onclick="sortT(' + Q + tid + Q + ',0)"><span class="sort-arrow active">' + svgSortD + '</span></th>';
@@ -1198,7 +1198,7 @@ function renderDQScore(key) {
         h += '<div class="entity-card">';
         h += '<div class="entity-header"><div class="entity-info"><h3>Quality flags</h3></div>';
         h += '<span class="record-badge">' + fmtNum(total) + ' companies</span></div>';
-        h += '<p class="tbl-cap"><b>Lower is better.</b> Each flag counts against the score. Sorted by attention, so the flags hitting the most records sit on top; flags not in the score drop to the bottom.</p>';
+        h += '<div class="tbl-cap"><b>Lower is better.</b> Each flag counts against the score. Sorted by attention, so the flags hitting the most records sit on top; flags not in the score drop to the bottom.</div>';
         h += '<table class="data-table"><thead><tr><th class="attn-col"></th><th>Flag</th><th class="col-right" style="width:80px">Count</th><th class="col-right" style="width:130px">' + P + '</th></tr></thead><tbody>';
         var qRows = [];
         for (var i = 0; i < allIssues.length; i++) {
@@ -1233,7 +1233,7 @@ function renderDQScore(key) {
         h += '<div class="entity-card">';
         h += '<div class="entity-header"><div class="entity-info"><h3>Standard Field Completeness</h3></div>';
         h += '<span class="record-badge">' + fmtNum(total) + ' companies</span></div>';
-        h += '<p class="tbl-cap"><b>Higher completeness is better.</b> Drives the Data Quality score. Sorted by attention, so required fields with the largest gaps sit on top.</p>';
+        h += '<div class="tbl-cap"><b>Higher completeness is better.</b> Drives the Data Quality score. Sorted by attention, so required fields with the largest gaps sit on top.</div>';
         h += '<table class="data-table"><thead><tr><th class="attn-col"></th><th>Field</th><th class="col-right" style="width:80px">Filled</th><th style="text-align:center;width:90px">Importance</th><th class="col-right" style="width:130px">Completeness</th></tr></thead><tbody>';
         var cRows = [];
         for (var j = 0; j < def.stdFields.length; j++) {
@@ -1273,7 +1273,7 @@ function renderDQScore(key) {
       h += '<div class="entity-card">';
       h += '<div class="entity-header"><div class="entity-info"><h3>Standard Field Completeness</h3></div>';
       h += '<span class="record-badge">' + fmtNum(eTotal) + ' ' + eLabel.toLowerCase() + 's</span></div>';
-      h += '<p class="tbl-cap"><b>Higher completeness is better.</b> Drives the Data Quality score. Sorted by attention, so required fields with the largest gaps sit on top.</p>';
+      h += '<div class="tbl-cap"><b>Higher completeness is better.</b> Drives the Data Quality score. Sorted by attention, so required fields with the largest gaps sit on top.</div>';
       h += '<table class="data-table"><thead><tr><th class="attn-col"></th><th>Field</th><th class="col-right" style="width:80px">Filled</th><th style="text-align:center;width:90px">Importance</th><th class="col-right" style="width:130px">Completeness</th></tr></thead><tbody>';
       var eRows = [];
       for (var fi = 0; fi < def.stdFields.length; fi++) {
@@ -1346,7 +1346,7 @@ function renderAdoptionTab(key) {
     h += '<h3>Adoption Score</h3>';
     h += '</div>';
     h += '<span class="record-badge" style="background:' + ac + ';color:#fff;font-size:1.1rem;padding:4px 14px;border-radius:12px">' + ad.total + P + '</span></div>';
-    h += '<p class="tbl-cap"><b>Higher coverage is better.</b> Drives the Adoption score. Sorted by attention, so heavily weighted components with the largest gaps sit on top.</p>';
+    h += '<div class="tbl-cap"><b>Higher coverage is better.</b> Drives the Adoption score. Sorted by attention, so heavily weighted components with the largest gaps sit on top.</div>';
     h += '<table class="data-table"><thead><tr><th class="attn-col"></th><th>Component</th><th class="col-right" style="width:80px">Count</th><th class="col-right" style="width:80px">of Total</th><th style="text-align:center;width:90px">Weight</th><th class="col-right" style="width:130px">Completeness</th></tr></thead><tbody>';
     var adRows = [];
     for (var i = 0; i < ad.details.length; i++) {
@@ -1378,7 +1378,7 @@ function renderAdoptionTab(key) {
     h += '<h3>Data Integrity</h3>';
     h += '</div>';
     h += '<span class="record-badge" style="background:' + ic + ';color:#fff;font-size:1.1rem;padding:4px 14px;border-radius:12px">' + ig.total + P + '</span></div>';
-    h += '<p class="tbl-cap"><b>Lower is better.</b> Drives the Data Integrity score. Sorted by attention, so heavily weighted checks affecting the most records sit on top.</p>';
+    h += '<div class="tbl-cap"><b>Lower is better.</b> Drives the Data Integrity score. Sorted by attention, so heavily weighted checks affecting the most records sit on top.</div>';
     h += '<table class="data-table"><thead><tr><th class="attn-col"></th><th>Check</th><th class="col-right" style="width:80px">Affected</th><th class="col-right" style="width:80px">of Total</th><th style="text-align:center;width:90px">Weight</th><th class="col-right" style="width:130px">Completeness</th></tr></thead><tbody>';
     var igRows = [];
     for (var j = 0; j < ig.details.length; j++) {
