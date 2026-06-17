@@ -1334,20 +1334,21 @@ function renderAdoptionTab(key) {
 
   var ov = overviewData[key];
   var total = (ov && ov.overview) ? (ov.overview.total || 0) : 0;
-  var h = '';
+  var hAd = '';
+  var hInt = '';
 
   // --- Adoption component breakdown ---
   if (scores.adoption && scores.adoption.details && scores.adoption.details.length > 0) {
     var ad = scores.adoption;
     var ac = slColor(ad.total);
     var data = gatherEntityData(key);
-    h += '<div class="entity-card">';
-    h += '<div class="entity-header"><div class="entity-info">';
-    h += '<h3>Adoption Score</h3>';
-    h += '</div>';
-    h += '<span class="record-badge" style="background:' + ac + ';color:#fff;font-size:1.1rem;padding:4px 14px;border-radius:12px">' + ad.total + P + '</span></div>';
-    h += '<div class="tbl-cap"><b>Higher coverage is better.</b> Drives the Adoption score. Sorted by attention, so heavily weighted components with the largest gaps sit on top.</div>';
-    h += '<table class="data-table"><thead><tr><th class="attn-col"></th><th>Component</th><th class="col-right" style="width:80px">Count</th><th class="col-right" style="width:80px">of Total</th><th style="text-align:center;width:90px">Weight</th><th class="col-right" style="width:130px">Completeness</th></tr></thead><tbody>';
+    hAd += '<div class="entity-card">';
+    hAd += '<div class="entity-header"><div class="entity-info">';
+    hAd += '<h3>Adoption Score</h3>';
+    hAd += '</div>';
+    hAd += '<span class="record-badge" style="background:' + ac + ';color:#fff;font-size:1.1rem;padding:4px 14px;border-radius:12px">' + ad.total + P + '</span></div>';
+    hAd += '<div class="tbl-cap"><b>Higher coverage is better.</b> Drives the Adoption score. Sorted by attention, so heavily weighted components with the largest gaps sit on top.</div>';
+    hAd += '<table class="data-table"><thead><tr><th class="attn-col"></th><th>Component</th><th class="col-right" style="width:80px">Count</th><th class="col-right" style="width:80px">of Total</th><th style="text-align:center;width:90px">Weight</th><th class="col-right" style="width:130px">Completeness</th></tr></thead><tbody>';
     var adRows = [];
     for (var i = 0; i < ad.details.length; i++) {
       var d = ad.details[i];
@@ -1364,8 +1365,8 @@ function renderAdoptionTab(key) {
       adRow += '<td class="col-right">' + barCell(d.pct, col) + '</td></tr>';
       adRows.push({ attn: adAttn, badness: adBad, html: adRow });
     }
-    h += attnSortRows(adRows);
-    h += '</tbody></table></div>';
+    hAd += attnSortRows(adRows);
+    hAd += '</tbody></table></div>';
   }
 
   // --- Integrity check breakdown ---
@@ -1373,13 +1374,13 @@ function renderAdoptionTab(key) {
     var ig = scores.integrity;
     var ic = slColor(ig.total);
     var data2 = gatherEntityData(key);
-    h += '<div class="entity-card" style="margin-top:18px">';
-    h += '<div class="entity-header"><div class="entity-info">';
-    h += '<h3>Data Integrity</h3>';
-    h += '</div>';
-    h += '<span class="record-badge" style="background:' + ic + ';color:#fff;font-size:1.1rem;padding:4px 14px;border-radius:12px">' + ig.total + P + '</span></div>';
-    h += '<div class="tbl-cap"><b>Lower is better.</b> Drives the Data Integrity score. Sorted by attention, so heavily weighted checks affecting the most records sit on top.</div>';
-    h += '<table class="data-table"><thead><tr><th class="attn-col"></th><th>Check</th><th class="col-right" style="width:80px">Affected</th><th class="col-right" style="width:80px">of Total</th><th style="text-align:center;width:90px">Weight</th><th class="col-right" style="width:130px">Completeness</th></tr></thead><tbody>';
+    hInt += '<div class="entity-card">';
+    hInt += '<div class="entity-header"><div class="entity-info">';
+    hInt += '<h3>Data Integrity</h3>';
+    hInt += '</div>';
+    hInt += '<span class="record-badge" style="background:' + ic + ';color:#fff;font-size:1.1rem;padding:4px 14px;border-radius:12px">' + ig.total + P + '</span></div>';
+    hInt += '<div class="tbl-cap"><b>Lower is better.</b> Drives the Data Integrity score. Sorted by attention, so heavily weighted checks affecting the most records sit on top.</div>';
+    hInt += '<table class="data-table"><thead><tr><th class="attn-col"></th><th>Check</th><th class="col-right" style="width:80px">Affected</th><th class="col-right" style="width:80px">of Total</th><th style="text-align:center;width:90px">Weight</th><th class="col-right" style="width:130px">Completeness</th></tr></thead><tbody>';
     var igRows = [];
     for (var j = 0; j < ig.details.length; j++) {
       var c = ig.details[j];
@@ -1396,37 +1397,40 @@ function renderAdoptionTab(key) {
       igRow += '<td class="col-right">' + barCell(c.affected, col2) + '</td></tr>';
       igRows.push({ attn: igAttn, badness: c.affected, html: igRow });
     }
-    h += attnSortRows(igRows);
-    h += '</tbody></table></div>';
+    hInt += attnSortRows(igRows);
+    hInt += '</tbody></table></div>';
   }
 
-  if (!h) return;
-
+  // --- Adoption placement (stays on the Adoption tab) ---
   if (key === 'company') {
-    // Insert score tables AFTER filter elements (dateFilterNotice + cat-filter-bar)
+    // Insert adoption table AFTER the filter elements in the cross content
     var crossEl = document.getElementById('companyCrossContent');
     if (crossEl) {
-      var wrapper = document.createElement('div');
-      wrapper.className = 'adoption-score-tables';
-      wrapper.style.marginBottom = '18px';
-      wrapper.innerHTML = h;
-      // Remove any previous score tables
       var prev = crossEl.querySelector('.adoption-score-tables');
       if (prev) prev.parentNode.removeChild(prev);
-      // Find the last filter element and insert after it
-      var catBar = crossEl.querySelector('.cat-filter-bar');
-      var filterNotice = crossEl.querySelector('.filter-notice');
-      var insertAfter = catBar || filterNotice;
-      if (insertAfter) {
-        crossEl.insertBefore(wrapper, insertAfter.nextSibling);
-      } else {
-        crossEl.insertBefore(wrapper, crossEl.firstChild);
+      if (hAd) {
+        var wrapper = document.createElement('div');
+        wrapper.className = 'adoption-score-tables';
+        wrapper.style.marginBottom = '18px';
+        wrapper.innerHTML = hAd;
+        var catBar = crossEl.querySelector('.cat-filter-bar');
+        var filterNotice = crossEl.querySelector('.filter-notice');
+        var insertAfter = catBar || filterNotice;
+        if (insertAfter) {
+          crossEl.insertBefore(wrapper, insertAfter.nextSibling);
+        } else {
+          crossEl.insertBefore(wrapper, crossEl.firstChild);
+        }
       }
     }
   } else {
     var el = document.getElementById(key + 'AdoptionContent');
-    if (el) el.innerHTML = dateFilterNotice() + h;
+    if (el) el.innerHTML = dateFilterNotice() + hAd;
   }
+
+  // --- Integrity placement (its own tab) ---
+  var igEl = document.getElementById(key + 'IntegrityContent');
+  if (igEl) igEl.innerHTML = hInt ? (dateFilterNotice() + hInt) : '';
 }
 
 function renderCompanyDetails(d) {
