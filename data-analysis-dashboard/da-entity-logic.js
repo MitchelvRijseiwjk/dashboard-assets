@@ -793,36 +793,51 @@ function fetchCompanyDetails(cb) {
 }
 
 function populateDetailCatFilter() {
-  var sel = document.getElementById('companyDetailCatFilter');
-  if (!sel) return;
-  while (sel.options.length > 1) sel.remove(1);
+  // Build the option list once from the company category distribution.
+  var opts = [];
   if (overviewData['company'] && overviewData['company'].distributions) {
     var cats = overviewData['company'].distributions[0];
     if (cats && cats.items) {
       var sorted = cats.items.slice().sort(function(a,b) { return b.count - a.count; });
       for (var ci = 0; ci < sorted.length; ci++) {
         if (sorted[ci].count > 0 && sorted[ci].name !== '(No value)') {
-          var opt = document.createElement('option');
-          opt.value = sorted[ci].name;
-          opt.textContent = sorted[ci].name + ' (' + fmtNum(sorted[ci].count) + ')';
-          sel.appendChild(opt);
+          opts.push({ value: sorted[ci].name, label: sorted[ci].name + ' (' + fmtNum(sorted[ci].count) + ')' });
         }
       }
-      for (var ci = 0; ci < sorted.length; ci++) {
-        if (sorted[ci].name === '(No value)' && sorted[ci].count > 0) {
-          var opt2 = document.createElement('option');
-          opt2.value = '__none__';
-          opt2.textContent = '(No category) (' + fmtNum(sorted[ci].count) + ')';
-          sel.appendChild(opt2);
+      for (var cj = 0; cj < sorted.length; cj++) {
+        if (sorted[cj].name === '(No value)' && sorted[cj].count > 0) {
+          opts.push({ value: '__none__', label: '(No category) (' + fmtNum(sorted[cj].count) + ')' });
         }
       }
     }
   }
-  if (companyDetailCatValue) sel.value = companyDetailCatValue;
-  var resetBtn = document.getElementById('companyFilterReset');
-  if (resetBtn) resetBtn.style.display = companyDetailCatValue ? '' : 'none';
-  var bar = document.getElementById('companyCatFilterBar');
-  if (bar) bar.classList.toggle('active', !!companyDetailCatValue);
+
+  // Filtered company count, shown only when a category is active.
+  var countText = '';
+  if (companyDetailCatValue && typeof companyDetailData !== 'undefined' && companyDetailData && companyDetailData.activityHealth) {
+    countText = fmtNum(companyDetailData.activityHealth.total) + ' companies';
+  }
+
+  // Apply to every filter bar currently in the DOM (Adoption + Integrity).
+  var bars = [
+    { sel: 'companyDetailCatFilter', count: 'companyDetailFilterCount', reset: 'companyFilterReset', bar: 'companyCatFilterBar' },
+    { sel: 'companyIntegrityDetailCatFilter', count: 'companyIntegrityDetailFilterCount', reset: 'companyIntegrityFilterReset', bar: 'companyIntegrityCatFilterBar' }
+  ];
+  for (var b = 0; b < bars.length; b++) {
+    var sel = document.getElementById(bars[b].sel);
+    if (!sel) continue;
+    while (sel.options.length > 1) sel.remove(1);
+    for (var o = 0; o < opts.length; o++) {
+      var opt = document.createElement('option');
+      opt.value = opts[o].value;
+      opt.textContent = opts[o].label;
+      sel.appendChild(opt);
+    }
+    sel.value = companyDetailCatValue || '';
+    var cEl = document.getElementById(bars[b].count); if (cEl) cEl.textContent = countText;
+    var rEl = document.getElementById(bars[b].reset); if (rEl) rEl.style.display = companyDetailCatValue ? '' : 'none';
+    var barEl = document.getElementById(bars[b].bar); if (barEl) barEl.classList.toggle('active', !!companyDetailCatValue);
+  }
 }
 
 function reloadCompanyDetails() {
@@ -1074,6 +1089,29 @@ var sbTips = {
 
 function _capFirst(s) { return s ? s.charAt(0).toUpperCase() + s.slice(1) : s; }
 
+// --- Verdict override: a manual sentence that replaces the auto verdict ---
+// Stored per entity in localStorage (browser-local, same as the settings cache).
+function _escHtml(s) { return (s == null ? '' : String(s)).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+function _stripTags(s) { return (s == null ? '' : String(s)).replace(/<[^>]*>/g, ''); }
+function _normSpace(s) { return (s == null ? '' : String(s)).replace(/\s+/g, ' ').replace(/^ | $/g, ''); }
+
+var SB_PENCIL_SVG = '<svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11.5 2.5l2 2L6 12l-2.5.5L4 10z"/></svg>';
+
+var VERDICT_SK = 'da_verdict_v1';
+function _verdictStore() {
+  try { var raw = localStorage.getItem(VERDICT_SK); return raw ? JSON.parse(raw) : {}; }
+  catch (e) { return {}; }
+}
+function getVerdictOverride(key) {
+  var s = _verdictStore();
+  return (s && typeof s[key] === 'string') ? s[key] : '';
+}
+function setVerdictOverride(key, text) {
+  var s = _verdictStore();
+  if (text && text.length) s[key] = text; else delete s[key];
+  try { localStorage.setItem(VERDICT_SK, JSON.stringify(s)); } catch (e) {}
+}
+
 // Auto-generated verdict sentence for the score banner.
 // Stays factual: names the overall level, the strongest area and the main gap.
 // A manual override field is planned on top of this later.
@@ -1095,8 +1133,14 @@ function sbVerdict(key, scores) {
 
 function sbFoot(key, scores) {
   var h = '<div class="sb-foot">';
-  var v = sbVerdict(key, scores);
-  if (v) h += '<div class="sb-verdict">' + v + '</div>';
+  var auto = sbVerdict(key, scores);
+  var ov = getVerdictOverride(key);
+  var shown = ov ? _escHtml(ov) : auto;
+  h += '<div class="sb-verdict" id="sbVerdict-' + key + '" data-auto="' + _escHtml(_stripTags(auto)) + '">';
+  h += '<span class="sb-verdict-text">' + (shown || '<span class="sb-verdict-empty">No verdict yet.</span>') + '</span>';
+  if (ov) h += '<span class="sb-verdict-tag">edited</span>';
+  h += '<button class="sb-verdict-edit" type="button" title="Edit verdict" onclick="sbEditVerdict(\'' + key + '\')">' + SB_PENCIL_SVG + '</button>';
+  h += '</div>';
   h += slKeyHtml();
   h += '</div>';
   return h;
@@ -1160,6 +1204,37 @@ function renderScoreBanner(key) {
   if (fn) fn.insertAdjacentHTML('afterend', h);
   else el.insertAdjacentHTML('afterbegin', h);
 }
+
+// --- Verdict inline editor (called from the pencil button) ---
+function sbEditVerdict(key) {
+  var box = document.getElementById('sbVerdict-' + key);
+  if (!box) return;
+  var ov = getVerdictOverride(key);
+  var auto = box.getAttribute('data-auto') || '';
+  var current = ov || auto;
+  var hasOv = !!ov;
+  var h = '<textarea class="sb-verdict-input" id="sbVerdictInput-' + key + '" rows="3" placeholder="Type a verdict for this entity...">' + _escHtml(current) + '</textarea>';
+  h += '<div class="sb-verdict-actions">';
+  h += '<button class="sb-vbtn sb-vbtn-save" type="button" onclick="sbSaveVerdict(\'' + key + '\')">Save</button>';
+  h += '<button class="sb-vbtn" type="button" onclick="sbCancelVerdict(\'' + key + '\')">Cancel</button>';
+  if (hasOv) h += '<button class="sb-vbtn sb-vbtn-reset" type="button" onclick="sbResetVerdict(\'' + key + '\')">Reset to auto</button>';
+  h += '</div>';
+  box.classList.add('sb-verdict-editing');
+  box.innerHTML = h;
+  var ta = document.getElementById('sbVerdictInput-' + key);
+  if (ta) { ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length); }
+}
+
+function sbSaveVerdict(key) {
+  var ta = document.getElementById('sbVerdictInput-' + key);
+  if (!ta) return;
+  setVerdictOverride(key, _normSpace(ta.value));
+  renderScoreBanner(key);
+}
+
+function sbCancelVerdict(key) { renderScoreBanner(key); }
+
+function sbResetVerdict(key) { setVerdictOverride(key, ''); renderScoreBanner(key); }
 
 // ===========================================================
 // DATA QUALITY SCORE (computed frontend from available data)
@@ -1328,6 +1403,20 @@ function computeDQScore(key) {
 // ===========================================================
 // ADOPTION TAB — score breakdown for all entities
 // ===========================================================
+// Category filter bar for the Integrity tab (company only). Shares state and
+// reload with the Adoption tab bar via companyDetailCatValue.
+function integrityCatFilterBar() {
+  var h = '<div class="cat-filter-bar" id="companyIntegrityCatFilterBar">';
+  h += '<span style="font-weight:500;font-size:.85rem;color:var(--so-charcoal)">Category filter:</span>';
+  h += '<select id="companyIntegrityDetailCatFilter" class="cat-filter-select" onchange="onDetailFilterChange(\'companyIntegrity\')">';
+  h += '<option value="">All categories</option>';
+  h += '</select>';
+  h += '<span class="filter-count" id="companyIntegrityDetailFilterCount" style="font-size:.82rem;color:#666"></span>';
+  h += '<span class="filter-reset-link" id="companyIntegrityFilterReset" style="display:none" onclick="resetDetailFilter(\'companyIntegrity\')">Reset</span>';
+  h += '</div>';
+  return h;
+}
+
 function renderAdoptionTab(key) {
   var scores = entityScores[key];
   if (!scores) return;
@@ -1430,7 +1519,16 @@ function renderAdoptionTab(key) {
 
   // --- Integrity placement (its own tab) ---
   var igEl = document.getElementById(key + 'IntegrityContent');
-  if (igEl) igEl.innerHTML = hInt ? (dateFilterNotice() + hInt) : '';
+  if (igEl) {
+    if (hInt) {
+      var igFilter = (key === 'company') ? integrityCatFilterBar() : '';
+      igEl.innerHTML = dateFilterNotice() + igFilter + hInt;
+    } else {
+      igEl.innerHTML = '';
+    }
+  }
+  // Populate/sync both category bars now that the integrity bar exists.
+  if (key === 'company') populateDetailCatFilter();
 }
 
 function renderCompanyDetails(d) {
