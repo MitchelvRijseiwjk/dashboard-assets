@@ -840,11 +840,17 @@ function populateDetailCatFilter() {
   }
 }
 
+function daLoadingBlock(text) {
+  return '<div class="da-loading"><span class="da-spinner"></span>' + (text || 'Loading\u2026') + '</div>';
+}
+
 function reloadCompanyDetails() {
-  var el = document.getElementById('companyDetailContent');
-  if (el) el.innerHTML = '<div style="text-align:center;padding:40px;color:#999">Loading...</div>';
-  var crossEl = document.getElementById('companyCrossContent');
-  if (crossEl) crossEl.innerHTML = '<div style="text-align:center;padding:40px;color:#999">Loading...</div>';
+  var lb = daLoadingBlock('Applying filter\u2026');
+  var ids = ['companyDetailContent', 'companyCrossContent', 'companyIntegrityContent', 'companyDQScoreContent'];
+  for (var i = 0; i < ids.length; i++) {
+    var node = document.getElementById(ids[i]);
+    if (node) node.innerHTML = lb;
+  }
   fetchCompanyDetails(function() {
     renderDQScore('company');
     renderScoreBanner('company');
@@ -1089,29 +1095,6 @@ var sbTips = {
 
 function _capFirst(s) { return s ? s.charAt(0).toUpperCase() + s.slice(1) : s; }
 
-// --- Verdict override: a manual sentence that replaces the auto verdict ---
-// Stored per entity in localStorage (browser-local, same as the settings cache).
-function _escHtml(s) { return (s == null ? '' : String(s)).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
-function _stripTags(s) { return (s == null ? '' : String(s)).replace(/<[^>]*>/g, ''); }
-function _normSpace(s) { return (s == null ? '' : String(s)).replace(/\s+/g, ' ').replace(/^ | $/g, ''); }
-
-var SB_PENCIL_SVG = '<svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11.5 2.5l2 2L6 12l-2.5.5L4 10z"/></svg>';
-
-var VERDICT_SK = 'da_verdict_v1';
-function _verdictStore() {
-  try { var raw = localStorage.getItem(VERDICT_SK); return raw ? JSON.parse(raw) : {}; }
-  catch (e) { return {}; }
-}
-function getVerdictOverride(key) {
-  var s = _verdictStore();
-  return (s && typeof s[key] === 'string') ? s[key] : '';
-}
-function setVerdictOverride(key, text) {
-  var s = _verdictStore();
-  if (text && text.length) s[key] = text; else delete s[key];
-  try { localStorage.setItem(VERDICT_SK, JSON.stringify(s)); } catch (e) {}
-}
-
 // Auto-generated verdict sentence for the score banner.
 // Stays factual: names the overall level, the strongest area and the main gap.
 // A manual override field is planned on top of this later.
@@ -1133,14 +1116,8 @@ function sbVerdict(key, scores) {
 
 function sbFoot(key, scores) {
   var h = '<div class="sb-foot">';
-  var auto = sbVerdict(key, scores);
-  var ov = getVerdictOverride(key);
-  var shown = ov ? _escHtml(ov) : auto;
-  h += '<div class="sb-verdict" id="sbVerdict-' + key + '" data-auto="' + _escHtml(_stripTags(auto)) + '">';
-  h += '<span class="sb-verdict-text">' + (shown || '<span class="sb-verdict-empty">No verdict yet.</span>') + '</span>';
-  if (ov) h += '<span class="sb-verdict-tag">edited</span>';
-  h += '<button class="sb-verdict-edit" type="button" title="Edit verdict" onclick="sbEditVerdict(\'' + key + '\')">' + SB_PENCIL_SVG + '</button>';
-  h += '</div>';
+  var v = sbVerdict(key, scores);
+  if (v) h += '<div class="sb-verdict">' + v + '</div>';
   h += slKeyHtml();
   h += '</div>';
   return h;
@@ -1204,37 +1181,6 @@ function renderScoreBanner(key) {
   if (fn) fn.insertAdjacentHTML('afterend', h);
   else el.insertAdjacentHTML('afterbegin', h);
 }
-
-// --- Verdict inline editor (called from the pencil button) ---
-function sbEditVerdict(key) {
-  var box = document.getElementById('sbVerdict-' + key);
-  if (!box) return;
-  var ov = getVerdictOverride(key);
-  var auto = box.getAttribute('data-auto') || '';
-  var current = ov || auto;
-  var hasOv = !!ov;
-  var h = '<textarea class="sb-verdict-input" id="sbVerdictInput-' + key + '" rows="3" placeholder="Type a verdict for this entity...">' + _escHtml(current) + '</textarea>';
-  h += '<div class="sb-verdict-actions">';
-  h += '<button class="sb-vbtn sb-vbtn-save" type="button" onclick="sbSaveVerdict(\'' + key + '\')">Save</button>';
-  h += '<button class="sb-vbtn" type="button" onclick="sbCancelVerdict(\'' + key + '\')">Cancel</button>';
-  if (hasOv) h += '<button class="sb-vbtn sb-vbtn-reset" type="button" onclick="sbResetVerdict(\'' + key + '\')">Reset to auto</button>';
-  h += '</div>';
-  box.classList.add('sb-verdict-editing');
-  box.innerHTML = h;
-  var ta = document.getElementById('sbVerdictInput-' + key);
-  if (ta) { ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length); }
-}
-
-function sbSaveVerdict(key) {
-  var ta = document.getElementById('sbVerdictInput-' + key);
-  if (!ta) return;
-  setVerdictOverride(key, _normSpace(ta.value));
-  renderScoreBanner(key);
-}
-
-function sbCancelVerdict(key) { renderScoreBanner(key); }
-
-function sbResetVerdict(key) { setVerdictOverride(key, ''); renderScoreBanner(key); }
 
 // ===========================================================
 // DATA QUALITY SCORE (computed frontend from available data)
@@ -2437,7 +2383,7 @@ function renderMomentumChart(monthly) {
   legend += '<span class="mm-leg-item"><span class="mm-leg-sw" style="background:' + MM_GREEN_LIGHT + '"></span> Documents</span>';
   legend += '<span class="mm-leg-item"><span class="mm-leg-line" style="background:' + MM_BLUE + '"></span> Active users (right axis)</span>';
   legend += '</div>';
-  legend += '<div class="mm-chart-defs" style="padding-left:' + padL + 'px"><b>Active user</b> = a user with at least one logged activity or document that month. <b>Avg per user</b> divides that month\'s total activity by its active users.</div>';
+  legend += '<div class="mm-chart-defs" style="padding-left:' + padL + 'px"><b>Active user</b> = a user with at least one logged activity or document that month. <b>Avg per user</b> divides that month\'s total activity by its active users. Outlook-synced and private activities are excluded.</div>';
 
   var h = '<div class="entity-card">';
   h += '<div class="entity-header"><div class="entity-info"><h3>Activity Volume</h3>';
