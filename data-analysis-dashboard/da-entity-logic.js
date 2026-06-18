@@ -731,12 +731,34 @@ function startProjectUdef() { loadEntityUdef(9, 'project', 400); }
 // === COMPANY DETAILS ===
 var companyDetailData = null;
 var companyDetailCatValue = '';
+// Cache of completed company-detail fetches, keyed by date filter + category.
+// Lets category switches reuse a prior result instead of refetching. Cleared on re-analyze.
+var companyDetailCache = {};
 
 function loadCompanyDetails(cb) {
   fetchCompanyDetails(cb);
 }
 
 function fetchCompanyDetails(cb) {
+  var key = getDateFilterParam() + '|' + (companyDetailCatValue || '');
+
+  // Cache hit: restore the previous result and re-render synchronously, no network call.
+  if (companyDetailCache[key]) {
+    companyDetailData = companyDetailCache[key];
+    renderCompanyDetails(companyDetailData);
+    if (companyDetailData.funnel) {
+      companyCrossData = companyDetailData;
+      renderCrossEntityFunnel(companyDetailData);
+    }
+    populateDetailCatFilter();
+    var ce = document.getElementById('companyDetailFilterCount');
+    if (ce && companyDetailData.activityHealth) {
+      ce.textContent = companyDetailCatValue ? fmtNum(companyDetailData.activityHealth.total) + ' companies' : '';
+    }
+    if (cb) cb();
+    return;
+  }
+
   var catParam = '';
   if (companyDetailCatValue) {
     catParam = String.fromCharCode(38) + 'categoryName=' + encodeURIComponent(companyDetailCatValue);
@@ -748,7 +770,10 @@ function fetchCompanyDetails(cb) {
   function checkDone() {
     pending--;
     renderCompanyDetails(companyDetailData);
-    if (pending <= 0 && cb) cb();
+    if (pending <= 0) {
+      companyDetailCache[key] = companyDetailData;
+      if (cb) cb();
+    }
   }
 
   // Call 1: Core (activity health, trend)
