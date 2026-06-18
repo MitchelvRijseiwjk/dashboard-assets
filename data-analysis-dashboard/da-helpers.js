@@ -121,37 +121,94 @@ document.addEventListener('change', function(e) {
    dateFilter alias so not-yet-migrated fetch scripts keep working.
    ============================================================ */
 var DP_GREEN = '#06423e';
-function dpInpStyle() { return 'padding:7px 9px;border:1px solid #cdd7d5;border-radius:7px;font-size:14px;color:#26403c;background:#fff;'; }
-function dpSegBtnStyle(on) { return 'padding:7px 14px;border:0;cursor:pointer;font-size:13px;font-weight:' + (on ? '600' : '500') + ';background:' + (on ? DP_GREEN : '#fff') + ';color:' + (on ? '#fff' : '#3a4a48') + ';'; }
+
+function dpSvg(name, sz) {
+  var s = sz || 18;
+  var o = '<svg width="' + s + '" height="' + s + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="display:block">';
+  var p = '';
+  if (name === 'calendar') p = '<rect x="3" y="4.5" width="18" height="16" rx="2"/><path d="M3 9h18M8 3v3M16 3v3"/>';
+  else if (name === 'arrow') p = '<path d="M5 12h14M13 6l6 6-6 6"/>';
+  else if (name === 'activity') p = '<path d="M3 12h4l3 7 4-14 3 7h4"/>';
+  else if (name === 'seedling') p = '<path d="M12 21v-8"/><path d="M12 13C12 9 9 7 5 7c0 4 3 6 7 6z"/><path d="M12 13c0-3 3-5 7-5 0 3-3 5-7 5z"/>';
+  else if (name === 'database') p = '<ellipse cx="12" cy="5.5" rx="8" ry="3"/><path d="M4 5.5v6c0 1.66 3.58 3 8 3s8-1.34 8-3v-6"/><path d="M4 11.5v6c0 1.66 3.58 3 8 3s8-1.34 8-3v-6"/>';
+  else if (name === 'info') p = '<circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/>';
+  else if (name === 'clock') p = '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>';
+  else if (name === 'check') p = '<path d="M5 12l4 4L19 7"/>';
+  else if (name === 'chevron') p = '<path d="M6 9l6 6 6-6"/>';
+  return o + p + '</svg>';
+}
+
+var DP_SCOPES = [
+  { id: 'active', icon: 'activity', title: 'Active base', desc: 'Created or active in period', rec: true },
+  { id: 'created', icon: 'seedling', title: 'Newly created', desc: 'Only records added in period', rec: false },
+  { id: 'all', icon: 'database', title: 'Full database', desc: 'Everything, period ignored', rec: false }
+];
+
+var DP_COV = {
+  active: { label: 'Active base', rows: [['Company', 'created or active'], ['Contact', 'created or active'], ['Sale', 'open or active'], ['Project', 'active'], ['Requests', 'open or updated'], ['Activities', 'logged in period']] },
+  created: { label: 'Newly created', rows: [['Company', 'created in period'], ['Contact', 'created in period'], ['Sale', 'created in period'], ['Project', 'created in period'], ['Requests', 'created in period'], ['Activities', 'logged in period']] },
+  all: { label: 'Full database', rows: [['Company', 'entire database'], ['Contact', 'entire database'], ['Sale', 'entire database'], ['Project', 'entire database'], ['Requests', 'entire database'], ['Activities', 'logged in period']] }
+};
 
 function dpControlHtml(P) {
-  var lbl = 'color:#5a6b68;font-size:14px;';
+  var lbl = 'color:var(--so-charcoal);opacity:.75;font-size:14px;';
+  var inp = 'padding:8px 10px;border:1px solid var(--so-border);border-radius:7px;font-size:14px;color:var(--so-charcoal);background:var(--so-white);font-family:inherit;';
   var h = '';
-  h += '<div class="dp-wrap" style="display:flex;flex-direction:column;gap:14px;max-width:540px">';
-  h +=   '<div class="dp-seg" data-dp="' + P + '" data-mode-sel="rolling" style="display:inline-flex;border:1px solid ' + DP_GREEN + ';border-radius:8px;overflow:hidden;width:fit-content">';
-  h +=     '<button type="button" class="dp-seg-btn" data-mode="rolling" style="' + dpSegBtnStyle(true) + '">Rolling period</button>';
-  h +=     '<button type="button" class="dp-seg-btn" data-mode="custom" style="' + dpSegBtnStyle(false) + 'border-left:1px solid ' + DP_GREEN + '">Custom range</button>';
-  h +=   '</div>';
-  h +=   '<div class="dp-rolling" data-dp-roll="' + P + '" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">';
-  h +=     '<span style="' + lbl + '">Last</span>';
-  h +=     '<input type="number" id="' + P + 'RollN" value="12" min="1" max="120" style="width:66px;' + dpInpStyle() + '">';
-  h +=     '<select id="' + P + 'RollUnit" style="' + dpInpStyle() + '"><option value="month" selected>months</option><option value="year">years</option></select>';
-  h +=     '<span style="' + lbl + '">up to today</span>';
-  h +=   '</div>';
-  h +=   '<div class="dp-custom" data-dp-cust="' + P + '" style="display:none;align-items:center;gap:8px;flex-wrap:wrap">';
-  h +=     '<span style="' + lbl + '">From</span>';
-  h +=     '<input type="date" id="' + P + 'DateFrom" style="' + dpInpStyle() + '">';
-  h +=     '<span style="' + lbl + '">to</span>';
-  h +=     '<input type="date" id="' + P + 'DateTo" style="' + dpInpStyle() + '">';
-  h +=   '</div>';
-  h +=   '<div style="display:flex;flex-direction:column;gap:7px">';
-  h +=     '<span style="font-size:11px;font-weight:700;color:#3a4a48;text-transform:uppercase;letter-spacing:.05em">Scope</span>';
-  h +=     '<div class="dp-scope" data-dp="' + P + '" data-scope-sel="active" style="display:inline-flex;border:1px solid ' + DP_GREEN + ';border-radius:8px;overflow:hidden;width:fit-content;max-width:100%;flex-wrap:wrap">';
-  h +=       '<button type="button" class="dp-scope-btn" data-scope="active" style="' + dpSegBtnStyle(true) + '">Active base</button>';
-  h +=       '<button type="button" class="dp-scope-btn" data-scope="created" style="' + dpSegBtnStyle(false) + 'border-left:1px solid ' + DP_GREEN + '">Newly created</button>';
-  h +=       '<button type="button" class="dp-scope-btn" data-scope="all" style="' + dpSegBtnStyle(false) + 'border-left:1px solid ' + DP_GREEN + '">Full database</button>';
-  h +=     '</div>';
-  h +=   '</div>';
+  h += '<div class="dp-wrap" style="display:flex;flex-direction:column">';
+
+  h += '<div style="font-size:11px;font-weight:700;color:var(--so-text-muted);letter-spacing:.05em;margin-bottom:11px">1&nbsp;&nbsp;PERIOD</div>';
+  h += '<div class="dp-seg" data-dp="' + P + '" data-mode-sel="rolling" style="display:inline-flex;background:var(--so-dune-dark1);border:1px solid var(--so-border);border-radius:999px;padding:4px;gap:4px;width:fit-content;margin-bottom:16px">';
+  h += '<button type="button" class="dp-seg-btn" data-mode="rolling" style="border:0;border-radius:999px;padding:8px 22px;cursor:pointer;font-size:14px;font-weight:500;font-family:inherit">Rolling</button>';
+  h += '<button type="button" class="dp-seg-btn" data-mode="custom" style="border:0;border-radius:999px;padding:8px 22px;cursor:pointer;font-size:14px;font-weight:500;font-family:inherit">Custom range</button>';
+  h += '</div>';
+
+  h += '<div class="dp-rolling" data-dp-roll="' + P + '" style="display:flex;align-items:center;gap:11px;flex-wrap:wrap">';
+  h += '<span style="' + lbl + '">Last</span>';
+  h += '<input type="number" id="' + P + 'RollN" value="12" min="1" max="120" style="width:68px;' + inp + '">';
+  h += '<select id="' + P + 'RollUnit" style="' + inp + '"><option value="month" selected>months</option><option value="year">years</option></select>';
+  h += '<span style="color:var(--so-text-muted);display:inline-flex">' + dpSvg('arrow', 16) + '</span>';
+  h += '<span id="' + P + 'Preview" style="color:var(--so-green-light);font-size:14px;font-weight:600"></span>';
+  h += '</div>';
+
+  h += '<div class="dp-custom" data-dp-cust="' + P + '" style="display:none;align-items:center;gap:11px;flex-wrap:wrap">';
+  h += '<span style="' + lbl + '">From</span>';
+  h += '<input type="date" id="' + P + 'DateFrom" style="' + inp + '">';
+  h += '<span style="' + lbl + '">to</span>';
+  h += '<input type="date" id="' + P + 'DateTo" style="' + inp + '">';
+  h += '<span id="' + P + 'Span" style="color:var(--so-text-muted);font-size:13px"></span>';
+  h += '</div>';
+
+  h += '<div style="height:1px;background:var(--so-dune-dark2);margin:22px 0"></div>';
+
+  h += '<div style="display:flex;align-items:center;gap:7px;margin-bottom:4px">';
+  h += '<span style="font-size:11px;font-weight:700;color:var(--so-text-muted);letter-spacing:.05em">2&nbsp;&nbsp;SCOPE</span>';
+  h += '<span title="Scope decides which records count toward the quality and integrity scores. The period always bounds the activity and momentum metrics, whatever the scope." style="color:var(--so-text-muted);cursor:help;display:inline-flex">' + dpSvg('info', 14) + '</span>';
+  h += '</div>';
+  h += '<div style="font-size:13px;color:var(--so-text-muted);margin-bottom:16px">Which records the period selects for the quality and integrity scores.</div>';
+
+  h += '<div class="dp-scope" data-dp="' + P + '" data-scope-sel="active" style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:11px">';
+  for (var i = 0; i < DP_SCOPES.length; i++) {
+    var sc = DP_SCOPES[i];
+    h += '<div class="dp-scope-btn" data-scope="' + sc.id + '" style="position:relative;background:var(--so-white);border:1px solid var(--so-border);border-radius:var(--radius);padding:14px 14px 13px;cursor:pointer;min-height:78px">';
+    if (sc.rec) h += '<span style="position:absolute;top:-9px;left:12px;font-size:10px;font-weight:700;color:var(--so-green-dark);background:var(--so-meadow);border-radius:5px;padding:2px 8px">Recommended</span>';
+    h += '<span class="dp-card-chk" style="position:absolute;top:10px;right:10px;color:var(--so-green);display:none">' + dpSvg('check', 16) + '</span>';
+    h += '<div style="display:flex;align-items:center;gap:8px"><span style="color:var(--so-green);display:inline-flex">' + dpSvg(sc.icon, 18) + '</span><span style="font-size:14px;font-weight:600;color:var(--so-charcoal)">' + sc.title + '</span></div>';
+    h += '<div style="font-size:12px;color:var(--so-text-muted);margin-top:7px;line-height:1.45">' + sc.desc + '</div>';
+    h += '</div>';
+  }
+  h += '</div>';
+
+  h += dpCountBarHtml(P);
+
+  h += '<div style="height:1px;background:var(--so-dune-dark2);margin:22px 0"></div>';
+
+  h += '<div style="display:flex;align-items:center;gap:7px;margin-bottom:13px">';
+  h += '<span title="For each entity, this is which records the scores count under the chosen scope." style="color:var(--so-text-muted);cursor:help;display:inline-flex">' + dpSvg('info', 14) + '</span>';
+  h += '<span style="font-size:13px;color:var(--so-charcoal)">With <span id="' + P + 'CovScope" style="font-weight:600;color:var(--so-green)">Active base</span>, the scores cover</span>';
+  h += '</div>';
+  h += '<div id="' + P + 'CovGrid" style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px"></div>';
+  h += '<div style="display:flex;align-items:center;gap:8px;margin-top:15px"><span style="color:var(--so-text-muted);display:inline-flex">' + dpSvg('clock', 15) + '</span><span style="font-size:12px;color:var(--so-text-muted)">Adoption and momentum always measure activity inside the period, whatever the scope.</span></div>';
+
   h += '</div>';
   return h;
 }
@@ -159,15 +216,25 @@ function dpControlHtml(P) {
 function dpPaintGroup(container) {
   if (!container) return;
   var isScope = container.className.indexOf('dp-scope') > -1;
-  var selAttr = isScope ? 'data-scope-sel' : 'data-mode-sel';
-  var keyAttr = isScope ? 'data-scope' : 'data-mode';
-  var sel = container.getAttribute(selAttr);
-  var btns = container.getElementsByTagName('button');
-  for (var i = 0; i < btns.length; i++) {
-    var on = btns[i].getAttribute(keyAttr) === sel;
-    btns[i].style.background = on ? DP_GREEN : '#ffffff';
-    btns[i].style.color = on ? '#ffffff' : '#3a4a48';
-    btns[i].style.fontWeight = on ? '600' : '500';
+  if (isScope) {
+    var sel = container.getAttribute('data-scope-sel');
+    var cards = container.getElementsByClassName('dp-scope-btn');
+    for (var i = 0; i < cards.length; i++) {
+      var on = cards[i].getAttribute('data-scope') === sel;
+      cards[i].style.border = on ? '2px solid var(--so-green)' : '1px solid var(--so-border)';
+      cards[i].style.background = on ? 'var(--so-dune)' : 'var(--so-white)';
+      cards[i].style.padding = on ? '13px 13px 12px' : '14px 14px 13px';
+      var chk = cards[i].getElementsByClassName('dp-card-chk')[0];
+      if (chk) chk.style.display = on ? 'inline-flex' : 'none';
+    }
+  } else {
+    var selm = container.getAttribute('data-mode-sel');
+    var btns = container.getElementsByTagName('button');
+    for (var j = 0; j < btns.length; j++) {
+      var onm = btns[j].getAttribute('data-mode') === selm;
+      btns[j].style.background = onm ? 'var(--so-green)' : 'transparent';
+      btns[j].style.color = onm ? 'var(--so-white)' : 'var(--so-charcoal)';
+    }
   }
 }
 
@@ -180,19 +247,134 @@ function dpShowMode(P) {
   if (cust) cust.style.display = (mode === 'custom') ? 'flex' : 'none';
 }
 
+function dpUpdateCov(P) {
+  var key = dpScope(P);
+  var c = DP_COV[key] || DP_COV.active;
+  var ls = document.getElementById(P + 'CovScope');
+  if (ls) ls.textContent = c.label;
+  var g = document.getElementById(P + 'CovGrid');
+  if (!g) return;
+  var h = '';
+  for (var i = 0; i < c.rows.length; i++) {
+    h += '<div style="display:flex;align-items:center;justify-content:space-between;background:var(--so-dune);border-radius:7px;padding:8px 11px"><span style="font-size:13px;color:var(--so-charcoal)">' + c.rows[i][0] + '</span><span style="font-size:12px;color:var(--so-charcoal);background:var(--so-dune-dark1);border-radius:6px;padding:3px 9px;white-space:nowrap">' + c.rows[i][1] + '</span></div>';
+  }
+  g.innerHTML = h;
+}
+
+function dpUpdatePreview(P) {
+  var el = document.getElementById(P + 'Preview');
+  if (!el) return;
+  var r = dpResolve(P);
+  if (r.mode !== 'rolling') { el.textContent = ''; return; }
+  var M = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  var d = new Date(r.from + 'T00:00:00');
+  el.textContent = d.getDate() + ' ' + M[d.getMonth()] + ' ' + d.getFullYear() + ' to today';
+}
+
+function dpUpdateSpan(P) {
+  var el = document.getElementById(P + 'Span');
+  if (!el) return;
+  var f = document.getElementById(P + 'DateFrom');
+  var t = document.getElementById(P + 'DateTo');
+  if (f && t && f.value && t.value) {
+    var days = Math.round((new Date(t.value) - new Date(f.value)) / 86400000);
+    el.textContent = (days >= 0) ? '(' + days + ' days)' : '';
+  } else {
+    el.textContent = '';
+  }
+}
+
+// --- Live "companies in scope" count under the scope cards ---
+function dpNum(n) { return (n || 0).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.'); }
+
+function dpCountBarHtml(P) {
+  var h = '';
+  h += '<div id="' + P + 'ScopeCount" style="margin-top:18px;display:flex;align-items:center;gap:12px;background:var(--so-dune);border:1px solid var(--so-border);border-radius:var(--radius);padding:12px 14px">';
+  h += '<span style="color:var(--so-green);display:inline-flex">' + dpSvg('database', 18) + '</span>';
+  h += '<div style="flex:1;min-width:0">';
+  h += '<div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px;margin-bottom:7px">';
+  h += '<span style="font-size:13px;color:var(--so-charcoal)">Companies in this scan</span>';
+  h += '<span id="' + P + 'ScopeCountNum" style="font-size:13px;color:var(--so-text-muted)">Calculating\u2026</span>';
+  h += '</div>';
+  h += '<div style="height:6px;background:var(--so-dune-dark2);border-radius:999px;overflow:hidden">';
+  h += '<div id="' + P + 'ScopeCountBar" style="height:100%;width:0;background:var(--so-green);border-radius:999px;transition:width .35s ease"></div>';
+  h += '</div>';
+  h += '</div>';
+  h += '</div>';
+  return h;
+}
+
+function dpScopeCountParams(P) {
+  var r = dpResolve(P);
+  var sc = dpScope(P);
+  var amp = String.fromCharCode(38);
+  var q = '';
+  if (r.from) q += amp + 'dateFrom=' + r.from + amp + 'dateFilter=' + r.from;
+  if (r.to) q += amp + 'dateTo=' + r.to;
+  q += amp + 'scope=' + sc;
+  return q;
+}
+
+var _dpCountSeq = 0;
+var _dpCountTimer = {};
+
+function dpUpdateScopeCount(P) {
+  var numEl = document.getElementById(P + 'ScopeCountNum');
+  var barEl = document.getElementById(P + 'ScopeCountBar');
+  if (!numEl) return;
+  if (typeof scopeCountUrl === 'undefined' || !scopeCountUrl) { numEl.textContent = ''; return; }
+  numEl.textContent = 'Calculating\u2026';
+  if (barEl) barEl.style.opacity = '.5';
+  var seq = ++_dpCountSeq;
+  ajax(scopeCountUrl + dpScopeCountParams(P), function(o) {
+    if (seq !== _dpCountSeq) return; // a newer request superseded this one
+    if (!o || typeof o.scoped === 'undefined') { numEl.textContent = ''; if (barEl) barEl.style.width = '0'; return; }
+    var s = o.scoped | 0;
+    var t = o.total | 0;
+    numEl.innerHTML = '<strong style="color:var(--so-green);font-weight:700">' + dpNum(s) + '</strong> of ' + dpNum(t);
+    if (barEl) { barEl.style.opacity = '1'; barEl.style.width = (t > 0 ? Math.max(2, Math.round(s / t * 100)) : 0) + '%'; }
+  });
+}
+
+function dpScheduleCount(P) {
+  if (_dpCountTimer[P]) clearTimeout(_dpCountTimer[P]);
+  _dpCountTimer[P] = setTimeout(function() { dpUpdateScopeCount(P); }, 280);
+}
+
 document.addEventListener('click', function(e) {
   var b = e.target;
-  if (!b || !b.getAttribute || !b.className || typeof b.className !== 'string') return;
+  while (b && b !== document && (!b.className || typeof b.className !== 'string' || (b.className.indexOf('dp-seg-btn') < 0 && b.className.indexOf('dp-scope-btn') < 0))) {
+    b = b.parentNode;
+  }
+  if (!b || b === document) return;
   if (b.className.indexOf('dp-seg-btn') > -1) {
     var seg = b.parentNode;
     seg.setAttribute('data-mode-sel', b.getAttribute('data-mode'));
     dpPaintGroup(seg);
     dpShowMode(seg.getAttribute('data-dp'));
+    dpUpdatePreview(seg.getAttribute('data-dp'));
+    dpScheduleCount(seg.getAttribute('data-dp'));
   } else if (b.className.indexOf('dp-scope-btn') > -1) {
     var sc = b.parentNode;
     sc.setAttribute('data-scope-sel', b.getAttribute('data-scope'));
     dpPaintGroup(sc);
+    dpUpdateCov(sc.getAttribute('data-dp'));
+    dpScheduleCount(sc.getAttribute('data-dp'));
   }
+});
+
+document.addEventListener('input', function(e) {
+  var t = e.target;
+  if (!t || !t.id) return;
+  if (/RollN$/.test(t.id)) { var P = t.id.replace(/RollN$/, ''); dpUpdatePreview(P); dpScheduleCount(P); }
+  else if (/DateFrom$|DateTo$/.test(t.id)) { var P2 = t.id.replace(/DateFrom$|DateTo$/, ''); dpUpdateSpan(P2); dpScheduleCount(P2); }
+});
+
+document.addEventListener('change', function(e) {
+  var t = e.target;
+  if (!t || !t.id) return;
+  if (/RollUnit$/.test(t.id)) { var P = t.id.replace(/RollUnit$/, ''); dpUpdatePreview(P); dpScheduleCount(P); }
+  else if (/DateFrom$|DateTo$/.test(t.id)) { var P2 = t.id.replace(/DateFrom$|DateTo$/, ''); dpUpdateSpan(P2); dpScheduleCount(P2); }
 });
 
 function dpResolve(P) {
@@ -232,6 +414,9 @@ function dpMirror(src, dst) {
     if (a && c) c.value = a.value;
   }
   dpShowMode(dst);
+  dpUpdateCov(dst);
+  dpUpdatePreview(dst);
+  dpUpdateScopeCount(dst);
 }
 
 function dpBuild(P, oldSelectId) {
@@ -246,11 +431,93 @@ function dpBuild(P, oldSelectId) {
   dpPaintGroup(document.querySelector('.dp-seg[data-dp="' + P + '"]'));
   dpPaintGroup(document.querySelector('.dp-scope[data-dp="' + P + '"]'));
   dpShowMode(P);
+  dpUpdateCov(P);
+  dpUpdatePreview(P);
+  dpUpdateScopeCount(P);
+}
+
+function dpEntitiesSummary(cardId) {
+  var card = document.getElementById(cardId);
+  if (!card) return '';
+  var boxes = card.querySelectorAll('input[type="checkbox"]');
+  var checked = 0;
+  for (var i = 0; i < boxes.length; i++) { if (boxes[i].checked) checked++; }
+  var sels = card.querySelectorAll('.setup-entity-date, .aa-entity-date');
+  var overrides = 0;
+  for (var j = 0; j < sels.length; j++) { var v = sels[j].value; if (v && v !== '') overrides++; }
+  var s = checked + ' included';
+  if (overrides > 0) s += ' \u00b7 ' + overrides + (overrides === 1 ? ' custom window' : ' custom windows');
+  else s += ' \u00b7 global window';
+  return s;
+}
+
+function dpCollapseEntities(cardId) {
+  var card = document.getElementById(cardId);
+  if (!card) return;
+  if (card.getAttribute('data-dp-collapsed') === '1') return;
+  var h3 = card.querySelector('h3');
+  var desc = card.querySelector('.setup-desc, .aa-desc');
+  var grid = card.querySelector('.setup-entity-grid, .aa-entity-grid');
+  if (!h3 || !grid) return;
+  card.setAttribute('data-dp-collapsed', '1');
+
+  h3.style.cursor = 'pointer';
+  h3.style.display = 'flex';
+  h3.style.alignItems = 'center';
+  h3.style.justifyContent = 'space-between';
+  h3.style.margin = '0';
+
+  var left = document.createElement('span');
+  left.style.cssText = 'display:flex;align-items:center;gap:9px';
+  while (h3.firstChild) { left.appendChild(h3.firstChild); }
+  var sum = document.createElement('span');
+  sum.className = 'dp-ent-sum';
+  sum.style.cssText = 'font-size:.78rem;font-weight:500;color:var(--so-text-muted)';
+  sum.textContent = dpEntitiesSummary(cardId);
+  left.appendChild(sum);
+
+  var chev = document.createElement('span');
+  chev.style.cssText = 'color:var(--so-text-muted);display:inline-flex;transition:transform .15s';
+  chev.innerHTML = dpSvg('chevron', 18);
+
+  h3.appendChild(left);
+  h3.appendChild(chev);
+
+  if (desc) desc.style.display = 'none';
+  grid.style.display = 'none';
+
+  h3.addEventListener('click', function() {
+    var open = grid.style.display !== 'none';
+    grid.style.display = open ? 'none' : '';
+    if (desc) desc.style.display = open ? 'none' : '';
+    chev.style.transform = open ? 'rotate(0deg)' : 'rotate(180deg)';
+  });
+
+  card.addEventListener('change', function() {
+    sum.textContent = dpEntitiesSummary(cardId);
+  });
+}
+
+function dpBootReveal() {
+  if (window._dpBooted) return;
+  window._dpBooted = true;
+  if (!window.HugoReveal || typeof HugoReveal.reveal !== 'function') {
+    document.body.classList.remove('hgx-boot');
+    return;
+  }
+  // Hold the loading state briefly so Hugo is seen, then reveal the setup screen.
+  setTimeout(function() {
+    document.body.classList.remove('hgx-boot');
+    HugoReveal.reveal();
+  }, 780);
 }
 
 function dpInit() {
   dpBuild('setup', 'setupDateFilter');
   dpBuild('aa', 'aaDateFilter');
+  dpCollapseEntities('setupEntitiesCard');
+  dpCollapseEntities('aaEntitiesCard');
+  dpBootReveal();
 }
 if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', dpInit); } else { dpInit(); }
 
@@ -1080,24 +1347,36 @@ function setupAnalysisComplete() {
   if (circBar) circBar.setAttribute('stroke-dashoffset', '0');
   if (circPct) circPct.textContent = '100' + P;
   if (labelEl) labelEl.textContent = 'Analysis complete';
-  setTimeout(function() {
-    var overlay = document.getElementById('setupScreen');
-    overlay.classList.add('hiding');
+
+  // Switch the setup overlay out for the first analysed entity's dashboard.
+  function _setupNav() {
     document.body.classList.remove('sidebar-hidden');
     if (aaQueue.length > 0) {
       var navItems = document.querySelectorAll('.nav-item');
       for (var n = 0; n < navItems.length; n++) {
         var oc = navItems[n].getAttribute('onclick') || '';
-        if (oc.indexOf("'" + aaQueue[0] + "'") > -1) {
-          sw(aaQueue[0], navItems[n]);
-          break;
-        }
+        if (oc.indexOf("'" + aaQueue[0] + "'") > -1) { sw(aaQueue[0], navItems[n]); break; }
       }
     }
-    setTimeout(function() {
-      overlay.classList.add('hidden');
-    }, 500);
-  }, 600);
+  }
+
+  // Let the finished circle sit for a beat, then run the Hugo iris over the swap.
+  setTimeout(function() {
+    var overlay = document.getElementById('setupScreen');
+    if (window.HugoReveal && typeof HugoReveal.show === 'function') {
+      HugoReveal.show('Dashboard openen\u2026');
+      // Once the iris has fully closed over the screen, swap underneath and reveal.
+      setTimeout(function() {
+        _setupNav();
+        if (overlay) { overlay.classList.add('hidden'); overlay.classList.remove('hiding'); }
+        HugoReveal.reveal();
+      }, 520);
+    } else {
+      if (overlay) overlay.classList.add('hiding');
+      _setupNav();
+      setTimeout(function() { if (overlay) overlay.classList.add('hidden'); }, 500);
+    }
+  }, 480);
 }
 function st(ent, sub, el) {
   var p = document.getElementById('tab-' + ent);
