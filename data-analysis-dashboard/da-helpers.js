@@ -156,8 +156,8 @@ function dpControlHtml(P) {
   var h = '';
   h += '<div class="dp-wrap" style="display:flex;flex-direction:column">';
 
-  h += '<div style="font-size:11px;font-weight:700;color:var(--so-text-muted);letter-spacing:.05em;margin-bottom:11px">1&nbsp;&nbsp;PERIOD</div>';
-  h += '<div class="dp-seg" data-dp="' + P + '" data-mode-sel="rolling" style="display:inline-flex;background:var(--so-dune-dark1);border:1px solid var(--so-border);border-radius:999px;padding:4px;gap:4px;width:fit-content;margin-bottom:16px">';
+  h += '<div style="font-size:11px;font-weight:700;color:var(--so-text-muted);letter-spacing:.05em;margin-bottom:9px">1&nbsp;&nbsp;PERIOD</div>';
+  h += '<div class="dp-seg" data-dp="' + P + '" data-mode-sel="rolling" style="display:inline-flex;background:var(--so-dune-dark1);border:1px solid var(--so-border);border-radius:999px;padding:4px;gap:4px;width:fit-content;margin-bottom:12px">';
   h += '<button type="button" class="dp-seg-btn" data-mode="rolling" style="border:0;border-radius:999px;padding:8px 22px;cursor:pointer;font-size:14px;font-weight:500;font-family:inherit">Rolling</button>';
   h += '<button type="button" class="dp-seg-btn" data-mode="custom" style="border:0;border-radius:999px;padding:8px 22px;cursor:pointer;font-size:14px;font-weight:500;font-family:inherit">Custom range</button>';
   h += '</div>';
@@ -165,31 +165,31 @@ function dpControlHtml(P) {
   h += '<div class="dp-rolling" data-dp-roll="' + P + '" style="display:flex;align-items:center;gap:11px;flex-wrap:wrap">';
   h += '<span style="' + lbl + '">Last</span>';
   h += '<input type="number" id="' + P + 'RollN" value="12" min="1" max="120" style="width:68px;' + inp + '">';
-  h += '<select id="' + P + 'RollUnit" style="' + inp + '"><option value="month" selected>months</option><option value="year">years</option></select>';
+  h += '<select id="' + P + 'RollUnit" style="width:128px;' + inp + '"><option value="month" selected>months</option><option value="year">years</option></select>';
   h += '<span style="color:var(--so-text-muted);display:inline-flex">' + dpSvg('arrow', 16) + '</span>';
   h += '<span id="' + P + 'Preview" style="color:var(--so-green-light);font-size:14px;font-weight:600"></span>';
   h += '</div>';
 
   h += '<div class="dp-custom" data-dp-cust="' + P + '" style="display:none;align-items:center;gap:11px;flex-wrap:wrap">';
   h += '<span style="' + lbl + '">From</span>';
-  h += '<input type="date" id="' + P + 'DateFrom" style="' + inp + '">';
+  h += '<input type="date" id="' + P + 'DateFrom" style="width:158px;' + inp + '">';
   h += '<span style="' + lbl + '">to</span>';
-  h += '<input type="date" id="' + P + 'DateTo" style="' + inp + '">';
+  h += '<input type="date" id="' + P + 'DateTo" style="width:158px;' + inp + '">';
   h += '<span id="' + P + 'Span" style="color:var(--so-text-muted);font-size:13px"></span>';
   h += '</div>';
 
-  h += '<div style="height:1px;background:var(--so-dune-dark2);margin:22px 0"></div>';
+  h += '<div style="height:1px;background:var(--so-dune-dark2);margin:14px 0"></div>';
 
   h += '<div style="display:flex;align-items:center;gap:7px;margin-bottom:4px">';
   h += '<span style="font-size:11px;font-weight:700;color:var(--so-text-muted);letter-spacing:.05em">2&nbsp;&nbsp;SCOPE</span>';
   h += '<span title="Scope decides which records count toward the quality and integrity scores. The period always bounds the activity and momentum metrics, whatever the scope." style="color:var(--so-text-muted);cursor:help;display:inline-flex">' + dpSvg('info', 14) + '</span>';
   h += '</div>';
-  h += '<div style="font-size:13px;color:var(--so-text-muted);margin-bottom:16px">Which records the period selects for the quality and integrity scores.</div>';
+  h += '<div style="font-size:13px;color:var(--so-text-muted);margin-bottom:12px">Which records the period selects for the quality and integrity scores.</div>';
 
   h += '<div class="dp-scope" data-dp="' + P + '" data-scope-sel="active" style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:11px">';
   for (var i = 0; i < DP_SCOPES.length; i++) {
     var sc = DP_SCOPES[i];
-    h += '<div class="dp-scope-btn" data-scope="' + sc.id + '" style="position:relative;background:var(--so-white);border:1px solid var(--so-border);border-radius:var(--radius);padding:14px 14px 13px;cursor:pointer;min-height:78px">';
+    h += '<div class="dp-scope-btn" data-scope="' + sc.id + '" style="position:relative;background:var(--so-white);border:1px solid var(--so-border);border-radius:var(--radius);padding:12px 13px 11px;cursor:pointer;min-height:68px">';
     if (sc.rec) h += '<span style="position:absolute;top:-9px;left:12px;font-size:10px;font-weight:700;color:var(--so-white);background:var(--so-green);border-radius:5px;padding:2px 8px">Recommended</span>';
     h += '<span class="dp-card-chk" style="position:absolute;top:10px;right:10px;color:var(--so-green);display:none">' + dpSvg('check', 16) + '</span>';
     h += '<div style="display:flex;align-items:center;gap:8px"><span style="color:var(--so-green);display:inline-flex">' + dpSvg(sc.icon, 18) + '</span><span style="font-size:14px;font-weight:600;color:var(--so-charcoal)">' + sc.title + '</span></div>';
@@ -200,7 +200,7 @@ function dpControlHtml(P) {
 
   h += dpCountBarHtml(P);
 
-  h += '<div style="height:1px;background:var(--so-dune-dark2);margin:22px 0"></div>';
+  h += '<div style="height:1px;background:var(--so-dune-dark2);margin:14px 0"></div>';
 
   h += '<div style="display:flex;align-items:center;gap:7px;margin-bottom:13px">';
   h += '<span title="For each entity, this is which records the scores count under the chosen scope." style="color:var(--so-text-muted);cursor:help;display:inline-flex">' + dpSvg('info', 14) + '</span>';
@@ -223,7 +223,7 @@ function dpPaintGroup(container) {
       var on = cards[i].getAttribute('data-scope') === sel;
       cards[i].style.border = on ? '2px solid var(--so-green)' : '1px solid var(--so-border)';
       cards[i].style.background = on ? 'var(--so-dune)' : 'var(--so-white)';
-      cards[i].style.padding = on ? '13px 13px 12px' : '14px 14px 13px';
+      cards[i].style.padding = on ? '11px 12px 10px' : '12px 13px 11px';
       var chk = cards[i].getElementsByClassName('dp-card-chk')[0];
       if (chk) chk.style.display = on ? 'inline-flex' : 'none';
     }
@@ -289,7 +289,7 @@ function dpNum(n) { return (n || 0).toString().replace(/\B(?=(\d{3})+(?!\d))/g, 
 
 function dpCountBarHtml(P) {
   var h = '';
-  h += '<div id="' + P + 'ScopeCount" style="margin-top:18px;display:flex;align-items:center;gap:12px;background:var(--so-dune);border:1px solid var(--so-border);border-radius:var(--radius);padding:12px 14px">';
+  h += '<div id="' + P + 'ScopeCount" style="margin-top:13px;display:flex;align-items:center;gap:12px;background:var(--so-dune);border:1px solid var(--so-border);border-radius:var(--radius);padding:12px 14px">';
   h += '<span style="color:var(--so-green);display:inline-flex">' + dpSvg('database', 18) + '</span>';
   h += '<div style="flex:1;min-width:0">';
   h += '<div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px;margin-bottom:7px">';
@@ -507,18 +507,36 @@ function _dpHideBoot() {
 function dpBootReveal() {
   if (window._dpBooted) return;
   window._dpBooted = true;
-  if (!window.HugoReveal || typeof HugoReveal.reveal !== 'function') {
+  if (!window.HugoZoom || typeof HugoZoom.reveal !== 'function') {
     _dpHideBoot();
     return;
   }
   // Hold the loading state briefly so Hugo is seen, then reveal the setup screen.
   setTimeout(function() {
     _dpHideBoot();
-    HugoReveal.reveal();
+    HugoZoom.reveal();
   }, 780);
 }
 
+function dpInjectStyles() {
+  if (document.getElementById('dpStyles')) return;
+  var st = document.createElement('style');
+  st.id = 'dpStyles';
+  st.textContent =
+    '.dp-seg-btn{transition:background-color .2s ease,color .2s ease}' +
+    '.dp-seg-btn:hover{box-shadow:0 1px 6px rgba(6,66,62,.15)}' +
+    '.dp-scope-btn{transition:border-color .15s ease,background-color .15s ease,box-shadow .15s ease,transform .15s ease}' +
+    '.dp-scope-btn:hover{box-shadow:0 3px 12px rgba(6,66,62,.13);transform:translateY(-2px)}' +
+    '.dp-wrap input,.dp-wrap select{transition:box-shadow .15s ease,border-color .15s ease}' +
+    '.dp-wrap input:hover,.dp-wrap select:hover{box-shadow:0 1px 4px rgba(6,66,62,.12)}' +
+    '.dp-wrap input:focus,.dp-wrap select:focus{outline:none;box-shadow:0 0 0 3px rgba(6,66,62,.15)}' +
+    '.dp-rolling,.dp-custom{animation:dpFade .22s ease}' +
+    '@keyframes dpFade{from{opacity:0;transform:translateY(-3px)}to{opacity:1;transform:translateY(0)}}';
+  document.head.appendChild(st);
+}
+
 function dpInit() {
+  dpInjectStyles();
   dpBuild('setup', 'setupDateFilter');
   dpBuild('aa', 'aaDateFilter');
   dpCollapseEntities('setupEntitiesCard');
@@ -1369,13 +1387,13 @@ function setupAnalysisComplete() {
   // Let the finished circle sit for a beat, then run the Hugo iris over the swap.
   setTimeout(function() {
     var overlay = document.getElementById('setupScreen');
-    if (window.HugoReveal && typeof HugoReveal.show === 'function') {
-      HugoReveal.show('Dashboard openen\u2026');
+    if (window.HugoZoom && typeof HugoZoom.show === 'function') {
+      HugoZoom.show('Dashboard openen\u2026');
       // Once the iris has fully closed over the screen, swap underneath and reveal.
       setTimeout(function() {
         _setupNav();
         if (overlay) { overlay.classList.add('hidden'); overlay.classList.remove('hiding'); }
-        HugoReveal.reveal();
+        HugoZoom.reveal();
       }, 520);
     } else {
       if (overlay) overlay.classList.add('hiding');
