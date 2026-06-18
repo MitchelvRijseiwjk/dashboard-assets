@@ -2106,6 +2106,8 @@
     if (typeof renderCompanyDetails === 'function' && typeof companyDetailData !== 'undefined' && companyDetailData) renderCompanyDetails(companyDetailData);
     // Re-render momentum if data is available
     if (typeof renderMomentum === 'function' && typeof momentumData !== 'undefined' && momentumData) renderMomentum('activities', momentumData);
+    // Re-render the UDEF field tables so importance changes (e.g. Off) show up.
+    if (typeof reRenderLoadedUdef === 'function') reRenderLoadedUdef();
     var unsaved = document.getElementById('smUnsaved');
     if (unsaved) unsaved.classList.remove('show');
     closeSettings();
