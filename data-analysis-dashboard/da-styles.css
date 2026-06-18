@@ -409,7 +409,7 @@
     .setup-inner{width:100%;max-width:1000px;padding:60px 32px 32px;margin:0 auto}
     .setup-brand{position:fixed;top:20px;left:32px;margin-bottom:0;z-index:1001}
     .setup-brand .hugo-logo{width:170px;height:auto}
-    .setup-tabs{display:flex;align-items:center;gap:0;margin-bottom:16px;border-bottom:1px solid var(--so-border)}
+    .setup-tabs{display:flex;align-items:center;gap:0;margin-bottom:16px}
     .setup-tab{padding:8px 18px;font-size:.84rem;font-weight:500;color:var(--so-text-muted);cursor:pointer;border-bottom:2px solid transparent;transition:all .15s;margin-bottom:-1px}
     .setup-tab:hover{color:var(--so-charcoal)}
     .setup-tab.active{color:var(--so-green);border-bottom-color:var(--so-green);font-weight:600}
