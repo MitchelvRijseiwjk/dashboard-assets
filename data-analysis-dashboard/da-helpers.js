@@ -241,6 +241,8 @@ function resetEntity(key) {
 }
 
 function reAnalyze(key) {
+  // A fresh scan invalidates any cached company-detail results.
+  if (key === 'company' && typeof companyDetailCache !== 'undefined') companyDetailCache = {};
   resetEntity(key);
   var rs = document.getElementById(key + 'Results');
   var st2 = document.getElementById(key + 'SubTabs');
