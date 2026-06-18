@@ -955,7 +955,7 @@ function renderCrossEntityFunnel(d) {
     { label: 'With Activity (12m)', count: f.withPersonActivity, from: f.withPerson, desc: 'Person + recent activity logged' }
   ];
   if (showPipeline) {
-    funnelSteps.push({ label: 'With ' + pipeLabel, count: f.withPersonActivitySale, from: f.withPersonActivity, desc: 'Active + open ' + pipeLabel.toLowerCase() });
+    funnelSteps.push({ label: 'With ' + pipeLabel, count: f.withPersonActivitySale, from: f.withPersonActivity, desc: 'Active + ' + pipeLabel.toLowerCase() });
   }
 
   h += '<div class="entity-card">';
@@ -1423,7 +1423,7 @@ function renderAdoptionTab(key) {
     hAd += '</div>';
     hAd += '<span class="record-badge" style="background:' + ac + ';color:#fff;font-size:1.1rem;padding:4px 14px;border-radius:12px">' + ad.total + P + '</span></div>';
     hAd += '<div class="tbl-cap"><b>Higher coverage is better.</b> Drives the Adoption score. Sorted by attention, so heavily weighted components with the largest gaps sit on top.</div>';
-    hAd += '<table class="data-table"><thead><tr><th class="attn-col"></th><th>Component</th><th class="col-right" style="width:80px">Count</th><th class="col-right" style="width:80px">of Total</th><th style="text-align:center;width:90px">Weight</th><th class="col-right" style="width:130px">Completeness</th></tr></thead><tbody>';
+    hAd += '<table class="data-table"><thead><tr><th class="attn-col"></th><th>Component</th><th class="col-right" style="width:80px">Count</th><th style="text-align:center;width:90px">Weight</th><th class="col-right" style="width:130px">Completeness</th></tr></thead><tbody>';
     var adRows = [];
     for (var i = 0; i < ad.details.length; i++) {
       var d = ad.details[i];
@@ -1435,7 +1435,6 @@ function renderAdoptionTab(key) {
       var adReason = '<b>' + attnBandWord(adAttn) + ' attention.</b> ' + _capFirst(d.weight) + ' weight, ' + Math.round(adBad) + '% of records not covered. Higher coverage lifts Adoption.';
       var adRow = '<tr><td class="attn-col">' + attnIconHtml(adAttn, adReason) + '</td><td>' + d.label + '</td>';
       adRow += '<td class="col-right">' + fmtNum(cnt) + '</td>';
-      adRow += '<td class="col-right">' + fmtNum(data ? data.adoptionTotal : total) + '</td>';
       adRow += '<td style="text-align:center"><span class="imp-badge ' + wCls + '">' + d.weight + '</span></td>';
       adRow += '<td class="col-right">' + barCell(d.pct, col) + '</td></tr>';
       adRows.push({ attn: adAttn, badness: adBad, html: adRow });
@@ -1455,7 +1454,7 @@ function renderAdoptionTab(key) {
     hInt += '</div>';
     hInt += '<span class="record-badge" style="background:' + ic + ';color:#fff;font-size:1.1rem;padding:4px 14px;border-radius:12px">' + ig.total + P + '</span></div>';
     hInt += '<div class="tbl-cap"><b>Lower is better.</b> Drives the Data Integrity score. Sorted by attention, so heavily weighted checks affecting the most records sit on top.</div>';
-    hInt += '<table class="data-table"><thead><tr><th class="attn-col"></th><th>Check</th><th class="col-right" style="width:80px">Affected</th><th class="col-right" style="width:80px">of Total</th><th style="text-align:center;width:90px">Weight</th><th class="col-right" style="width:130px">Completeness</th></tr></thead><tbody>';
+    hInt += '<table class="data-table"><thead><tr><th class="attn-col"></th><th>Check</th><th class="col-right" style="width:80px">Affected</th><th style="text-align:center;width:90px">Weight</th><th class="col-right" style="width:130px">% Affected</th></tr></thead><tbody>';
     var igRows = [];
     for (var j = 0; j < ig.details.length; j++) {
       var c = ig.details[j];
@@ -1467,7 +1466,6 @@ function renderAdoptionTab(key) {
       var igReason = '<b>' + attnBandWord(igAttn) + ' attention.</b> ' + _capFirst(c.weight) + ' weight, ' + Math.round(c.affected) + '% of records affected. Fewer affected lifts Data Integrity.';
       var igRow = '<tr><td class="attn-col">' + attnIconHtml(igAttn, igReason) + '</td><td>' + c.label + '</td>';
       igRow += '<td class="col-right">' + fmtNum(cnt2) + '</td>';
-      igRow += '<td class="col-right">' + fmtNum(iTotal) + '</td>';
       igRow += '<td style="text-align:center"><span class="imp-badge ' + wCls2 + '">' + c.weight + '</span></td>';
       igRow += '<td class="col-right">' + barCell(c.affected, col2) + '</td></tr>';
       igRows.push({ attn: igAttn, badness: c.affected, html: igRow });
@@ -1540,7 +1538,7 @@ function renderCompanyDetails(d) {
     for (var i = 0; i < ahParts.length; i++) {
       var pct = ahParts[i].val / total * 100;
       if (pct > 0) {
-        var segLabel = pct >= 10 ? '<span style="font-size:.72rem;color:#fff;font-weight:600">' + fmtNum(ahParts[i].val) + ' (' + Math.round(pct) + P + ')</span>' : '';
+        var segLabel = pct >= 10 ? '<span style="font-size:.72rem;color:#fff;font-weight:600">' + fmtNum(ahParts[i].val) + ' (' + (Math.round(pct * 10) / 10) + P + ')</span>' : '';
         h += '<div class="stacked-segment" style="width:' + pct + P + ';background:' + ahParts[i].col + ';display:flex;align-items:center;justify-content:center;overflow:hidden;border-radius:0">' + segLabel + '</div>';
       }
     }
