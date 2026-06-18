@@ -15,6 +15,9 @@ function swSetupTab(panel, el) {
 var activeFilterValue = {};
 var activeFilterLabel = {};
 var currentAnalysisEntity = '';
+// Global window end + scope (period start is still per-entity via activeFilterValue).
+var activeWindowTo = '';
+var activeScope = 'active';
 
 function resolveDate(val) {
   if (!val) return '';
@@ -109,6 +112,148 @@ document.addEventListener('change', function(e) {
   }
 });
 
+/* ============================================================
+   Date range + scope control (front-end).
+   Injected into the existing date cards in place of the old
+   single dropdown. Behaviour-preserving: the default rolling
+   12 months resolves to the same from-date as the old
+   "last 12 months" option. Emits dateFrom/dateTo/scope plus a
+   dateFilter alias so not-yet-migrated fetch scripts keep working.
+   ============================================================ */
+var DP_GREEN = '#06423e';
+function dpInpStyle() { return 'padding:7px 9px;border:1px solid #cdd7d5;border-radius:7px;font-size:14px;color:#26403c;background:#fff;'; }
+function dpSegBtnStyle(on) { return 'padding:7px 14px;border:0;cursor:pointer;font-size:13px;font-weight:' + (on ? '600' : '500') + ';background:' + (on ? DP_GREEN : '#fff') + ';color:' + (on ? '#fff' : '#3a4a48') + ';'; }
+
+function dpControlHtml(P) {
+  var lbl = 'color:#5a6b68;font-size:14px;';
+  var h = '';
+  h += '<div class="dp-wrap" style="display:flex;flex-direction:column;gap:14px;max-width:540px">';
+  h +=   '<div class="dp-seg" data-dp="' + P + '" data-mode-sel="rolling" style="display:inline-flex;border:1px solid ' + DP_GREEN + ';border-radius:8px;overflow:hidden;width:fit-content">';
+  h +=     '<button type="button" class="dp-seg-btn" data-mode="rolling" style="' + dpSegBtnStyle(true) + '">Rolling period</button>';
+  h +=     '<button type="button" class="dp-seg-btn" data-mode="custom" style="' + dpSegBtnStyle(false) + 'border-left:1px solid ' + DP_GREEN + '">Custom range</button>';
+  h +=   '</div>';
+  h +=   '<div class="dp-rolling" data-dp-roll="' + P + '" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">';
+  h +=     '<span style="' + lbl + '">Last</span>';
+  h +=     '<input type="number" id="' + P + 'RollN" value="12" min="1" max="120" style="width:66px;' + dpInpStyle() + '">';
+  h +=     '<select id="' + P + 'RollUnit" style="' + dpInpStyle() + '"><option value="month" selected>months</option><option value="year">years</option></select>';
+  h +=     '<span style="' + lbl + '">up to today</span>';
+  h +=   '</div>';
+  h +=   '<div class="dp-custom" data-dp-cust="' + P + '" style="display:none;align-items:center;gap:8px;flex-wrap:wrap">';
+  h +=     '<span style="' + lbl + '">From</span>';
+  h +=     '<input type="date" id="' + P + 'DateFrom" style="' + dpInpStyle() + '">';
+  h +=     '<span style="' + lbl + '">to</span>';
+  h +=     '<input type="date" id="' + P + 'DateTo" style="' + dpInpStyle() + '">';
+  h +=   '</div>';
+  h +=   '<div style="display:flex;flex-direction:column;gap:7px">';
+  h +=     '<span style="font-size:11px;font-weight:700;color:#3a4a48;text-transform:uppercase;letter-spacing:.05em">Scope</span>';
+  h +=     '<div class="dp-scope" data-dp="' + P + '" data-scope-sel="active" style="display:inline-flex;border:1px solid ' + DP_GREEN + ';border-radius:8px;overflow:hidden;width:fit-content;max-width:100%;flex-wrap:wrap">';
+  h +=       '<button type="button" class="dp-scope-btn" data-scope="active" style="' + dpSegBtnStyle(true) + '">Active base</button>';
+  h +=       '<button type="button" class="dp-scope-btn" data-scope="created" style="' + dpSegBtnStyle(false) + 'border-left:1px solid ' + DP_GREEN + '">Newly created</button>';
+  h +=       '<button type="button" class="dp-scope-btn" data-scope="all" style="' + dpSegBtnStyle(false) + 'border-left:1px solid ' + DP_GREEN + '">Full database</button>';
+  h +=     '</div>';
+  h +=   '</div>';
+  h += '</div>';
+  return h;
+}
+
+function dpPaintGroup(container) {
+  if (!container) return;
+  var isScope = container.className.indexOf('dp-scope') > -1;
+  var selAttr = isScope ? 'data-scope-sel' : 'data-mode-sel';
+  var keyAttr = isScope ? 'data-scope' : 'data-mode';
+  var sel = container.getAttribute(selAttr);
+  var btns = container.getElementsByTagName('button');
+  for (var i = 0; i < btns.length; i++) {
+    var on = btns[i].getAttribute(keyAttr) === sel;
+    btns[i].style.background = on ? DP_GREEN : '#ffffff';
+    btns[i].style.color = on ? '#ffffff' : '#3a4a48';
+    btns[i].style.fontWeight = on ? '600' : '500';
+  }
+}
+
+function dpShowMode(P) {
+  var seg = document.querySelector('.dp-seg[data-dp="' + P + '"]');
+  var mode = seg ? (seg.getAttribute('data-mode-sel') || 'rolling') : 'rolling';
+  var roll = document.querySelector('.dp-rolling[data-dp-roll="' + P + '"]');
+  var cust = document.querySelector('.dp-custom[data-dp-cust="' + P + '"]');
+  if (roll) roll.style.display = (mode === 'rolling') ? 'flex' : 'none';
+  if (cust) cust.style.display = (mode === 'custom') ? 'flex' : 'none';
+}
+
+document.addEventListener('click', function(e) {
+  var b = e.target;
+  if (!b || !b.getAttribute || !b.className || typeof b.className !== 'string') return;
+  if (b.className.indexOf('dp-seg-btn') > -1) {
+    var seg = b.parentNode;
+    seg.setAttribute('data-mode-sel', b.getAttribute('data-mode'));
+    dpPaintGroup(seg);
+    dpShowMode(seg.getAttribute('data-dp'));
+  } else if (b.className.indexOf('dp-scope-btn') > -1) {
+    var sc = b.parentNode;
+    sc.setAttribute('data-scope-sel', b.getAttribute('data-scope'));
+    dpPaintGroup(sc);
+  }
+});
+
+function dpResolve(P) {
+  function fmt(d) { var y = d.getFullYear(); var m = ('0' + (d.getMonth() + 1)).slice(-2); var dd = ('0' + d.getDate()).slice(-2); return y + '-' + m + '-' + dd; }
+  var seg = document.querySelector('.dp-seg[data-dp="' + P + '"]');
+  var mode = seg ? (seg.getAttribute('data-mode-sel') || 'rolling') : 'rolling';
+  if (mode === 'custom') {
+    var f = document.getElementById(P + 'DateFrom');
+    var t = document.getElementById(P + 'DateTo');
+    var fv = f ? f.value : '';
+    var tv = t ? t.value : '';
+    if (fv) { var mb = new Date(); mb.setMonth(mb.getMonth() - 48); mb.setDate(1); if (new Date(fv) < mb) fv = fmt(mb); }
+    return { from: fv, to: tv, mode: 'custom' };
+  }
+  var nEl = document.getElementById(P + 'RollN');
+  var uEl = document.getElementById(P + 'RollUnit');
+  var n = nEl ? parseInt(nEl.value, 10) : 12;
+  if (!n || n < 1) n = 12;
+  var months = (uEl && uEl.value === 'year') ? n * 12 : n;
+  var d = new Date(); d.setDate(1); d.setMonth(d.getMonth() - months);
+  return { from: fmt(d), to: '', mode: 'rolling' };
+}
+function dpMode(P) { var seg = document.querySelector('.dp-seg[data-dp="' + P + '"]'); return seg ? (seg.getAttribute('data-mode-sel') || 'rolling') : 'rolling'; }
+function dpScope(P) { var sc = document.querySelector('.dp-scope[data-dp="' + P + '"]'); return sc ? (sc.getAttribute('data-scope-sel') || 'active') : 'active'; }
+
+function dpMirror(src, dst) {
+  var sSeg = document.querySelector('.dp-seg[data-dp="' + src + '"]');
+  var dSeg = document.querySelector('.dp-seg[data-dp="' + dst + '"]');
+  if (sSeg && dSeg) { dSeg.setAttribute('data-mode-sel', sSeg.getAttribute('data-mode-sel') || 'rolling'); dpPaintGroup(dSeg); }
+  var sScope = document.querySelector('.dp-scope[data-dp="' + src + '"]');
+  var dScope = document.querySelector('.dp-scope[data-dp="' + dst + '"]');
+  if (sScope && dScope) { dScope.setAttribute('data-scope-sel', sScope.getAttribute('data-scope-sel') || 'active'); dpPaintGroup(dScope); }
+  var pairs = ['RollN', 'RollUnit', 'DateFrom', 'DateTo'];
+  for (var i = 0; i < pairs.length; i++) {
+    var a = document.getElementById(src + pairs[i]);
+    var c = document.getElementById(dst + pairs[i]);
+    if (a && c) c.value = a.value;
+  }
+  dpShowMode(dst);
+}
+
+function dpBuild(P, oldSelectId) {
+  var old = document.getElementById(oldSelectId);
+  if (!old) return;
+  if (old.getAttribute('data-dp-replaced') === '1') return;
+  var wrap = document.createElement('div');
+  wrap.innerHTML = dpControlHtml(P);
+  old.parentNode.insertBefore(wrap.firstChild, old);
+  old.style.display = 'none';
+  old.setAttribute('data-dp-replaced', '1');
+  dpPaintGroup(document.querySelector('.dp-seg[data-dp="' + P + '"]'));
+  dpPaintGroup(document.querySelector('.dp-scope[data-dp="' + P + '"]'));
+  dpShowMode(P);
+}
+
+function dpInit() {
+  dpBuild('setup', 'setupDateFilter');
+  dpBuild('aa', 'aaDateFilter');
+}
+if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', dpInit); } else { dpInit(); }
+
 function captureEntityFilter(key) {
   var sel = document.getElementById('dateFilter_' + key);
   activeFilterValue[key] = resolveDate(getSelDateVal(sel));
@@ -117,9 +262,15 @@ function captureEntityFilter(key) {
 }
 
 function getDateFilterParam() {
+  var amp = String.fromCharCode(38);
   var df = activeFilterValue[currentAnalysisEntity] || '';
-  if (!df) return '';
-  return String.fromCharCode(38) + 'dateFilter=' + df;
+  var dt = activeWindowTo || '';
+  var sc = activeScope || 'active';
+  var p = '';
+  if (df) p += amp + 'dateFrom=' + df + amp + 'dateFilter=' + df;
+  if (dt) p += amp + 'dateTo=' + dt;
+  p += amp + 'scope=' + sc;
+  return p;
 }
 
 // Field value-exclusions for an entity, as "field=idx,idx;field=idx,idx"
@@ -303,15 +454,15 @@ function togAssocGroup() {
 function onSetupDateChange() {}
 
 function startAnalyzeAll() {
-  var globalSel = document.getElementById('aaDateFilter');
-  if (globalSel && globalSel.value === 'custom') {
-    var gdi = globalSel.parentNode.querySelector('.custom-date-input');
-    if (!gdi || !gdi.value) {
-      if (gdi) { gdi.style.borderColor = '#c62828'; gdi.focus(); }
-      return;
-    }
+  dpInit();
+  var _per = dpResolve('aa');
+  if (dpMode('aa') === 'custom') {
+    if (!_per.from) { var _af = document.getElementById('aaDateFrom'); if (_af) { _af.style.borderColor = '#c62828'; _af.focus(); } return; }
+    if (!_per.to) { var _at = document.getElementById('aaDateTo'); if (_at) { _at.style.borderColor = '#c62828'; _at.focus(); } return; }
   }
-  var globalVal = getSelDateVal(globalSel);
+  activeScope = dpScope('aa');
+  activeWindowTo = _per.to;
+  var globalVal = _per.from;
   aaQueue = [];
   for (var i = 0; i < aaEntities.length; i++) {
     var k = aaEntities[i];
@@ -843,27 +994,15 @@ function sw(id, el) {
 
 function launchDashboard() {
   var setupDate = document.getElementById('setupDateFilter');
-  if (setupDate && setupDate.value === 'custom') {
-    var di = setupDate.parentNode.querySelector('.custom-date-input');
-    if (!di || !di.value) {
-      if (di) { di.style.borderColor = '#c62828'; di.focus(); }
-      return;
-    }
+  var _per = dpResolve('setup');
+  if (dpMode('setup') === 'custom') {
+    if (!_per.from) { var _sf = document.getElementById('setupDateFrom'); if (_sf) { _sf.style.borderColor = '#c62828'; _sf.focus(); } return; }
+    if (!_per.to) { var _st = document.getElementById('setupDateTo'); if (_st) { _st.style.borderColor = '#c62828'; _st.focus(); } return; }
   }
-  var setupVal = getSelDateVal(setupDate);
-  if (setupDate) {
-    var globalSel = document.getElementById('aaDateFilter');
-    if (globalSel) {
-      if (setupDate.value === 'custom' && setupVal) {
-        globalSel.value = 'custom';
-        handleDateSelect(globalSel);
-        var gdi = globalSel.parentNode.querySelector('.custom-date-input');
-        if (gdi) gdi.value = setupVal;
-      } else {
-        globalSel.value = setupDate.value;
-      }
-    }
-  }
+  activeScope = dpScope('setup');
+  activeWindowTo = _per.to;
+  var setupVal = _per.from;
+  dpMirror('setup', 'aa');
   for (var i = 0; i < aaEntities.length; i++) {
     var k = aaEntities[i];
     var setupCb = document.getElementById('setup_' + k);
