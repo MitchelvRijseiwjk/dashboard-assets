@@ -190,7 +190,7 @@ function dpControlHtml(P) {
   for (var i = 0; i < DP_SCOPES.length; i++) {
     var sc = DP_SCOPES[i];
     h += '<div class="dp-scope-btn" data-scope="' + sc.id + '" style="position:relative;background:var(--so-white);border:1px solid var(--so-border);border-radius:var(--radius);padding:14px 14px 13px;cursor:pointer;min-height:78px">';
-    if (sc.rec) h += '<span style="position:absolute;top:-9px;left:12px;font-size:10px;font-weight:700;color:var(--so-green-dark);background:var(--so-meadow);border-radius:5px;padding:2px 8px">Recommended</span>';
+    if (sc.rec) h += '<span style="position:absolute;top:-9px;left:12px;font-size:10px;font-weight:700;color:var(--so-white);background:var(--so-green);border-radius:5px;padding:2px 8px">Recommended</span>';
     h += '<span class="dp-card-chk" style="position:absolute;top:10px;right:10px;color:var(--so-green);display:none">' + dpSvg('check', 16) + '</span>';
     h += '<div style="display:flex;align-items:center;gap:8px"><span style="color:var(--so-green);display:inline-flex">' + dpSvg(sc.icon, 18) + '</span><span style="font-size:14px;font-weight:600;color:var(--so-charcoal)">' + sc.title + '</span></div>';
     h += '<div style="font-size:12px;color:var(--so-text-muted);margin-top:7px;line-height:1.45">' + sc.desc + '</div>';
@@ -315,7 +315,7 @@ function dpScopeCountParams(P) {
   return q;
 }
 
-var _dpCountSeq = 0;
+var _dpCountSeq = {};
 var _dpCountTimer = {};
 
 function dpUpdateScopeCount(P) {
@@ -325,9 +325,10 @@ function dpUpdateScopeCount(P) {
   if (typeof scopeCountUrl === 'undefined' || !scopeCountUrl) { numEl.textContent = ''; return; }
   numEl.textContent = 'Calculating\u2026';
   if (barEl) barEl.style.opacity = '.5';
-  var seq = ++_dpCountSeq;
+  var seq = (_dpCountSeq[P] || 0) + 1;
+  _dpCountSeq[P] = seq;
   ajax(scopeCountUrl + dpScopeCountParams(P), function(o) {
-    if (seq !== _dpCountSeq) return; // a newer request superseded this one
+    if (seq !== _dpCountSeq[P]) return; // a newer request for this control superseded this one
     if (!o || typeof o.scoped === 'undefined') { numEl.textContent = ''; if (barEl) barEl.style.width = '0'; return; }
     var s = o.scoped | 0;
     var t = o.total | 0;
@@ -498,16 +499,21 @@ function dpCollapseEntities(cardId) {
   });
 }
 
+function _dpHideBoot() {
+  var b = document.getElementById('hgxBoot');
+  if (b) b.style.display = 'none';
+}
+
 function dpBootReveal() {
   if (window._dpBooted) return;
   window._dpBooted = true;
   if (!window.HugoReveal || typeof HugoReveal.reveal !== 'function') {
-    document.body.classList.remove('hgx-boot');
+    _dpHideBoot();
     return;
   }
   // Hold the loading state briefly so Hugo is seen, then reveal the setup screen.
   setTimeout(function() {
-    document.body.classList.remove('hgx-boot');
+    _dpHideBoot();
     HugoReveal.reveal();
   }, 780);
 }
