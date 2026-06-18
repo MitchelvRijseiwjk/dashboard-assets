@@ -65,6 +65,21 @@ function renderUdef(ent, idx, entityKey) {
   return h;
 }
 
+// Re-render the UDEF field tables for every entity whose data is already loaded.
+// Called after Apply & Recalculate so importance changes (e.g. fields set to Off)
+// are reflected in the field lists, not only in the scores.
+function reRenderLoadedUdef() {
+  for (var k in entityConfig) {
+    if (!entityConfig.hasOwnProperty(k)) continue;
+    var ec = entityConfig[k];
+    if (!ec || !ec.udefId || ec.udefId <= 0) continue;
+    var d = udefData[ec.udefId];
+    if (!d || !d.fields) continue;
+    var cardsEl = document.getElementById(k + 'UdefCards');
+    if (cardsEl) cardsEl.innerHTML = renderUdef(d, ec.udefIdx, k);
+  }
+}
+
 // === UDEF LOADING ===
 var udefData = {};
 var overviewData = {}; // Store overview data per entity key for export
