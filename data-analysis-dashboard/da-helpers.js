@@ -523,6 +523,9 @@ function dpInjectStyles() {
   var st = document.createElement('style');
   st.id = 'dpStyles';
   st.textContent =
+    '.header-date-select{display:none}' +
+    '.header-date-select ~ .custom-date-input{display:none}' +
+    '.header-date-select ~ .btn-analyze{display:none}' +
     '.dp-seg-btn{transition:background-color .2s ease,color .2s ease}' +
     '.dp-seg-btn:hover{box-shadow:0 1px 6px rgba(6,66,62,.15)}' +
     '.dp-scope-btn{transition:border-color .15s ease,background-color .15s ease,box-shadow .15s ease,transform .15s ease}' +
@@ -596,8 +599,9 @@ function dateFilterNotice(suppressFilter) {
   var lbl = activeFilterLabel[key];
   var pill = scanPillHtml();
   if (!df && !pill) return '';
+  var sinceSuffix = (lbl && lbl.toLowerCase().indexOf('since') === 0) ? '' : ' (since ' + df + ')';
   var left = df
-    ? '<span class="fn-icon">&#9202;</span><span>Filtered: <strong>' + lbl + '</strong> (since ' + df + ')</span>'
+    ? '<span class="fn-icon">&#9202;</span><span>Filtered: <strong>' + lbl + '</strong>' + sinceSuffix + '</span>'
     : '';
   return '<div class="filter-notice" style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap">'
     + '<div style="display:flex;align-items:center;gap:8px">' + left + '</div>'
@@ -1388,7 +1392,7 @@ function setupAnalysisComplete() {
   setTimeout(function() {
     var overlay = document.getElementById('setupScreen');
     if (window.HugoZoom && typeof HugoZoom.show === 'function') {
-      HugoZoom.show('Dashboard openen\u2026');
+      HugoZoom.show('Opening dashboard\u2026');
       // Once the iris has fully closed over the screen, swap underneath and reveal.
       setTimeout(function() {
         _setupNav();
