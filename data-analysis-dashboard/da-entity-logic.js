@@ -720,10 +720,10 @@ function renderCompanyOverviewV2() {
     h += secLabel('Trajectory \u00b7 over time');
     h += '<div class="entity-card" style="background:#faf8f3;border:1px solid #e6e1d8;border-radius:12px;padding:18px">';
     if (saturated) {
-      h += '<div style="font-size:14px;font-weight:500;color:' + GREEN + ';margin-bottom:3px">When your active companies were added</div>';
-      h += '<div style="font-size:12px;color:' + MUTED + ';margin-bottom:12px">Each bar is the number of currently active companies that were first registered in that year. ' + fmtNum(trendBefore) + ' were added before this range.</div>';
+      h += '<div style="font-size:14px;font-weight:500;color:' + GREEN + ';margin-bottom:3px">Active companies by registration year</div>';
+      h += '<div style="font-size:12px;color:' + MUTED + ';margin-bottom:12px">Each bar counts the currently active companies by the year they were first registered. ' + fmtNum(trendBefore) + ' were registered before this range.</div>';
       h += svg;
-      h += '<div style="font-size:12px;color:#5b6b5f;background:#eef3ee;border-radius:6px;padding:10px 12px;margin-top:12px;line-height:1.5">Most of the companies you actively use were added in the last few years. The older years are thin because few of those older companies are still in use today.</div>';
+      h += '<div style="font-size:12px;color:#5b6b5f;background:#eef3ee;border-radius:6px;padding:10px 12px;margin-top:12px;line-height:1.5">Only currently active companies are counted here, grouped by registration year. Companies that are no longer active are left out, so this reflects the registration years of the part of the base still in use.</div>';
     } else {
       var overallRet = sumC > 0 ? Math.round(sumA / sumC * 100) : 0;
       h += '<div style="display:flex;align-items:baseline;margin-bottom:3px"><div style="font-size:14px;font-weight:500;color:' + GREEN + '">New companies per year</div><div style="margin-left:auto"><span style="font-size:17px;font-weight:500;color:' + GREEN + '">' + overallRet + '%</span><span style="font-size:12px;color:' + MUTED + '"> still active</span></div></div>';
@@ -795,10 +795,201 @@ function renderCompanyOverviewV2() {
   renderScoreBanner('company');
 }
 
+// =====================================================
+// Sale Overview v2 — performance first (win rate, lost ratio), then pipeline data quality,
+// composition by status and type. Built from overviewData['sale'] (stats + distributions).
+// "With Activities" and the Adoption score are scope artifacts under the active scope and
+// are deliberately not used as headline signals here.
+// =====================================================
+function renderSaleOverviewV2() {
+  var el = document.getElementById('saleOverviewContent');
+  if (!el) return;
+  var ov = (typeof overviewData !== 'undefined' && overviewData['sale']) ? overviewData['sale'] : null;
+  if (!ov) return;
+  var o = ov.overview || {};
+  var dists = ov.distributions || [];
+
+  var GREEN = 'var(--so-green,#06423e)', OKC = 'var(--sl-ok,#f9a825)', WARN = 'var(--sl-warn,#ef6c00)', BAD = 'var(--sl-bad,#c62828)', GOOD = 'var(--sl-good,#2e7d32)', MUTED = 'var(--so-text-muted,#6b706c)';
+  function secLabel(t) { return '<div style="font-size:.68rem;letter-spacing:.06em;text-transform:uppercase;color:#a79e8d;font-weight:600;margin:16px 2px 10px">' + t + '</div>'; }
+  function kpiCard(label, value, sub, alert) { var bd = alert ? ';border-color:#f0d9c2' : ''; var vc = alert ? BAD : GREEN; var lc = alert ? '#c0631a' : MUTED; return '<div class="stat-card" style="background:#fff;border:1px solid #e6e1d8;border-radius:12px;padding:14px' + bd + '"><div style="font-size:11px;letter-spacing:.04em;text-transform:uppercase;color:' + lc + ';margin-bottom:6px">' + label + '</div><div style="font-size:24px;font-weight:500;line-height:1.1;color:' + vc + '">' + value + '</div><div style="font-size:12px;color:' + MUTED + ';margin-top:4px">' + sub + '</div></div>'; }
+  function dotLeg(color, label, val, pc) { var nums = ''; if (val !== '') nums += '<span style="font-weight:600;color:#1c2b29;margin-left:8px">' + val + '</span>'; if (pc !== '') nums += '<span style="color:#8a8f8b;margin-left:5px">' + pc + '</span>'; return '<div style="display:flex;align-items:center;gap:7px;font-size:12px;color:#3c423f;margin:4px 0"><span style="width:10px;height:10px;border-radius:3px;flex:none;background:' + color + '"></span><span>' + label + '</span>' + nums + '</div>'; }
+  function findDist(key) { for (var i = 0; i < dists.length; i++) { if ((dists[i].title || '').toLowerCase().indexOf(key) >= 0) return dists[i]; } return null; }
+  function dval(d, name) { if (d && d.items) { for (var i = 0; i < d.items.length; i++) { if ((d.items[i].name || '').toLowerCase() === name) return d.items[i].count; } } return 0; }
+  function pct(n, t) { return t > 0 ? Math.round(n / t * 1000) / 10 : 0; }
+
+  var total = o.total || 0;
+  var statusD = findDist('status');
+  var lost = dval(statusD, 'lost'), open = dval(statusD, 'open'), sold = dval(statusD, 'sold'), stalled = dval(statusD, 'stalled');
+  var decided = sold + lost;
+  var winRate = decided > 0 ? Math.round(sold / decided * 1000) / 10 : 0;
+  var stageD = findDist('stage');
+  var noStage = dval(stageD, '(no value)');
+  var noStagePct = total > 0 ? Math.round(noStage / total * 100) : 0;
+  var typeD = findDist('type');
+
+  var h = '';
+  h += dateFilterNotice();
+
+  // ---- STATE: KPIs ----
+  h += secLabel('State \u00b7 sales performance');
+  h += '<div class="stat-row" style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px">';
+  h += kpiCard('Win rate', winRate + '%', fmtNum(sold) + ' won of ' + fmtNum(decided) + ' decided', winRate < 35);
+  h += kpiCard('Lost', fmtNum(lost), pct(lost, total) + '% of all sales', true);
+  h += kpiCard('Open pipeline', fmtNum(open), pct(open, total) + '% still open', false);
+  h += kpiCard('Stage not set', noStagePct + '%', fmtNum(noStage) + ' without a stage', noStagePct >= 40);
+  h += '</div>';
+
+  // ---- Status split (donut) + Sale type ----
+  h += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px">';
+  var segs = [{ n: 'Lost', v: lost, c: BAD }, { n: 'Open', v: open, c: OKC }, { n: 'Sold', v: sold, c: GOOD }, { n: 'Stalled', v: stalled, c: '#c9c4ba' }];
+  var cum = 0, circles = '';
+  for (var si = 0; si < segs.length; si++) {
+    var sp = total > 0 ? (segs[si].v / total * 100) : 0;
+    circles += '<circle cx="90" cy="90" r="70" fill="none" stroke="' + segs[si].c + '" stroke-width="26" stroke-dasharray="' + sp.toFixed(1) + ' ' + (100 - sp).toFixed(1) + '" stroke-dashoffset="' + (25 - cum).toFixed(1) + '" pathLength="100"/>';
+    cum += sp;
+  }
+  h += '<div class="entity-card" style="background:#fff;border:1px solid #e6e1d8;border-radius:12px;padding:16px">';
+  h += '<div style="font-size:13px;font-weight:500;color:' + GREEN + ';margin-bottom:10px">Status split</div>';
+  h += '<div style="display:flex;gap:12px;align-items:center"><svg viewBox="0 0 180 180" width="118" height="118" role="img" aria-label="Sale status split"><circle cx="90" cy="90" r="70" fill="none" stroke="#efe9df" stroke-width="26"/>' + circles + '<text x="90" y="86" text-anchor="middle" font-size="17" font-weight="500" fill="#06423e">' + fmtNum(total) + '</text><text x="90" y="103" text-anchor="middle" font-size="10" fill="#8a8f8b">sales</text></svg>';
+  h += '<div style="flex:1;min-width:0">' + dotLeg(BAD, 'Lost', fmtNum(lost), pct(lost, total) + '%') + dotLeg(OKC, 'Open', fmtNum(open), pct(open, total) + '%') + dotLeg(GOOD, 'Sold', fmtNum(sold), pct(sold, total) + '%') + dotLeg('#c9c4ba', 'Stalled', fmtNum(stalled), pct(stalled, total) + '%') + '</div></div></div>';
+  if (typeD && typeD.items && typeD.items.length > 0) {
+    var titems = typeD.items.slice().sort(function (a, b) { return b.count - a.count; });
+    var ttot = 0; for (var ti = 0; ti < titems.length; ti++) ttot += titems[ti].count;
+    var tpal = ['#0f5c57', '#5dcaa5', '#b7dea9', '#c9c4ba'];
+    h += '<div class="entity-card" style="background:#fff;border:1px solid #e6e1d8;border-radius:12px;padding:16px"><div style="font-size:13px;font-weight:500;color:' + GREEN + ';margin-bottom:10px">Sale type</div>';
+    for (var tj = 0; tj < titems.length && tj < 4; tj++) {
+      var tp = pct(titems[tj].count, ttot);
+      h += '<div style="margin-bottom:9px"><div style="display:flex;font-size:12px;margin-bottom:3px"><span>' + titems[tj].name + '</span><b style="margin-left:auto;color:#6b706c">' + tp + '%</b></div><div style="height:9px;background:#eef0ec;border-radius:5px"><div style="width:' + Math.max(tp, 1).toFixed(0) + '%;height:9px;background:' + tpal[Math.min(tj, 3)] + ';border-radius:5px"></div></div></div>';
+    }
+    h += '</div>';
+  }
+  h += '</div>';
+
+  // ---- The real gap: pipeline (stage) data quality ----
+  if (stageD && stageD.items) {
+    var low = dval(stageD, 'low chance'), mid = dval(stageD, 'middle chance'), high = dval(stageD, 'high chance');
+    var spNo = pct(noStage, total), spLow = pct(low, total), spMid = pct(mid, total), spHigh = pct(high, total);
+    h += secLabel('The real gap \u00b7 pipeline data');
+    h += '<div class="entity-card" style="background:#fff;border:1px solid #e6e1d8;border-radius:12px;padding:16px"><div style="font-size:13px;font-weight:500;color:' + GREEN + ';margin-bottom:2px">Stage / probability tracking</div><div style="font-size:12px;color:' + MUTED + ';margin-bottom:12px">How sales are spread across stage. This is why pipeline analysis is limited right now.</div>';
+    h += '<div style="display:flex;height:30px;border-radius:6px;overflow:hidden;margin-bottom:12px">';
+    h += '<div style="width:' + spNo + '%;background:#d8cfc2;display:flex;align-items:center;padding-left:10px;font-size:11px;color:#7a6f5c;font-weight:500">' + (spNo >= 12 ? spNo.toFixed(0) + '% no stage set' : '') + '</div>';
+    h += '<div style="width:' + spLow + '%;background:' + OKC + ';display:flex;align-items:center;justify-content:center;font-size:10px;color:#fff;font-weight:600;text-shadow:0 1px 1px rgba(0,0,0,.3)">' + (spLow >= 9 ? spLow.toFixed(0) + '%' : '') + '</div>';
+    h += '<div style="width:' + spMid + '%;background:#5dcaa5"></div><div style="width:' + spHigh + '%;background:' + GOOD + '"></div></div>';
+    h += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:2px 24px">' + dotLeg('#d8cfc2', 'No value', fmtNum(noStage), spNo + '%') + dotLeg('#5dcaa5', 'Middle chance', fmtNum(mid), spMid + '%') + dotLeg(OKC, 'Low chance', fmtNum(low), spLow + '%') + dotLeg(GOOD, 'High chance', fmtNum(high), spHigh + '%') + '</div></div>';
+  }
+
+  // ---- INSIGHTS ----
+  h += secLabel('Insights');
+  h += '<div class="entity-card" style="background:#fff;border:1px solid #e6e1d8;border-radius:12px;padding:16px">';
+  if (decided > 0) {
+    h += '<div style="border-left:3px solid ' + BAD + ';background:#fdeeed;padding:9px 12px;border-radius:0 6px 6px 0;margin-bottom:9px;font-size:12px;line-height:1.5;color:#3c423f"><b style="color:#1c2b29">Win rate is ' + winRate + '%, with ' + pct(lost, total) + '% of sales lost.</b> A useful first question is what the ' + fmtNum(lost) + ' lost deals had in common.</div>';
+  }
+  if (noStagePct >= 40) {
+    h += '<div style="border-left:3px solid ' + WARN + ';background:#fdf4ec;padding:9px 12px;border-radius:0 6px 6px 0;margin-bottom:9px;font-size:12px;line-height:1.5;color:#3c423f"><b style="color:#1c2b29">' + noStagePct + '% of sales have no stage set.</b> The pipeline cannot be forecast reliably until stage is filled in. This is the field completeness gap the overall score flags.</div>';
+  }
+  if (o.withQuote === 0 || o.withStakeholders === 0) {
+    h += '<div style="border-left:3px solid #8a8f8b;background:#f4f3f0;padding:9px 12px;border-radius:0 6px 6px 0;font-size:12px;line-height:1.5;color:#3c423f"><b style="color:#1c2b29">Quotes and stakeholders are unused.</b> Both sit at 0% on sales, so those features are currently left untouched.</div>';
+  }
+  h += '</div>';
+
+  el.innerHTML = h;
+}
+
+// =====================================================
+// Contact Overview v2 — sober: reachability and field completeness from overviewData['contact'].
+// =====================================================
+function renderContactOverviewV2() {
+  var el = document.getElementById('contactOverviewContent');
+  if (!el) return;
+  var ov = (typeof overviewData !== 'undefined' && overviewData['contact']) ? overviewData['contact'] : null;
+  if (!ov) return;
+  var o = ov.overview || {};
+  var GREEN = 'var(--so-green,#06423e)', BAD = 'var(--sl-bad,#c62828)', WARN = 'var(--sl-warn,#ef6c00)', MUTED = 'var(--so-text-muted,#6b706c)';
+  function secLabel(t) { return '<div style="font-size:.68rem;letter-spacing:.06em;text-transform:uppercase;color:#a79e8d;font-weight:600;margin:16px 2px 10px">' + t + '</div>'; }
+  function kpiCard(label, value, sub, alert) { var bd = alert ? ';border-color:#f0d9c2' : ''; var vc = alert ? BAD : GREEN; var lc = alert ? '#c0631a' : MUTED; return '<div class="stat-card" style="background:#fff;border:1px solid #e6e1d8;border-radius:12px;padding:14px' + bd + '"><div style="font-size:11px;letter-spacing:.04em;text-transform:uppercase;color:' + lc + ';margin-bottom:6px">' + label + '</div><div style="font-size:24px;font-weight:500;line-height:1.1;color:' + vc + '">' + value + '</div><div style="font-size:12px;color:' + MUTED + ';margin-top:4px">' + sub + '</div></div>'; }
+  var total = o.total || 0;
+  function P(n) { return total > 0 ? Math.round((o[n] || 0) / total * 1000) / 10 : 0; }
+  function bar(label, n) { var p = total > 0 ? Math.round(n / total * 1000) / 10 : 0; return '<div style="margin-bottom:11px"><div style="display:flex;font-size:12px;margin-bottom:4px;color:#3c423f"><span>' + label + '</span><span style="margin-left:auto;color:#6b706c"><b style="color:#1c2b29">' + p + '%</b> &middot; ' + fmtNum(n) + '</span></div><div style="height:10px;background:#eef0ec;border-radius:5px"><div style="width:' + Math.max(p, 1).toFixed(0) + '%;height:10px;background:#0f5c57;border-radius:5px"></div></div></div>'; }
+
+  var h = '';
+  h += dateFilterNotice();
+  h += secLabel('State \u00b7 reachability');
+  h += '<div class="stat-row" style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px">';
+  h += kpiCard('Contacts', fmtNum(total), 'people in scope', false);
+  h += kpiCard('With email', P('withEmail') + '%', fmtNum(o.withEmail || 0) + ' reachable', false);
+  h += kpiCard('With phone', P('withPhone') + '%', fmtNum(o.withPhone || 0) + ' reachable', P('withPhone') < 50);
+  h += kpiCard('With position', P('withPosition') + '%', fmtNum(o.withPosition || 0) + ' have a role', P('withPosition') < 60);
+  h += '</div>';
+  h += secLabel('Field completeness');
+  h += '<div class="entity-card" style="background:#fff;border:1px solid #e6e1d8;border-radius:12px;padding:16px"><div style="font-size:12px;color:' + MUTED + ';margin-bottom:12px">How completely the key contact fields are filled in.</div>';
+  h += bar('Email address', o.withEmail || 0);
+  h += bar('Phone number', o.withPhone || 0);
+  h += bar('Position', o.withPosition || 0);
+  h += bar('Job title', o.withTitle || 0);
+  h += '</div>';
+  h += secLabel('Links to the rest of the CRM');
+  h += '<div class="stat-row" style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px">';
+  h += kpiCard('Linked to a company', P('withCompany') + '%', fmtNum(o.withCompany || 0) + ' contacts', false);
+  h += kpiCard('Linked to sales', P('withSales') + '%', fmtNum(o.withSales || 0) + ' contacts', false);
+  h += kpiCard('In a project', P('inProjects') + '%', fmtNum(o.inProjects || 0) + ' contacts', false);
+  h += '</div>';
+  h += secLabel('Insights');
+  h += '<div class="entity-card" style="background:#fff;border:1px solid #e6e1d8;border-radius:12px;padding:16px">';
+  var posPct = P('withPosition'), titlePct = P('withTitle'), phonePct = P('withPhone');
+  if (posPct < 60 || titlePct < 60) {
+    h += '<div style="border-left:3px solid ' + WARN + ';background:#fdf4ec;padding:9px 12px;border-radius:0 6px 6px 0;margin-bottom:9px;font-size:12px;line-height:1.5;color:#3c423f"><b style="color:#1c2b29">Role data is incomplete.</b> Position is filled for ' + posPct + '% and job title for ' + titlePct + '% of contacts. That limits any targeting or segmentation by role.</div>';
+  }
+  if (phonePct < 75) {
+    h += '<div style="border-left:3px solid #8a8f8b;background:#f4f3f0;padding:9px 12px;border-radius:0 6px 6px 0;font-size:12px;line-height:1.5;color:#3c423f"><b style="color:#1c2b29">' + (100 - Math.round(phonePct)) + '% of contacts have no phone number.</b> Email coverage is strong at ' + P('withEmail') + '%, so most contacts are still reachable, just not by phone.</div>';
+  }
+  h += '</div>';
+  el.innerHTML = h;
+}
+
+// =====================================================
+// Project Overview v2 — sober and honest about a tiny, barely used dataset.
+// =====================================================
+function renderProjectOverviewV2() {
+  var el = document.getElementById('projectOverviewContent');
+  if (!el) return;
+  var ov = (typeof overviewData !== 'undefined' && overviewData['project']) ? overviewData['project'] : null;
+  if (!ov) return;
+  var o = ov.overview || {};
+  var dists = ov.distributions || [];
+  var GREEN = 'var(--so-green,#06423e)', BAD = 'var(--sl-bad,#c62828)', WARN = 'var(--sl-warn,#ef6c00)', MUTED = 'var(--so-text-muted,#6b706c)';
+  function secLabel(t) { return '<div style="font-size:.68rem;letter-spacing:.06em;text-transform:uppercase;color:#a79e8d;font-weight:600;margin:16px 2px 10px">' + t + '</div>'; }
+  function kpiCard(label, value, sub, alert) { var bd = alert ? ';border-color:#f0d9c2' : ''; var vc = alert ? BAD : GREEN; var lc = alert ? '#c0631a' : MUTED; return '<div class="stat-card" style="background:#fff;border:1px solid #e6e1d8;border-radius:12px;padding:14px' + bd + '"><div style="font-size:11px;letter-spacing:.04em;text-transform:uppercase;color:' + lc + ';margin-bottom:6px">' + label + '</div><div style="font-size:24px;font-weight:500;line-height:1.1;color:' + vc + '">' + value + '</div><div style="font-size:12px;color:' + MUTED + ';margin-top:4px">' + sub + '</div></div>'; }
+  function findDist(k) { for (var i = 0; i < dists.length; i++) { if ((dists[i].title || '').toLowerCase().indexOf(k) >= 0) return dists[i]; } return null; }
+  function miniList(title, d) { var s = '<div class="entity-card" style="background:#fff;border:1px solid #e6e1d8;border-radius:12px;padding:16px"><div style="font-size:13px;font-weight:500;color:' + GREEN + ';margin-bottom:10px">' + title + '</div>'; var any = false; if (d && d.items) { for (var i = 0; i < d.items.length; i++) { if (d.items[i].count > 0) { any = true; s += '<div style="display:flex;font-size:12px;margin:5px 0;color:#3c423f"><span>' + d.items[i].name + '</span><b style="margin-left:auto;color:#1c2b29">' + fmtNum(d.items[i].count) + '</b></div>'; } } } if (!any) s += '<div style="font-size:12px;color:' + MUTED + '">No values set.</div>'; return s + '</div>'; }
+
+  var total = o.total || 0, overdue = o.overdue || 0, withMembers = o.withMembers || 0;
+  var h = '';
+  h += dateFilterNotice();
+  h += secLabel('State \u00b7 projects');
+  h += '<div class="stat-row" style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px">';
+  h += kpiCard('Projects', fmtNum(total), 'in scope', false);
+  h += kpiCard('Overdue', fmtNum(overdue), (total > 0 ? Math.round(overdue / total * 100) : 0) + '% past due', overdue > 0);
+  h += kpiCard('With members', fmtNum(withMembers), (total > 0 ? Math.round(withMembers / total * 100) : 0) + '% have members', withMembers === 0);
+  h += '</div>';
+  h += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px">' + miniList('Project status', findDist('status')) + miniList('Project type', findDist('type')) + '</div>';
+  h += secLabel('Insights');
+  h += '<div class="entity-card" style="background:#fff;border:1px solid #e6e1d8;border-radius:12px;padding:16px">';
+  if (total > 0 && total <= 20) {
+    var od = overdue > 0 ? (', ' + (overdue >= total ? 'all' : fmtNum(overdue)) + ' of them overdue') : '';
+    var mem = withMembers === 0 ? ', and none have members assigned' : '';
+    h += '<div style="border-left:3px solid ' + WARN + ';background:#fdf4ec;padding:9px 12px;border-radius:0 6px 6px 0;font-size:12px;line-height:1.5;color:#3c423f"><b style="color:#1c2b29">Projects are barely used.</b> There ' + (total === 1 ? 'is' : 'are') + ' only ' + fmtNum(total) + ' project' + (total === 1 ? '' : 's') + ' in this CRM' + od + mem + '. If projects matter to the business this is an adoption gap rather than a data quality one.</div>';
+  }
+  h += '</div>';
+  el.innerHTML = h;
+}
+
 function renderEntityOverview(key, d) {
   overviewData[key] = d;
   pushStdListValues(key, d);
   if (key === 'company') { renderCompanyOverviewV2(); return; }
+  if (key === 'sale') { renderSaleOverviewV2(); return; }
+  if (key === 'contact') { renderContactOverviewV2(); return; }
+  if (key === 'project') { renderProjectOverviewV2(); return; }
   var cfg = ovLabels[key];
   var o = d.overview;
   var totalKey = cfg.stats[0][0];
@@ -1776,130 +1967,6 @@ function renderCompanyDetails(d) {
     h += '</div>';
   }
 
-  // 1b. REGISTRATION TREND (with active overlay)
-  var trend = d.trend;
-  var trendMonthly = d.trendMonthly;
-  if (trend && trend.length > 0) {
-    // Decide: monthly vs yearly based on filter span
-    var useMonthly = false;
-    var chartData = [];
-    var firstIdx = 0;
-
-    // Check if filter is ≤24 months (yearly data has ≤2 non-zero years)
-    var nonZeroYears = 0;
-    for (var i = 0; i < trend.length; i++) { if (trend[i].count > 0) nonZeroYears++; }
-    if (nonZeroYears <= 2 && trendMonthly && trendMonthly.length > 0) {
-      useMonthly = true;
-      for (var i = 0; i < trendMonthly.length; i++) {
-        chartData.push({ label: trendMonthly[i].month.substring(2), count: trendMonthly[i].count, active: trendMonthly[i].active || 0 });
-      }
-    } else {
-      for (var i = 0; i < trend.length; i++) {
-        chartData.push({ label: '' + trend[i].year, count: trend[i].count, active: trend[i].active || 0 });
-      }
-    }
-
-    // Trim leading zeros
-    firstIdx = 0;
-    for (var i = 0; i < chartData.length; i++) { if (chartData[i].count > 0 || chartData[i].active > 0) { firstIdx = i; break; } }
-    var visibleData = chartData.slice(firstIdx);
-    var maxCount = 0;
-    for (var i = 0; i < visibleData.length; i++) {
-      if (visibleData[i].count > maxCount) maxCount = visibleData[i].count;
-      if (visibleData[i].active > maxCount) maxCount = visibleData[i].active;
-    }
-
-    if (maxCount > 0 && visibleData.length > 1) {
-      var beforeTotal = d.trendBefore || 0;
-      if (!useMonthly) {
-        for (var i = 0; i < firstIdx; i++) { beforeTotal += chartData[i].count; }
-      }
-      h += '<div class="detail-section">';
-      h += '<div class="detail-section-head">';
-      h += secHead(useMonthly ? 'New Registrations Per Month' : 'New Registrations Per Year');
-      if (beforeTotal > 0 && !useMonthly) {
-        h += '<span class="record-badge">' + fmtNum(beforeTotal) + ' before ' + visibleData[0].label + '</span>';
-      }
-      h += '</div>';
-      h += '<div style="font-size:.78rem;color:#999;margin:-4px 0 8px">Dashed line = retention: how many registered companies still have activity within the last 12 months</div>';
-      var cW = 960, cH = 270, padL = 40, padR = 10, padT = 20, padB = 60;
-      var plotW = cW - padL - padR, plotH = cH - padT - padB;
-      var dataInset = 15;
-      var niceMax = maxCount;
-      var mag = Math.pow(10, Math.floor(Math.log10(maxCount)));
-      var options = [1, 1.5, 2, 2.5, 3, 4, 5, 8, 10];
-      for (var oi = 0; oi < options.length; oi++) { if (options[oi] * mag >= maxCount) { niceMax = options[oi] * mag; break; } }
-      var ySteps = 4;
-      var yStep = niceMax / ySteps;
-      var step = (plotW - 2 * dataInset) / (visibleData.length - 1);
-
-      // Compute registration line points
-      var pts = [];
-      for (var i = 0; i < visibleData.length; i++) {
-        var px = padL + dataInset + i * step;
-        var py = padT + plotH - (visibleData[i].count / niceMax) * plotH;
-        pts.push(px.toFixed(1) + ',' + py.toFixed(1));
-      }
-      // Compute active overlay points
-      var hasActiveData = false;
-      var aPts = [];
-      for (var i = 0; i < visibleData.length; i++) {
-        if (visibleData[i].active > 0) hasActiveData = true;
-        var px = padL + dataInset + i * step;
-        var py = padT + plotH - (visibleData[i].active / niceMax) * plotH;
-        aPts.push(px.toFixed(1) + ',' + py.toFixed(1));
-      }
-
-      var areaPath = 'M' + (padL + dataInset) + ',' + (padT + plotH) + ' L' + pts.join(' L') + ' L' + (padL + dataInset + (visibleData.length - 1) * step).toFixed(1) + ',' + (padT + plotH) + ' Z';
-      h += '<svg viewBox="0 0 ' + cW + ' ' + cH + '" style="width:100%;height:auto;display:block;max-height:280px">';
-      // Y grid
-      for (var gi = 0; gi <= ySteps; gi++) {
-        var gy = padT + plotH - (gi / ySteps) * plotH;
-        var yVal = Math.round(gi * yStep);
-        h += '<line x1="' + padL + '" y1="' + gy.toFixed(1) + '" x2="' + (cW - padR) + '" y2="' + gy.toFixed(1) + '" stroke="#e0dfdc" stroke-width="1"/>';
-        h += '<text x="' + (padL - 8) + '" y="' + (gy + 4).toFixed(1) + '" text-anchor="end" fill="#999" font-size="11" font-family="DM Sans,sans-serif">' + fmtNum(yVal) + '</text>';
-      }
-      // Registration area + line
-      h += '<path d="' + areaPath + '" fill="rgba(22,91,112,0.06)"/>';
-      h += '<polyline points="' + pts.join(' ') + '" fill="none" stroke="var(--so-green)" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>';
-      // Active overlay line (dashed)
-      if (hasActiveData) {
-        h += '<polyline points="' + aPts.join(' ') + '" fill="none" stroke="var(--sl-good)" stroke-width="2" stroke-dasharray="6,4" stroke-linejoin="round" stroke-linecap="round"/>';
-      }
-      // Data points + labels
-      for (var i = 0; i < visibleData.length; i++) {
-        var xy = pts[i].split(',');
-        h += '<circle cx="' + xy[0] + '" cy="' + xy[1] + '" r="4" fill="var(--so-green)" stroke="#fff" stroke-width="2"/>';
-        if (visibleData[i].count > 0) {
-          h += '<text x="' + xy[0] + '" y="' + (parseFloat(xy[1]) - 10).toFixed(1) + '" text-anchor="middle" fill="var(--so-charcoal)" font-size="10" font-weight="600" font-family="DM Sans,sans-serif">' + fmtNum(visibleData[i].count) + '</text>';
-        }
-        // Active dot + label (below the dot, skip when same as count)
-        if (hasActiveData) {
-          var axy = aPts[i].split(',');
-          h += '<circle cx="' + axy[0] + '" cy="' + axy[1] + '" r="3" fill="var(--sl-good)" stroke="#fff" stroke-width="1.5"/>';
-          if (visibleData[i].active !== visibleData[i].count) {
-            h += '<text x="' + axy[0] + '" y="' + (parseFloat(axy[1]) + 14).toFixed(1) + '" text-anchor="middle" fill="var(--sl-good)" font-size="9" font-weight="600" font-family="DM Sans,sans-serif">' + visibleData[i].active + '</text>';
-          }
-        }
-        // X labels (show all, rotate monthly for readability)
-        var displayLabel = useMonthly ? visibleData[i].label.replace('-', '/') : visibleData[i].label;
-        if (useMonthly) {
-          h += '<text x="' + xy[0] + '" y="' + (padT + plotH + 14) + '" text-anchor="end" fill="#999" font-size="9" font-family="DM Sans,sans-serif" transform="rotate(-45,' + xy[0] + ',' + (padT + plotH + 14) + ')">' + displayLabel + '</text>';
-        } else {
-          h += '<text x="' + xy[0] + '" y="' + (padT + plotH + 22) + '" text-anchor="middle" fill="#999" font-size="10" font-family="DM Sans,sans-serif">' + displayLabel + '</text>';
-        }
-      }
-      h += '</svg>';
-      // Legend
-      h += '<div style="display:flex;gap:16px;margin-top:4px;padding-left:' + padL + 'px">';
-      h += '<span style="font-size:.75rem;color:#666;display:flex;align-items:center;gap:4px"><span style="width:12px;height:3px;background:var(--so-green);border-radius:2px"></span> Registered</span>';
-      if (hasActiveData) {
-        h += '<span style="font-size:.75rem;color:#666;display:flex;align-items:center;gap:4px"><span style="width:12px;height:0;border-top:2px dashed var(--sl-good)"></span> Retention (of which still active today)</span>';
-      }
-      h += '</div>';
-      h += '</div>';
-    }
-  }
 
   // 2. CATEGORY EFFECTIVENESS
   var ce = d.categoryEffectiveness;
