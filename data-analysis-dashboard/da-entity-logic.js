@@ -426,6 +426,7 @@ function startFullEntity(key) {
       }
       // Re-render details with whatever data we have so far
       renderCompanyDetails(companyDetailData);
+      renderCompanyOverviewV2();
       stepDone('Activity health loaded');
     });
 
@@ -453,6 +454,7 @@ function startFullEntity(key) {
       renderCompanyDetails(companyDetailData);
       // Trigger DQ score recalc (quality data now available)
       renderDQScore('company');
+      renderCompanyOverviewV2();
       stepDone('Quality analysis loaded');
     });
 
@@ -576,9 +578,205 @@ function pushStdListValues(key, d) {
   daSettings.notifyStdListLoaded(key, out);
 }
 
+// =====================================================
+// Company Overview v2 — state + trajectory + cause, scope-aware.
+// Reads progressively from overviewData['company'] (stats, distributions) and
+// companyDetailData (activityHealth incl. dbTotal, funnel.segments, trend).
+// Idempotent: re-callable from every load path; each block guards on its data.
+// Re-inserts the score banner at the end so re-renders keep it.
+// =====================================================
+function renderCompanyOverviewV2() {
+  var el = document.getElementById('companyOverviewContent');
+  if (!el) return;
+
+  var ov = (typeof overviewData !== 'undefined' && overviewData['company']) ? overviewData['company'] : null;
+  var o = ov ? ov.overview : null;
+  var dists = ov ? ov.distributions : null;
+  var cd = (typeof companyDetailData !== 'undefined' && companyDetailData) ? companyDetailData : {};
+  var ah = cd.activityHealth || null;
+  var fn = cd.funnel || null;
+  var trend = cd.trend || null;
+  var trendBefore = cd.trendBefore || 0;
+
+  var GREEN = 'var(--so-green,#06423e)';
+  var GOOD = 'var(--sl-good,#2e7d32)';
+  var BAD = 'var(--sl-bad,#c62828)';
+  var MUTED = 'var(--so-text-muted,#6b706c)';
+
+  function secLabel(t) {
+    return '<div style="font-size:.68rem;letter-spacing:.06em;text-transform:uppercase;color:#a79e8d;font-weight:600;margin:16px 2px 10px">' + t + '</div>';
+  }
+  function kpiCard(label, value, sub, alert) {
+    var bd = alert ? ';border-color:#f0d9c2' : '';
+    var vc = alert ? BAD : GREEN;
+    var lc = alert ? '#c0631a' : MUTED;
+    return '<div class="stat-card" style="background:#fff;border:1px solid #e6e1d8;border-radius:12px;padding:14px' + bd + '">' +
+      '<div style="font-size:11px;letter-spacing:.04em;text-transform:uppercase;color:' + lc + ';margin-bottom:6px">' + label + '</div>' +
+      '<div style="font-size:24px;font-weight:500;line-height:1.1;color:' + vc + '">' + value + '</div>' +
+      '<div style="font-size:12px;color:' + MUTED + ';margin-top:4px">' + sub + '</div></div>';
+  }
+  function dotLeg(color, label, val, pct) {
+    var right = '';
+    if (val !== '') right += '<b style="margin-left:auto;color:#1c2b29">' + val + '</b>';
+    if (pct !== '') right += '<span style="color:#8a8f8b;width:46px;text-align:right">' + pct + '</span>';
+    return '<div style="display:flex;align-items:center;gap:7px;font-size:12px;color:#3c423f;margin:4px 0">' +
+      '<span style="width:10px;height:10px;border-radius:3px;flex:none;background:' + color + '"></span>' + label + right + '</div>';
+  }
+
+  var h = '';
+  h += dateFilterNotice();
+  // (score banner is inserted right after the notice by renderScoreBanner at the end)
+
+  // ---- STATE: KPI row ----
+  if (o || ah) {
+    var totalC = ah ? ah.total : (o ? o.totalCompanies : 0);
+    var dbT = (ah && ah.dbTotal) ? ah.dbTotal : totalC;
+    var dormantTail = (dbT && totalC) ? (dbT - totalC) : 0;
+    var dormantPct = dbT > 0 ? Math.round(dormantTail / dbT * 100) : 0;
+    var newThisYear = (trend && trend.length > 0) ? trend[trend.length - 1].count : 0;
+    var withPersons = o ? o.withPersons : 0;
+    var withPersonsPct = totalC > 0 ? Math.round(withPersons / totalC * 1000) / 10 : 0;
+
+    h += secLabel('State \u00b7 where things stand');
+    h += '<div class="stat-row" style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px">';
+    h += kpiCard('Companies', fmtNum(totalC), 'of ' + fmtNum(dbT) + ' total', false);
+    h += kpiCard('Dormant tail', fmtNum(dormantTail), dormantPct + '% with no recent activity', true);
+    h += kpiCard('New this year', fmtNum(newThisYear), 'registered this year', false);
+    h += kpiCard('With contact person', withPersonsPct + '%', fmtNum(withPersons) + ' companies', false);
+    h += '</div>';
+  }
+
+  // ---- STATE: database composition (active vs dormant) + engagement segments ----
+  if (ah && ah.dbTotal) {
+    var tC = ah.total;
+    var dbC = ah.dbTotal;
+    var dorm = dbC - tC;
+    var actPct = dbC > 0 ? (tC / dbC * 100) : 0;
+    var dormPctC = 100 - actPct;
+    h += secLabel('Database composition');
+    h += '<div class="entity-card" style="background:#fbfaf7;border:1px solid #dcd5c8;border-radius:12px;padding:16px">';
+    h += '<div style="display:flex;height:30px;border-radius:6px;overflow:hidden;margin-bottom:10px">';
+    h += '<div style="width:' + actPct.toFixed(1) + '%;background:' + GREEN + '"></div>';
+    h += '<div style="width:' + dormPctC.toFixed(1) + '%;background:#d8cfc2;display:flex;align-items:center;padding-left:12px;font-size:12px;color:#7a6f5c;font-weight:500">Dormant tail \u00b7 ' + fmtNum(dorm) + ' records nobody works with</div>';
+    h += '</div>';
+    h += '<div style="display:flex;gap:20px;flex-wrap:wrap;margin-bottom:6px">';
+    h += dotLeg(GREEN, 'Active (scope)', fmtNum(tC), actPct.toFixed(1) + '%');
+    h += dotLeg('#d8cfc2', 'Dormant tail', fmtNum(dorm), dormPctC.toFixed(1) + '%');
+    h += '</div>';
+    if (fn && fn.segments && fn.segments.length > 0) {
+      var segs = fn.segments;
+      var segTot = fn.total || tC;
+      h += '<div style="font-size:12px;color:' + MUTED + ';border-top:1px solid #eee5d8;padding-top:12px;margin-top:10px;margin-bottom:10px">Engagement within the active scope</div>';
+      h += '<div style="display:flex;height:24px;border-radius:6px;overflow:hidden;margin-bottom:12px">';
+      for (var sa = 0; sa < segs.length; sa++) {
+        var sp = segTot > 0 ? (segs[sa].count / segTot * 100) : 0;
+        h += '<div style="width:' + sp.toFixed(1) + '%;background:' + segs[sa].color + '"></div>';
+      }
+      h += '</div>';
+      h += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:2px 24px">';
+      for (var sb = 0; sb < segs.length; sb++) {
+        h += dotLeg(segs[sb].color, segs[sb].name, fmtNum(segs[sb].count), '');
+      }
+      h += '</div>';
+    }
+    h += '</div>';
+  }
+
+  // ---- TRAJECTORY: registrations per year + retention ----
+  if (trend && trend.length > 0) {
+    var maxC = 1;
+    for (var mi = 0; mi < trend.length; mi++) { if (trend[mi].count > maxC) maxC = trend[mi].count; }
+    var n = trend.length, plotW = 510, x0 = 42, plotH = 150, baseY = 172, slot = plotW / n;
+    var sumC = 0, sumA = 0;
+    var svg = '<svg viewBox="0 0 560 205" width="100%" height="184" role="img" aria-label="Registrations per year with retention">';
+    svg += '<line x1="' + x0 + '" y1="' + baseY + '" x2="' + (x0 + plotW) + '" y2="' + baseY + '" stroke="#e0dacf"/>';
+    for (var bi = 0; bi < n; bi++) {
+      var t = trend[bi]; sumC += t.count; sumA += t.active;
+      var bh = t.count > 0 ? Math.round(t.count / maxC * plotH) : 0;
+      var bx = x0 + bi * slot + slot * 0.18, bwid = slot * 0.64, by = baseY - bh;
+      var fill = (bi === n - 1) ? '#7fb3ad' : '#0f5c57';
+      svg += '<rect x="' + bx.toFixed(1) + '" y="' + by + '" width="' + bwid.toFixed(1) + '" height="' + bh + '" rx="2" fill="' + fill + '"/>';
+      if (bh > 12) svg += '<text x="' + (bx + bwid / 2).toFixed(1) + '" y="' + (by - 3) + '" text-anchor="middle" font-size="8.5" fill="#06423e">' + t.count + '</text>';
+      svg += '<text x="' + (bx + bwid / 2).toFixed(1) + '" y="' + (baseY + 13) + '" text-anchor="middle" font-size="8" fill="#a09a8e">' + ('' + t.year).substr(2) + '</text>';
+      var ret = t.count > 0 ? Math.round(t.active / t.count * 100) : 0;
+      svg += '<text x="' + (bx + bwid / 2).toFixed(1) + '" y="' + (baseY + 23) + '" text-anchor="middle" font-size="7.5" fill="#b7b2a6">' + ret + '%</text>';
+    }
+    svg += '</svg>';
+    var overallRet = sumC > 0 ? Math.round(sumA / sumC * 100) : 0;
+    h += secLabel('Trajectory \u00b7 over time');
+    h += '<div class="entity-card" style="background:#faf8f3;border:1px dashed #d8cfc2;border-radius:12px;padding:16px">';
+    h += '<div style="display:flex;align-items:baseline;margin-bottom:2px"><div style="font-size:13px;font-weight:500;color:' + GREEN + '">New registrations per year</div>';
+    h += '<div style="margin-left:auto"><span style="font-size:16px;font-weight:500;color:' + GREEN + '">' + overallRet + '%</span><span style="font-size:12px;color:' + MUTED + '"> still active</span></div></div>';
+    h += '<div style="font-size:11px;color:#8a8f8b;margin-bottom:8px">Small % = retention (activity in last 12m). ' + fmtNum(trendBefore) + ' registered before this range.</div>';
+    h += svg;
+    h += '<div style="font-size:11px;color:#a85a3a;background:#fbeee9;border-radius:6px;padding:8px 11px;margin-top:8px"><b>Note:</b> dormant records are never deleted, so retention stays high. Read the recent cohorts for where the tail is forming.</div>';
+    h += '</div>';
+  }
+
+  // ---- CONTEXT: category mix (demoted) ----
+  if (dists && dists.length > 0) {
+    var catDist = null;
+    for (var ci = 0; ci < dists.length; ci++) {
+      var tl = (dists[ci].title || '').toLowerCase();
+      if (tl.indexOf('categor') >= 0) { catDist = dists[ci]; break; }
+    }
+    if (catDist && catDist.items && catDist.items.length > 0) {
+      var items = catDist.items.slice().sort(function(a, b) { return b.count - a.count; });
+      var catTot = catDist.total || 0;
+      if (catTot <= 0) { catTot = 0; for (var ck = 0; ck < items.length; ck++) catTot += items[ck].count; }
+      var palette = ['#06423e', '#0f5c57', '#2e7d32', '#ef6c00', '#5dcaa5', '#b7dea9'];
+      var topN = items.slice(0, 6), otherC = 0;
+      for (var ok = 6; ok < items.length; ok++) otherC += items[ok].count;
+      h += secLabel('Context');
+      h += '<div class="entity-card" style="background:#fff;border:1px solid #e6e1d8;border-radius:12px;padding:16px">';
+      h += '<div style="display:flex;align-items:center;margin-bottom:10px"><div style="font-size:13px;font-weight:500;color:' + GREEN + '">Category mix</div><span style="margin-left:auto;font-size:11px;color:#a09a8e">portfolio shape, not an action</span></div>';
+      h += '<div style="display:flex;height:22px;border-radius:5px;overflow:hidden;margin-bottom:8px">';
+      for (var pi = 0; pi < topN.length; pi++) {
+        var pp = catTot > 0 ? (topN[pi].count / catTot * 100) : 0;
+        h += '<div style="width:' + pp.toFixed(1) + '%;background:' + palette[pi] + '"></div>';
+      }
+      if (otherC > 0) { var op = catTot > 0 ? (otherC / catTot * 100) : 0; h += '<div style="width:' + op.toFixed(1) + '%;background:#c9c4ba"></div>'; }
+      h += '</div>';
+      h += '<div style="display:flex;gap:14px;flex-wrap:wrap;font-size:11px;color:' + MUTED + '">';
+      for (var li = 0; li < topN.length; li++) {
+        var lp = catTot > 0 ? Math.round(topN[li].count / catTot * 1000) / 10 : 0;
+        h += '<span><span style="display:inline-block;width:9px;height:9px;border-radius:2px;vertical-align:-1px;margin-right:4px;background:' + palette[li] + '"></span>' + topN[li].name + ' ' + lp + '%</span>';
+      }
+      if (otherC > 0) { var lop = catTot > 0 ? Math.round(otherC / catTot * 1000) / 10 : 0; h += '<span><span style="display:inline-block;width:9px;height:9px;border-radius:2px;vertical-align:-1px;margin-right:4px;background:#c9c4ba"></span>Other ' + lop + '%</span>'; }
+      h += '</div></div>';
+    }
+  }
+
+  // ---- INSIGHTS (data-driven) ----
+  if (ah && ah.dbTotal) {
+    var iDorm = ah.dbTotal - ah.total;
+    var iDormPct = ah.dbTotal > 0 ? Math.round(iDorm / ah.dbTotal * 100) : 0;
+    h += secLabel('Insights');
+    h += '<div class="entity-card" style="background:#fff;border:1px solid #e6e1d8;border-radius:12px;padding:16px">';
+    if (iDormPct >= 40) {
+      h += '<div style="border-left:3px solid ' + BAD + ';background:#fdeeed;padding:9px 12px;border-radius:0 6px 6px 0;margin-bottom:9px;font-size:12px;line-height:1.5;color:#3c423f"><b style="color:#1c2b29">' + fmtNum(iDorm) + ' companies (' + iDormPct + '%) are a dormant tail.</b> They have no recent activity and are the biggest cleanup or archive opportunity in the base.</div>';
+    }
+    if (fn && fn.segments) {
+      for (var fi = 0; fi < fn.segments.length; fi++) {
+        var sg = fn.segments[fi];
+        var nm = (sg.name || '').toLowerCase();
+        if (nm.indexOf('empty') >= 0 && sg.count > 0) {
+          h += '<div style="border-left:3px solid #ef6c00;background:#fdf4ec;padding:9px 12px;border-radius:0 6px 6px 0;font-size:12px;line-height:1.5;color:#3c423f"><b style="color:#1c2b29">' + fmtNum(sg.count) + ' empty shells.</b> Companies with no people and no activity, within the active scope. Worth a targeted review.</div>';
+          break;
+        }
+      }
+    }
+    h += '</div>';
+  }
+
+  el.innerHTML = h;
+  renderScoreBanner('company');
+}
+
 function renderEntityOverview(key, d) {
   overviewData[key] = d;
   pushStdListValues(key, d);
+  if (key === 'company') { renderCompanyOverviewV2(); return; }
   var cfg = ovLabels[key];
   var o = d.overview;
   var totalKey = cfg.stats[0][0];
@@ -785,6 +983,7 @@ function fetchCompanyDetails(cb) {
   function checkDone() {
     pending--;
     renderCompanyDetails(companyDetailData);
+    renderCompanyOverviewV2();
     if (pending <= 0) {
       companyDetailCache[key] = companyDetailData;
       if (cb) cb();
