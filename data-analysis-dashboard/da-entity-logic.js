@@ -662,7 +662,7 @@ function renderCompanyOverviewV2() {
     h += '</div>';
     h += '<div style="display:flex;gap:20px;flex-wrap:wrap;margin-bottom:6px">';
     h += dotLeg(GREEN, 'Active companies', fmtNum(tC), actPct.toFixed(1) + '%');
-    h += dotLeg('#d8cfc2', 'Dormant tail', fmtNum(dorm), dormPctC.toFixed(1) + '%');
+    h += dotLeg('#d8cfc2', 'Dormant tail' + sbInfoIcon('Companies with no registered activity in the selected period. The active companies are the rest. Dormant records are never removed, so they accumulate over time.'), fmtNum(dorm), dormPctC.toFixed(1) + '%');
     h += '</div>';
     if (fn && fn.segments && fn.segments.length > 0) {
       var segs = fn.segments;
@@ -675,10 +675,12 @@ function renderCompanyOverviewV2() {
         h += '<div style="width:' + sp.toFixed(1) + '%;background:' + segs[sa].color + ';display:flex;align-items:center;justify-content:center">' + segIn + '</div>';
       }
       h += '</div>';
-      h += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:2px 24px">';
+      h += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:9px 24px">';
       for (var sb = 0; sb < segs.length; sb++) {
         var sbp = segTot > 0 ? Math.round(segs[sb].count / segTot * 1000) / 10 : 0;
-        h += dotLeg(segs[sb].color, segs[sb].name, fmtNum(segs[sb].count), sbp + '%');
+        h += '<div style="display:flex;gap:7px"><span style="width:10px;height:10px;border-radius:3px;flex:none;background:' + segs[sb].color + ';margin-top:3px"></span><div style="min-width:0"><div style="font-size:12px;color:#1c2b29"><b style="font-weight:600">' + segs[sb].name + '</b> <span style="color:#6b706c;font-weight:500;margin-left:2px">' + fmtNum(segs[sb].count) + ' \u00b7 ' + sbp + '%</span></div>';
+        if (segs[sb].description) h += '<div style="font-size:11px;color:#8a8f8b;line-height:1.35;margin-top:1px">' + segs[sb].description + '</div>';
+        h += '</div></div>';
       }
       h += '</div>';
     }
@@ -851,12 +853,12 @@ function renderSaleOverviewV2() {
   h += '<div class="entity-card" style="background:#fff;border:1px solid #e6e1d8;border-radius:12px;padding:16px">';
   h += '<div style="font-size:13px;font-weight:500;color:' + GREEN + ';margin-bottom:10px">Status split</div>';
   h += '<div style="display:flex;gap:12px;align-items:center"><svg viewBox="0 0 180 180" width="118" height="118" role="img" aria-label="Sale status split"><circle cx="90" cy="90" r="70" fill="none" stroke="#efe9df" stroke-width="26"/>' + circles + '<text x="90" y="86" text-anchor="middle" font-size="17" font-weight="500" fill="#06423e">' + fmtNum(total) + '</text><text x="90" y="103" text-anchor="middle" font-size="10" fill="#8a8f8b">sales</text></svg>';
-  h += '<div style="flex:1;min-width:0">' + dotLeg(BAD, 'Lost', fmtNum(lost), pct(lost, total) + '%') + dotLeg(OKC, 'Open', fmtNum(open), pct(open, total) + '%') + dotLeg(GOOD, 'Sold', fmtNum(sold), pct(sold, total) + '%') + dotLeg('#c9c4ba', 'Stalled', fmtNum(stalled), pct(stalled, total) + '%') + '</div></div></div>';
+  h += '<div style="flex:1;min-width:0">' + dotLeg(BAD, 'Lost', fmtNum(lost), pct(lost, total) + '%') + dotLeg(OKC, 'Open', fmtNum(open), pct(open, total) + '%') + dotLeg(GOOD, 'Sold', fmtNum(sold), pct(sold, total) + '%') + dotLeg('#c9c4ba', 'Stalled' + sbInfoIcon('A sale put on hold, neither won nor lost yet.'), fmtNum(stalled), pct(stalled, total) + '%') + '</div></div></div>';
   if (typeD && typeD.items && typeD.items.length > 0) {
     var titems = typeD.items.slice().sort(function (a, b) { return b.count - a.count; });
     var ttot = 0; for (var ti = 0; ti < titems.length; ti++) ttot += titems[ti].count;
     var tpal = ['#0f5c57', '#5dcaa5', '#b7dea9', '#c9c4ba'];
-    h += '<div class="entity-card" style="background:#fff;border:1px solid #e6e1d8;border-radius:12px;padding:16px"><div style="font-size:13px;font-weight:500;color:' + GREEN + ';margin-bottom:10px">Sale type</div>';
+    h += '<div class="entity-card" style="background:#fff;border:1px solid #e6e1d8;border-radius:12px;padding:16px"><div style="font-size:13px;font-weight:500;color:' + GREEN + '">Sale type</div><div style="font-size:11px;color:#8a8f8b;margin:2px 0 11px">From the Sale Type field on each sale, chosen by the user. It is not derived from the data.</div>';
     for (var tj = 0; tj < titems.length && tj < 4; tj++) {
       var tp = pct(titems[tj].count, ttot);
       h += '<div style="margin-bottom:9px"><div style="display:flex;font-size:12px;margin-bottom:3px"><span>' + titems[tj].name + '</span><b style="margin-left:auto;color:#6b706c">' + tp + '%</b></div><div style="height:9px;background:#eef0ec;border-radius:5px"><div style="width:' + Math.max(tp, 1).toFixed(0) + '%;height:9px;background:' + tpal[Math.min(tj, 3)] + ';border-radius:5px"></div></div></div>';
@@ -870,7 +872,7 @@ function renderSaleOverviewV2() {
     var low = dval(stageD, 'low chance'), mid = dval(stageD, 'middle chance'), high = dval(stageD, 'high chance');
     var spNo = pct(noStage, total), spLow = pct(low, total), spMid = pct(mid, total), spHigh = pct(high, total);
     h += secLabel('The real gap \u00b7 pipeline data');
-    h += '<div class="entity-card" style="background:#fff;border:1px solid #e6e1d8;border-radius:12px;padding:16px"><div style="font-size:13px;font-weight:500;color:' + GREEN + ';margin-bottom:2px">Stage / probability tracking</div><div style="font-size:12px;color:' + MUTED + ';margin-bottom:12px">How sales are spread across stage. This is why pipeline analysis is limited right now.</div>';
+    h += '<div class="entity-card" style="background:#fff;border:1px solid #e6e1d8;border-radius:12px;padding:16px"><div style="font-size:13px;font-weight:500;color:' + GREEN + ';margin-bottom:2px">Stage / probability tracking' + sbInfoIcon('The probability field on each sale (Low, Middle or High chance). It is what pipeline forecasting relies on.') + '</div><div style="font-size:12px;color:' + MUTED + ';margin-bottom:12px">How sales are spread across stage. This is why pipeline analysis is limited right now.</div>';
     h += '<div style="display:flex;height:30px;border-radius:6px;overflow:hidden;margin-bottom:12px">';
     h += '<div style="width:' + spNo + '%;background:#d8cfc2;display:flex;align-items:center;padding-left:10px;font-size:11px;color:#7a6f5c;font-weight:500">' + (spNo >= 12 ? spNo.toFixed(0) + '% no stage set' : '') + '</div>';
     h += '<div style="width:' + spLow + '%;background:' + OKC + ';display:flex;align-items:center;justify-content:center;font-size:10px;color:#fff;font-weight:600;text-shadow:0 1px 1px rgba(0,0,0,.3)">' + (spLow >= 9 ? spLow.toFixed(0) + '%' : '') + '</div>';
@@ -930,7 +932,7 @@ function renderContactOverviewV2() {
   h += secLabel('Links to the rest of the CRM');
   h += '<div class="stat-row" style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px">';
   h += kpiCard('Linked to a company', P('withCompany') + '%', fmtNum(o.withCompany || 0) + ' contacts', false);
-  h += kpiCard('Linked to sales', P('withSales') + '%', fmtNum(o.withSales || 0) + ' contacts', false);
+  h += kpiCard('Linked to sales' + sbInfoIcon('Contacts connected to at least one sale.'), P('withSales') + '%', fmtNum(o.withSales || 0) + ' contacts', false);
   h += kpiCard('In a project', P('inProjects') + '%', fmtNum(o.inProjects || 0) + ' contacts', false);
   h += '</div>';
   h += secLabel('Insights');
@@ -968,7 +970,7 @@ function renderProjectOverviewV2() {
   h += secLabel('State \u00b7 projects');
   h += '<div class="stat-row" style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px">';
   h += kpiCard('Projects', fmtNum(total), 'in scope', false);
-  h += kpiCard('Overdue', fmtNum(overdue), (total > 0 ? Math.round(overdue / total * 100) : 0) + '% past due', overdue > 0);
+  h += kpiCard('Overdue' + sbInfoIcon('Projects whose end date has already passed.'), fmtNum(overdue), (total > 0 ? Math.round(overdue / total * 100) : 0) + '% past due', overdue > 0);
   h += kpiCard('With members', fmtNum(withMembers), (total > 0 ? Math.round(withMembers / total * 100) : 0) + '% have members', withMembers === 0);
   h += '</div>';
   h += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px">' + miniList('Project status', findDist('status')) + miniList('Project type', findDist('type')) + '</div>';
