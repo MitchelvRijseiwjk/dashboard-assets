@@ -616,11 +616,12 @@ function renderCompanyOverviewV2() {
       '<div style="font-size:12px;color:' + MUTED + ';margin-top:4px">' + sub + '</div></div>';
   }
   function dotLeg(color, label, val, pct) {
-    var right = '';
-    if (val !== '') right += '<b style="margin-left:auto;color:#1c2b29">' + val + '</b>';
-    if (pct !== '') right += '<span style="color:#8a8f8b;width:46px;text-align:right">' + pct + '</span>';
+    var nums = '';
+    if (val !== '') nums += '<span style="font-weight:600;color:#1c2b29;margin-left:8px">' + val + '</span>';
+    if (pct !== '') nums += '<span style="color:#8a8f8b;margin-left:5px">' + pct + '</span>';
     return '<div style="display:flex;align-items:center;gap:7px;font-size:12px;color:#3c423f;margin:4px 0">' +
-      '<span style="width:10px;height:10px;border-radius:3px;flex:none;background:' + color + '"></span>' + label + right + '</div>';
+      '<span style="width:10px;height:10px;border-radius:3px;flex:none;background:' + color + '"></span>' +
+      '<span>' + label + '</span>' + nums + '</div>';
   }
 
   var h = '';
@@ -629,7 +630,7 @@ function renderCompanyOverviewV2() {
 
   // ---- STATE: KPI row ----
   if (o || ah) {
-    var totalC = ah ? ah.total : (o ? o.totalCompanies : 0);
+    var totalC = ah ? ah.total : (o ? (o.total || o.totalCompanies || 0) : 0);
     var dbT = (ah && ah.dbTotal) ? ah.dbTotal : totalC;
     var dormantTail = (dbT && totalC) ? (dbT - totalC) : 0;
     var dormantPct = dbT > 0 ? Math.round(dormantTail / dbT * 100) : 0;
@@ -656,60 +657,80 @@ function renderCompanyOverviewV2() {
     h += secLabel('Database composition');
     h += '<div class="entity-card" style="background:#fbfaf7;border:1px solid #dcd5c8;border-radius:12px;padding:16px">';
     h += '<div style="display:flex;height:30px;border-radius:6px;overflow:hidden;margin-bottom:10px">';
-    h += '<div style="width:' + actPct.toFixed(1) + '%;background:' + GREEN + '"></div>';
-    h += '<div style="width:' + dormPctC.toFixed(1) + '%;background:#d8cfc2;display:flex;align-items:center;padding-left:12px;font-size:12px;color:#7a6f5c;font-weight:500">Dormant tail \u00b7 ' + fmtNum(dorm) + ' records nobody works with</div>';
+    h += '<div style="width:' + actPct.toFixed(1) + '%;background:' + GREEN + ';display:flex;align-items:center;justify-content:center;color:#fff;font-size:11px;font-weight:600">' + (actPct >= 6 ? actPct.toFixed(0) + '%' : '') + '</div>';
+    h += '<div style="width:' + dormPctC.toFixed(1) + '%;background:#d8cfc2;display:flex;align-items:center;padding-left:12px;font-size:12px;color:#7a6f5c;font-weight:500">Dormant tail \u00b7 ' + fmtNum(dorm) + ' companies with no recent activity</div>';
     h += '</div>';
     h += '<div style="display:flex;gap:20px;flex-wrap:wrap;margin-bottom:6px">';
-    h += dotLeg(GREEN, 'Active (scope)', fmtNum(tC), actPct.toFixed(1) + '%');
+    h += dotLeg(GREEN, 'Active companies', fmtNum(tC), actPct.toFixed(1) + '%');
     h += dotLeg('#d8cfc2', 'Dormant tail', fmtNum(dorm), dormPctC.toFixed(1) + '%');
     h += '</div>';
     if (fn && fn.segments && fn.segments.length > 0) {
       var segs = fn.segments;
       var segTot = fn.total || tC;
-      h += '<div style="font-size:12px;color:' + MUTED + ';border-top:1px solid #eee5d8;padding-top:12px;margin-top:10px;margin-bottom:10px">Engagement within the active scope</div>';
-      h += '<div style="display:flex;height:24px;border-radius:6px;overflow:hidden;margin-bottom:12px">';
+      h += '<div style="font-size:12px;color:' + MUTED + ';border-top:1px solid #eee5d8;padding-top:12px;margin-top:10px;margin-bottom:10px">How engaged the active companies are</div>';
+      h += '<div style="display:flex;height:26px;border-radius:6px;overflow:hidden;margin-bottom:12px">';
       for (var sa = 0; sa < segs.length; sa++) {
         var sp = segTot > 0 ? (segs[sa].count / segTot * 100) : 0;
-        h += '<div style="width:' + sp.toFixed(1) + '%;background:' + segs[sa].color + '"></div>';
+        var segIn = sp >= 9 ? '<span style="color:#fff;font-size:10px;font-weight:600;text-shadow:0 1px 1px rgba(0,0,0,.3)">' + sp.toFixed(0) + '%</span>' : '';
+        h += '<div style="width:' + sp.toFixed(1) + '%;background:' + segs[sa].color + ';display:flex;align-items:center;justify-content:center">' + segIn + '</div>';
       }
       h += '</div>';
       h += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:2px 24px">';
       for (var sb = 0; sb < segs.length; sb++) {
-        h += dotLeg(segs[sb].color, segs[sb].name, fmtNum(segs[sb].count), '');
+        var sbp = segTot > 0 ? Math.round(segs[sb].count / segTot * 1000) / 10 : 0;
+        h += dotLeg(segs[sb].color, segs[sb].name, fmtNum(segs[sb].count), sbp + '%');
       }
       h += '</div>';
     }
     h += '</div>';
   }
 
-  // ---- TRAJECTORY: registrations per year + retention ----
+  // ---- TRAJECTORY: registration history (retention overlay only when it actually varies) ----
   if (trend && trend.length > 0) {
-    var maxC = 1;
-    for (var mi = 0; mi < trend.length; mi++) { if (trend[mi].count > maxC) maxC = trend[mi].count; }
-    var n = trend.length, plotW = 510, x0 = 42, plotH = 150, baseY = 172, slot = plotW / n;
+    var maxC = 1, minRet = 100;
+    for (var mi = 0; mi < trend.length; mi++) {
+      if (trend[mi].count > maxC) maxC = trend[mi].count;
+      if (trend[mi].count > 0) { var rr = Math.round(trend[mi].active / trend[mi].count * 100); if (rr < minRet) minRet = rr; }
+    }
+    // Under the active scope every company is active by definition, so retention sits near 100%
+    // for every year and carries no signal. In that case show the age distribution instead.
+    var saturated = (minRet >= 90);
+    var n = trend.length;
+    var vbW = 600, vbH = saturated ? 232 : 248, x0 = 46, plotW = vbW - x0 - 14, plotH = 175, baseY = 200, slot = plotW / n;
     var sumC = 0, sumA = 0;
-    var svg = '<svg viewBox="0 0 560 205" width="100%" height="184" role="img" aria-label="Registrations per year with retention">';
+    var svg = '<svg viewBox="0 0 ' + vbW + ' ' + vbH + '" width="100%" height="' + (saturated ? 218 : 232) + '" role="img" aria-label="Companies by registration year">';
+    svg += '<line x1="' + x0 + '" y1="' + (baseY - plotH) + '" x2="' + (x0 + plotW) + '" y2="' + (baseY - plotH) + '" stroke="#efe9df"/>';
     svg += '<line x1="' + x0 + '" y1="' + baseY + '" x2="' + (x0 + plotW) + '" y2="' + baseY + '" stroke="#e0dacf"/>';
+    svg += '<text x="' + (x0 - 6) + '" y="' + (baseY - plotH + 4) + '" text-anchor="end" font-size="10" fill="#a8a99f">' + maxC + '</text>';
+    svg += '<text x="' + (x0 - 6) + '" y="' + baseY + '" text-anchor="end" font-size="10" fill="#a8a99f">0</text>';
     for (var bi = 0; bi < n; bi++) {
       var t = trend[bi]; sumC += t.count; sumA += t.active;
       var bh = t.count > 0 ? Math.round(t.count / maxC * plotH) : 0;
-      var bx = x0 + bi * slot + slot * 0.18, bwid = slot * 0.64, by = baseY - bh;
+      var bx = x0 + bi * slot + slot * 0.16, bwid = slot * 0.68, by = baseY - bh;
       var fill = (bi === n - 1) ? '#7fb3ad' : '#0f5c57';
       svg += '<rect x="' + bx.toFixed(1) + '" y="' + by + '" width="' + bwid.toFixed(1) + '" height="' + bh + '" rx="2" fill="' + fill + '"/>';
-      if (bh > 12) svg += '<text x="' + (bx + bwid / 2).toFixed(1) + '" y="' + (by - 3) + '" text-anchor="middle" font-size="8.5" fill="#06423e">' + t.count + '</text>';
-      svg += '<text x="' + (bx + bwid / 2).toFixed(1) + '" y="' + (baseY + 13) + '" text-anchor="middle" font-size="8" fill="#a09a8e">' + ('' + t.year).substr(2) + '</text>';
-      var ret = t.count > 0 ? Math.round(t.active / t.count * 100) : 0;
-      svg += '<text x="' + (bx + bwid / 2).toFixed(1) + '" y="' + (baseY + 23) + '" text-anchor="middle" font-size="7.5" fill="#b7b2a6">' + ret + '%</text>';
+      if (bh > 14) svg += '<text x="' + (bx + bwid / 2).toFixed(1) + '" y="' + (by - 4) + '" text-anchor="middle" font-size="10.5" font-weight="500" fill="#06423e">' + t.count + '</text>';
+      svg += '<text x="' + (bx + bwid / 2).toFixed(1) + '" y="' + (baseY + 16) + '" text-anchor="middle" font-size="10" fill="#8a8f8b">' + t.year + '</text>';
+      if (!saturated) {
+        var ret = t.count > 0 ? Math.round(t.active / t.count * 100) : 0;
+        svg += '<text x="' + (bx + bwid / 2).toFixed(1) + '" y="' + (baseY + 29) + '" text-anchor="middle" font-size="9" fill="#b7b2a6">' + ret + '%</text>';
+      }
     }
     svg += '</svg>';
-    var overallRet = sumC > 0 ? Math.round(sumA / sumC * 100) : 0;
     h += secLabel('Trajectory \u00b7 over time');
-    h += '<div class="entity-card" style="background:#faf8f3;border:1px dashed #d8cfc2;border-radius:12px;padding:16px">';
-    h += '<div style="display:flex;align-items:baseline;margin-bottom:2px"><div style="font-size:13px;font-weight:500;color:' + GREEN + '">New registrations per year</div>';
-    h += '<div style="margin-left:auto"><span style="font-size:16px;font-weight:500;color:' + GREEN + '">' + overallRet + '%</span><span style="font-size:12px;color:' + MUTED + '"> still active</span></div></div>';
-    h += '<div style="font-size:11px;color:#8a8f8b;margin-bottom:8px">Small % = retention (activity in last 12m). ' + fmtNum(trendBefore) + ' registered before this range.</div>';
-    h += svg;
-    h += '<div style="font-size:11px;color:#a85a3a;background:#fbeee9;border-radius:6px;padding:8px 11px;margin-top:8px"><b>Note:</b> dormant records are never deleted, so retention stays high. Read the recent cohorts for where the tail is forming.</div>';
+    h += '<div class="entity-card" style="background:#faf8f3;border:1px solid #e6e1d8;border-radius:12px;padding:18px">';
+    if (saturated) {
+      h += '<div style="font-size:14px;font-weight:500;color:' + GREEN + ';margin-bottom:3px">When your active companies were added</div>';
+      h += '<div style="font-size:12px;color:' + MUTED + ';margin-bottom:12px">Each bar is the number of currently active companies that were first registered in that year. ' + fmtNum(trendBefore) + ' were added before this range.</div>';
+      h += svg;
+      h += '<div style="font-size:12px;color:#5b6b5f;background:#eef3ee;border-radius:6px;padding:10px 12px;margin-top:12px;line-height:1.5">Most of the companies you actively use were added in the last few years. The older years are thin because few of those older companies are still in use today.</div>';
+    } else {
+      var overallRet = sumC > 0 ? Math.round(sumA / sumC * 100) : 0;
+      h += '<div style="display:flex;align-items:baseline;margin-bottom:3px"><div style="font-size:14px;font-weight:500;color:' + GREEN + '">New companies per year</div><div style="margin-left:auto"><span style="font-size:17px;font-weight:500;color:' + GREEN + '">' + overallRet + '%</span><span style="font-size:12px;color:' + MUTED + '"> still active</span></div></div>';
+      h += '<div style="font-size:12px;color:' + MUTED + ';margin-bottom:12px">Bars show how many companies were added each year. The percentage under each bar is how many of that year\u0027s companies are still active today.</div>';
+      h += svg;
+      h += '<div style="font-size:12px;color:#5b6b5f;background:#eef3ee;border-radius:6px;padding:10px 12px;margin-top:12px;line-height:1.5">A low percentage on the most recent years means newly added companies stop being used quickly. The older years stay high partly because inactive companies are never removed from the database.</div>';
+    }
     h += '</div>';
   }
 
@@ -729,11 +750,12 @@ function renderCompanyOverviewV2() {
       for (var ok = 6; ok < items.length; ok++) otherC += items[ok].count;
       h += secLabel('Context');
       h += '<div class="entity-card" style="background:#fff;border:1px solid #e6e1d8;border-radius:12px;padding:16px">';
-      h += '<div style="display:flex;align-items:center;margin-bottom:10px"><div style="font-size:13px;font-weight:500;color:' + GREEN + '">Category mix</div><span style="margin-left:auto;font-size:11px;color:#a09a8e">portfolio shape, not an action</span></div>';
-      h += '<div style="display:flex;height:22px;border-radius:5px;overflow:hidden;margin-bottom:8px">';
+      h += '<div style="display:flex;align-items:center;margin-bottom:10px"><div style="font-size:13px;font-weight:500;color:' + GREEN + '">Category mix</div><span style="margin-left:auto;font-size:11px;color:#a09a8e">for context, not something to act on</span></div>';
+      h += '<div style="display:flex;height:26px;border-radius:5px;overflow:hidden;margin-bottom:8px">';
       for (var pi = 0; pi < topN.length; pi++) {
         var pp = catTot > 0 ? (topN[pi].count / catTot * 100) : 0;
-        h += '<div style="width:' + pp.toFixed(1) + '%;background:' + palette[pi] + '"></div>';
+        var catIn = pp >= 10 ? '<span style="color:#fff;font-size:9.5px;font-weight:600;text-shadow:0 1px 1px rgba(0,0,0,.3)">' + pp.toFixed(0) + '%</span>' : '';
+        h += '<div style="width:' + pp.toFixed(1) + '%;background:' + palette[pi] + ';display:flex;align-items:center;justify-content:center">' + catIn + '</div>';
       }
       if (otherC > 0) { var op = catTot > 0 ? (otherC / catTot * 100) : 0; h += '<div style="width:' + op.toFixed(1) + '%;background:#c9c4ba"></div>'; }
       h += '</div>';
@@ -761,7 +783,7 @@ function renderCompanyOverviewV2() {
         var sg = fn.segments[fi];
         var nm = (sg.name || '').toLowerCase();
         if (nm.indexOf('empty') >= 0 && sg.count > 0) {
-          h += '<div style="border-left:3px solid #ef6c00;background:#fdf4ec;padding:9px 12px;border-radius:0 6px 6px 0;font-size:12px;line-height:1.5;color:#3c423f"><b style="color:#1c2b29">' + fmtNum(sg.count) + ' empty shells.</b> Companies with no people and no activity, within the active scope. Worth a targeted review.</div>';
+          h += '<div style="border-left:3px solid #ef6c00;background:#fdf4ec;padding:9px 12px;border-radius:0 6px 6px 0;font-size:12px;line-height:1.5;color:#3c423f"><b style="color:#1c2b29">' + fmtNum(sg.count) + ' empty shells.</b> Active companies with no contact person at all. Worth checking whether they are still needed or can be cleaned up.</div>';
           break;
         }
       }
