@@ -778,7 +778,7 @@ function renderCompanyOverviewV2() {
     h += secLabel('Insights');
     h += '<div class="entity-card" style="background:#fff;border:1px solid #e6e1d8;border-radius:12px;padding:16px">';
     if (iDormPct >= 40) {
-      h += '<div style="border-left:3px solid ' + BAD + ';background:#fdeeed;padding:9px 12px;border-radius:0 6px 6px 0;margin-bottom:9px;font-size:12px;line-height:1.5;color:#3c423f"><b style="color:#1c2b29">' + fmtNum(iDorm) + ' companies (' + iDormPct + '%) are a dormant tail.</b> They have no recent activity and are the biggest cleanup or archive opportunity in the base.</div>';
+      h += '<div style="border-left:3px solid ' + BAD + ';background:#fdeeed;padding:9px 12px;border-radius:0 6px 6px 0;margin-bottom:9px;font-size:12px;line-height:1.5;color:#3c423f"><b style="color:#1c2b29">' + fmtNum(iDorm) + ' companies (' + iDormPct + '%) are a dormant tail.</b> They have no recent activity and are the clearest candidates for cleanup or archiving.</div>';
     }
     if (fn && fn.segments) {
       for (var fi = 0; fi < fn.segments.length; fi++) {
@@ -871,8 +871,25 @@ function renderSaleOverviewV2() {
   if (stageD && stageD.items) {
     var low = dval(stageD, 'low chance'), mid = dval(stageD, 'middle chance'), high = dval(stageD, 'high chance');
     var spNo = pct(noStage, total), spLow = pct(low, total), spMid = pct(mid, total), spHigh = pct(high, total);
-    h += secLabel('The real gap \u00b7 pipeline data');
-    h += '<div class="entity-card" style="background:#fff;border:1px solid #e6e1d8;border-radius:12px;padding:16px"><div style="font-size:13px;font-weight:500;color:' + GREEN + ';margin-bottom:2px">Stage / probability tracking' + sbInfoIcon('The probability field on each sale (Low, Middle or High chance). It is what pipeline forecasting relies on.') + '</div><div style="font-size:12px;color:' + MUTED + ';margin-bottom:12px;line-height:1.5">Most sales have no stage filled in, and nearly all of the ones that do sit at Low chance. With so little spread, the stage field gives no reliable basis to forecast the pipeline.</div>';
+    // Build the assessment from the actual distribution so it holds for any tenant.
+    var stFilled = low + mid + high;
+    var stDomName = 'Low chance', stDomCount = low;
+    if (mid > stDomCount) { stDomCount = mid; stDomName = 'Middle chance'; }
+    if (high > stDomCount) { stDomCount = high; stDomName = 'High chance'; }
+    var stDomShare = stFilled > 0 ? (stDomCount / stFilled * 100) : 0;
+    var stagePoor = (spNo >= 40) || (stFilled > 0 && stDomShare >= 75);
+    var stageMsg;
+    if (spNo >= 50) {
+      stageMsg = 'Most sales have no stage filled in' + (stFilled > 0 && stDomShare >= 70 ? ', and the ones that do are nearly all ' + stDomName : '') + '. With so little to go on, the stage field gives a weak basis for forecasting the pipeline.';
+    } else if (spNo >= 25) {
+      stageMsg = 'A large share of sales have no stage filled in' + (stFilled > 0 && stDomShare >= 70 ? ', and the rest cluster at ' + stDomName : '') + ', which weakens stage as a forecasting signal.';
+    } else if (stDomShare >= 75) {
+      stageMsg = 'Stage is filled in for most sales, but they cluster heavily at ' + stDomName + ', so the field offers little spread to forecast from.';
+    } else {
+      stageMsg = 'Stage is filled in for most sales and spread across the buckets, which gives a usable basis for pipeline forecasting.';
+    }
+    h += secLabel(stagePoor ? 'The real gap \u00b7 pipeline data' : 'Pipeline \u00b7 stage tracking');
+    h += '<div class="entity-card" style="background:#fff;border:1px solid #e6e1d8;border-radius:12px;padding:16px"><div style="font-size:13px;font-weight:500;color:' + GREEN + ';margin-bottom:2px">Stage / probability tracking' + sbInfoIcon('The probability field on each sale (Low, Middle or High chance). It is what pipeline forecasting relies on.') + '</div><div style="font-size:12px;color:' + MUTED + ';margin-bottom:12px;line-height:1.5">' + stageMsg + '</div>';
     h += '<div style="display:flex;height:30px;border-radius:6px;overflow:hidden;margin-bottom:12px">';
     h += '<div style="width:' + spNo + '%;background:#d8cfc2;display:flex;align-items:center;padding-left:10px;font-size:11px;color:#7a6f5c;font-weight:500">' + (spNo >= 12 ? spNo.toFixed(0) + '% no stage set' : '') + '</div>';
     h += '<div style="width:' + spLow + '%;background:' + OKC + ';display:flex;align-items:center;justify-content:center;font-size:10px;color:#fff;font-weight:600;text-shadow:0 1px 1px rgba(0,0,0,.3)">' + (spLow >= 14 ? spLow.toFixed(0) + '% low chance' : (spLow >= 7 ? spLow.toFixed(0) + '%' : '')) + '</div>';
@@ -882,17 +899,23 @@ function renderSaleOverviewV2() {
 
   // ---- INSIGHTS ----
   h += secLabel('Insights');
-  h += '<div class="entity-card" style="background:#fff;border:1px solid #e6e1d8;border-radius:12px;padding:16px">';
-  if (decided > 0) {
-    h += '<div style="border-left:3px solid ' + BAD + ';background:#fdeeed;padding:9px 12px;border-radius:0 6px 6px 0;margin-bottom:9px;font-size:12px;line-height:1.5;color:#3c423f"><b style="color:#1c2b29">Win rate is ' + winRate + '%, with ' + pct(lost, total) + '% of sales lost.</b> A useful first question is what the ' + fmtNum(lost) + ' lost deals had in common.</div>';
+  var insH = '';
+  if (decided > 0 && winRate < 35) {
+    insH += '<div style="border-left:3px solid ' + BAD + ';background:#fdeeed;padding:9px 12px;border-radius:0 6px 6px 0;margin-bottom:9px;font-size:12px;line-height:1.5;color:#3c423f"><b style="color:#1c2b29">Win rate is ' + winRate + '%, with ' + pct(lost, total) + '% of sales lost.</b> A useful first question is what the ' + fmtNum(lost) + ' lost deals had in common.</div>';
   }
   if (noStagePct >= 40) {
-    h += '<div style="border-left:3px solid ' + WARN + ';background:#fdf4ec;padding:9px 12px;border-radius:0 6px 6px 0;margin-bottom:9px;font-size:12px;line-height:1.5;color:#3c423f"><b style="color:#1c2b29">' + noStagePct + '% of sales have no stage set.</b> The pipeline cannot be forecast reliably until stage is filled in. This is the field completeness gap the overall score flags.</div>';
+    insH += '<div style="border-left:3px solid ' + WARN + ';background:#fdf4ec;padding:9px 12px;border-radius:0 6px 6px 0;margin-bottom:9px;font-size:12px;line-height:1.5;color:#3c423f"><b style="color:#1c2b29">' + noStagePct + '% of sales have no stage set.</b> The pipeline cannot be forecast reliably until stage is filled in.</div>';
   }
-  if (o.withQuote === 0 || o.withStakeholders === 0) {
-    h += '<div style="border-left:3px solid #8a8f8b;background:#f4f3f0;padding:9px 12px;border-radius:0 6px 6px 0;font-size:12px;line-height:1.5;color:#3c423f"><b style="color:#1c2b29">Quotes and stakeholders are unused.</b> Both sit at 0% on sales, so those features are currently left untouched.</div>';
+  var noQuote = (o.withQuote === 0), noStake = (o.withStakeholders === 0);
+  if (noQuote || noStake) {
+    var qsTitle = (noQuote && noStake) ? 'Quotes and stakeholders are unused' : (noQuote ? 'Quotes are unused' : 'Stakeholders are unused');
+    var qsDetail = (noQuote && noStake) ? 'Neither is filled in on any sale, so both features are currently left untouched.' : 'It is not filled in on any sale, so the feature is currently left untouched.';
+    insH += '<div style="border-left:3px solid #8a8f8b;background:#f4f3f0;padding:9px 12px;border-radius:0 6px 6px 0;margin-bottom:9px;font-size:12px;line-height:1.5;color:#3c423f"><b style="color:#1c2b29">' + qsTitle + '.</b> ' + qsDetail + '</div>';
   }
-  h += '</div>';
+  if (insH === '') {
+    insH = '<div style="border-left:3px solid ' + GOOD + ';background:#eef5ec;padding:9px 12px;border-radius:0 6px 6px 0;font-size:12px;line-height:1.5;color:#3c423f">No major data issues stand out for sales in this period.</div>';
+  }
+  h += '<div class="entity-card" style="background:#fff;border:1px solid #e6e1d8;border-radius:12px;padding:16px">' + insH + '</div>';
 
   el.innerHTML = h;
 }
@@ -936,15 +959,22 @@ function renderContactOverviewV2() {
   h += kpiCard('In a project', P('inProjects') + '%', fmtNum(o.inProjects || 0) + ' contacts', false);
   h += '</div>';
   h += secLabel('Insights');
-  h += '<div class="entity-card" style="background:#fff;border:1px solid #e6e1d8;border-radius:12px;padding:16px">';
-  var posPct = P('withPosition'), titlePct = P('withTitle'), phonePct = P('withPhone');
+  var insC = '';
+  var posPct = P('withPosition'), titlePct = P('withTitle'), phonePct = P('withPhone'), emailPct = P('withEmail');
   if (posPct < 60 || titlePct < 60) {
-    h += '<div style="border-left:3px solid ' + WARN + ';background:#fdf4ec;padding:9px 12px;border-radius:0 6px 6px 0;margin-bottom:9px;font-size:12px;line-height:1.5;color:#3c423f"><b style="color:#1c2b29">Role data is incomplete.</b> Position is filled for ' + posPct + '% and job title for ' + titlePct + '% of contacts. That limits any targeting or segmentation by role.</div>';
+    insC += '<div style="border-left:3px solid ' + WARN + ';background:#fdf4ec;padding:9px 12px;border-radius:0 6px 6px 0;margin-bottom:9px;font-size:12px;line-height:1.5;color:#3c423f"><b style="color:#1c2b29">Role data is incomplete.</b> Position is filled for ' + posPct + '% and job title for ' + titlePct + '% of contacts. That limits any targeting or segmentation by role.</div>';
+  }
+  if (emailPct < 85) {
+    insC += '<div style="border-left:3px solid ' + WARN + ';background:#fdf4ec;padding:9px 12px;border-radius:0 6px 6px 0;margin-bottom:9px;font-size:12px;line-height:1.5;color:#3c423f"><b style="color:#1c2b29">' + (100 - Math.round(emailPct)) + '% of contacts have no email address.</b> Email is the main outreach channel for most teams, so those gaps limit who can be reached.</div>';
   }
   if (phonePct < 75) {
-    h += '<div style="border-left:3px solid #8a8f8b;background:#f4f3f0;padding:9px 12px;border-radius:0 6px 6px 0;font-size:12px;line-height:1.5;color:#3c423f"><b style="color:#1c2b29">' + (100 - Math.round(phonePct)) + '% of contacts have no phone number.</b> Email coverage is strong at ' + P('withEmail') + '%, so most contacts are still reachable, just not by phone.</div>';
+    var emNote = emailPct >= 85 ? ' Email coverage is strong at ' + emailPct + '%, so most contacts are still reachable, just not by phone.' : '';
+    insC += '<div style="border-left:3px solid #8a8f8b;background:#f4f3f0;padding:9px 12px;border-radius:0 6px 6px 0;margin-bottom:9px;font-size:12px;line-height:1.5;color:#3c423f"><b style="color:#1c2b29">' + (100 - Math.round(phonePct)) + '% of contacts have no phone number.</b>' + emNote + '</div>';
   }
-  h += '</div>';
+  if (insC === '') {
+    insC = '<div style="border-left:3px solid var(--sl-good,#2e7d32);background:#eef5ec;padding:9px 12px;border-radius:0 6px 6px 0;font-size:12px;line-height:1.5;color:#3c423f">Contact detail coverage looks healthy across the main fields.</div>';
+  }
+  h += '<div class="entity-card" style="background:#fff;border:1px solid #e6e1d8;border-radius:12px;padding:16px">' + insC + '</div>';
   el.innerHTML = h;
 }
 
@@ -975,13 +1005,134 @@ function renderProjectOverviewV2() {
   h += '</div>';
   h += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px">' + miniList('Project status', findDist('status')) + miniList('Project type', findDist('type')) + '</div>';
   h += secLabel('Insights');
-  h += '<div class="entity-card" style="background:#fff;border:1px solid #e6e1d8;border-radius:12px;padding:16px">';
-  if (total > 0 && total <= 20) {
+  var insP = '';
+  if (total > 0 && total <= 10) {
     var od = overdue > 0 ? (', ' + (overdue >= total ? 'all' : fmtNum(overdue)) + ' of them overdue') : '';
     var mem = withMembers === 0 ? ', and none have members assigned' : '';
-    h += '<div style="border-left:3px solid ' + WARN + ';background:#fdf4ec;padding:9px 12px;border-radius:0 6px 6px 0;font-size:12px;line-height:1.5;color:#3c423f"><b style="color:#1c2b29">Projects are barely used.</b> There ' + (total === 1 ? 'is' : 'are') + ' only ' + fmtNum(total) + ' project' + (total === 1 ? '' : 's') + ' in this CRM' + od + mem + '. If projects matter to the business this is an adoption gap rather than a data quality one.</div>';
+    insP += '<div style="border-left:3px solid ' + WARN + ';background:#fdf4ec;padding:9px 12px;border-radius:0 6px 6px 0;margin-bottom:9px;font-size:12px;line-height:1.5;color:#3c423f"><b style="color:#1c2b29">Projects are barely used.</b> There ' + (total === 1 ? 'is' : 'are') + ' only ' + fmtNum(total) + ' project' + (total === 1 ? '' : 's') + ' in this CRM' + od + mem + '. If projects matter to the business this is an adoption gap rather than a data quality one.</div>';
+  } else if (total > 10) {
+    var odPct = Math.round(overdue / total * 100);
+    if (odPct >= 40) {
+      insP += '<div style="border-left:3px solid ' + WARN + ';background:#fdf4ec;padding:9px 12px;border-radius:0 6px 6px 0;margin-bottom:9px;font-size:12px;line-height:1.5;color:#3c423f"><b style="color:#1c2b29">' + odPct + '% of projects are overdue.</b> Their end date has passed while the project is still open, so either the dates or the statuses need maintaining.</div>';
+    }
+    if (withMembers === 0) {
+      insP += '<div style="border-left:3px solid ' + WARN + ';background:#fdf4ec;padding:9px 12px;border-radius:0 6px 6px 0;margin-bottom:9px;font-size:12px;line-height:1.5;color:#3c423f"><b style="color:#1c2b29">No projects have members assigned.</b> Without members it is hard to see who is responsible for each project.</div>';
+    }
   }
+  if (insP === '') {
+    insP = '<div style="border-left:3px solid var(--sl-good,#2e7d32);background:#eef5ec;padding:9px 12px;border-radius:0 6px 6px 0;font-size:12px;line-height:1.5;color:#3c423f">No major issues stand out for projects.</div>';
+  }
+  h += '<div class="entity-card" style="background:#fff;border:1px solid #e6e1d8;border-radius:12px;padding:16px">' + insP + '</div>';
+  el.innerHTML = h;
+}
+
+// =====================================================
+// Requests (Ticket) Overview v2 — service desk view from overviewData['requests'].
+// The named status distribution is the source of truth. Base open/closed/postponed
+// status ids are not surfaced because custom statuses can map to any base status,
+// so those counts are unreliable across tenants.
+// =====================================================
+function renderRequestsOverviewV2() {
+  var el = document.getElementById('requestsOverviewContent');
+  if (!el) return;
+  var ov = (typeof overviewData !== 'undefined' && overviewData['requests']) ? overviewData['requests'] : null;
+  if (!ov) return;
+  var o = ov.overview || {};
+  var dists = ov.distributions || [];
+
+  var GREEN = 'var(--so-green,#06423e)', OKC = 'var(--sl-ok,#f9a825)', WARN = 'var(--sl-warn,#ef6c00)', BAD = 'var(--sl-bad,#c62828)', GOOD = 'var(--sl-good,#2e7d32)', MUTED = 'var(--so-text-muted,#6b706c)';
+  function secLabel(t) { return '<div style="font-size:.68rem;letter-spacing:.06em;text-transform:uppercase;color:#a79e8d;font-weight:600;margin:16px 2px 10px">' + t + '</div>'; }
+  function kpiCard(label, value, sub, alert) { var bd = alert ? ';border-color:#f0d9c2' : ''; var vc = alert ? BAD : GREEN; var lc = alert ? '#c0631a' : MUTED; return '<div class="stat-card" style="background:#fff;border:1px solid #e6e1d8;border-radius:12px;padding:14px' + bd + '"><div style="font-size:11px;letter-spacing:.04em;text-transform:uppercase;color:' + lc + ';margin-bottom:6px">' + label + '</div><div style="font-size:24px;font-weight:500;line-height:1.1;color:' + vc + '">' + value + '</div><div style="font-size:12px;color:' + MUTED + ';margin-top:4px">' + sub + '</div></div>'; }
+  function findDist(key) { for (var i = 0; i < dists.length; i++) { if ((dists[i].title || '').toLowerCase().indexOf(key) >= 0) return dists[i]; } return null; }
+  function pct(n, t) { return t > 0 ? Math.round(n / t * 1000) / 10 : 0; }
+
+  // Ranked horizontal bars with count and percentage labels, plus an Other rollup.
+  function rankCard(title, note, dist, palette, topN, tip) {
+    if (!dist || !dist.items) return '';
+    var items = [];
+    for (var i = 0; i < dist.items.length; i++) {
+      var it = dist.items[i];
+      if ((it.count || 0) > 0 && (it.name || '') !== '') items.push({ n: it.name, v: it.count });
+    }
+    if (items.length === 0) return '';
+    items.sort(function (a, b) { return b.v - a.v; });
+    var tot = 0; for (var j = 0; j < items.length; j++) tot += items[j].v;
+    var head = items.slice(0, topN);
+    var restV = 0; for (var k = topN; k < items.length; k++) restV += items[k].v;
+    var s = '<div class="entity-card" style="background:#fff;border:1px solid #e6e1d8;border-radius:12px;padding:16px"><div style="font-size:13px;font-weight:500;color:' + GREEN + '">' + title + (tip ? sbInfoIcon(tip) : '') + '</div>';
+    s += note ? '<div style="font-size:11px;color:#8a8f8b;margin:2px 0 11px">' + note + '</div>' : '<div style="height:9px"></div>';
+    for (var m = 0; m < head.length; m++) {
+      var p = pct(head[m].v, tot);
+      var col = palette[Math.min(m, palette.length - 1)];
+      s += '<div style="margin-bottom:9px"><div style="display:flex;font-size:12px;margin-bottom:3px;gap:8px"><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + head[m].n + '</span><b style="margin-left:auto;color:#1c2b29;flex:none">' + fmtNum(head[m].v) + '</b><span style="color:#8a8f8b;flex:none;width:48px;text-align:right">' + p + '%</span></div><div style="height:9px;background:#eef0ec;border-radius:5px"><div style="width:' + Math.max(p, 0.6).toFixed(1) + '%;height:9px;background:' + col + ';border-radius:5px"></div></div></div>';
+    }
+    if (restV > 0) {
+      var rp = pct(restV, tot);
+      s += '<div style="margin-bottom:2px"><div style="display:flex;font-size:12px;margin-bottom:3px;gap:8px;color:#8a8f8b"><span>Other (' + (items.length - topN) + ')</span><b style="margin-left:auto;color:#6b706c;flex:none">' + fmtNum(restV) + '</b><span style="flex:none;width:48px;text-align:right">' + rp + '%</span></div><div style="height:9px;background:#eef0ec;border-radius:5px"><div style="width:' + Math.max(rp, 0.6).toFixed(1) + '%;height:9px;background:#cfc9bd;border-radius:5px"></div></div></div>';
+    }
+    return s + '</div>';
+  }
+
+  var total = o.total || 0;
+  var unassigned = o.unassigned || 0, engaged = o.engaged || 0;
+  var unaPct = pct(unassigned, total), engPct = pct(engaged, total);
+
+  var statusD = findDist('status');
+  var prioD = findDist('priorit');
+  var typeD = findDist('type');
+
+  var h = '';
+  h += dateFilterNotice();
+
+  // ---- STATE: KPIs ----
+  h += secLabel('State \u00b7 service desk');
+  h += '<div class="stat-row" style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px">';
+  h += kpiCard('Total tickets', fmtNum(total), 'in scope', false);
+  h += kpiCard('Unassigned' + sbInfoIcon('Tickets with no owner set, still held by the system user.'), unaPct + '%', fmtNum(unassigned) + ' without an owner', unaPct >= 30);
+  h += kpiCard('With replies' + sbInfoIcon('Tickets where at least one reply was sent to the requester.'), engPct + '%', fmtNum(engaged) + ' answered', false);
   h += '</div>';
+
+  // ---- Status breakdown (named statuses, the configured truth) ----
+  if (statusD) {
+    h += secLabel('Status');
+    h += rankCard('Status breakdown', 'The ticket statuses configured in this installation.', statusD, ['#0f5c57', '#3a8f86', '#5dcaa5', '#9bd4b8', '#b7dea9', '#cfe3c0'], 6, '');
+  }
+
+  // ---- Field usage: priority + ticket type ----
+  var pc = prioD ? rankCard('Priority', '', prioD, ['#0f5c57', '#5dcaa5', '#b7dea9', '#c9c4ba', '#d8cfc2'], 5, 'The priority set on each ticket, chosen by the user.') : '';
+  var tc = typeD ? rankCard('Ticket type', '', typeD, ['#0f5c57', '#5dcaa5', '#b7dea9', '#c9c4ba', '#d8cfc2'], 5, 'The ticket type chosen on each ticket. It is not derived from the data.') : '';
+  if (pc || tc) {
+    h += secLabel('Field usage');
+    h += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">' + pc + tc + '</div>';
+  }
+
+  // ---- INSIGHTS (data-driven and guarded) ----
+  h += secLabel('Insights');
+  var insR = '';
+  if (total > 0 && unaPct >= 30) {
+    insR += '<div style="border-left:3px solid ' + WARN + ';background:#fdf4ec;padding:9px 12px;border-radius:0 6px 6px 0;margin-bottom:9px;font-size:12px;line-height:1.5;color:#3c423f"><b style="color:#1c2b29">' + unaPct + '% of tickets have no owner.</b> ' + fmtNum(unassigned) + ' tickets are not assigned to anyone, which weakens any reporting on workload or responsibility per agent.</div>';
+  }
+  // Priority concentration: if one value dominates, the field gives no triage signal.
+  if (prioD && prioD.items) {
+    var pi = [];
+    for (var pidx = 0; pidx < prioD.items.length; pidx++) { var pit = prioD.items[pidx]; if ((pit.count || 0) > 0 && (pit.name || '') !== '' && (pit.name || '').toLowerCase().indexOf('no value') < 0) pi.push(pit); }
+    var ptot = 0; for (var q = 0; q < pi.length; q++) ptot += pi[q].count;
+    if (ptot > 0) {
+      var pdom = pi[0]; for (var r = 1; r < pi.length; r++) if (pi[r].count > pdom.count) pdom = pi[r];
+      var pdomShare = pct(pdom.count, ptot);
+      if (pdomShare >= 85) {
+        insR += '<div style="border-left:3px solid #8a8f8b;background:#f4f3f0;padding:9px 12px;border-radius:0 6px 6px 0;margin-bottom:9px;font-size:12px;line-height:1.5;color:#3c423f"><b style="color:#1c2b29">Priority is set to ' + pdom.name + ' for ' + pdomShare + '% of tickets.</b> With almost everything on one value, priority gives little signal for triage or filtering.</div>';
+      }
+    }
+  }
+  if (total > 0 && engPct < 30) {
+    insR += '<div style="border-left:3px solid #8a8f8b;background:#f4f3f0;padding:9px 12px;border-radius:0 6px 6px 0;margin-bottom:9px;font-size:12px;line-height:1.5;color:#3c423f"><b style="color:#1c2b29">' + engPct + '% of tickets have a reply logged.</b> If most contact runs by phone or outside the ticket that can be expected, otherwise it suggests replies are not being captured in the CRM.</div>';
+  }
+  if (insR === '') {
+    insR = '<div style="border-left:3px solid ' + GOOD + ';background:#eef5ec;padding:9px 12px;border-radius:0 6px 6px 0;font-size:12px;line-height:1.5;color:#3c423f">No major issues stand out for tickets in this period.</div>';
+  }
+  h += '<div class="entity-card" style="background:#fff;border:1px solid #e6e1d8;border-radius:12px;padding:16px">' + insR + '</div>';
+
   el.innerHTML = h;
 }
 
@@ -992,6 +1143,7 @@ function renderEntityOverview(key, d) {
   if (key === 'sale') { renderSaleOverviewV2(); return; }
   if (key === 'contact') { renderContactOverviewV2(); return; }
   if (key === 'project') { renderProjectOverviewV2(); return; }
+  if (key === 'requests') { renderRequestsOverviewV2(); return; }
   var cfg = ovLabels[key];
   var o = d.overview;
   var totalKey = cfg.stats[0][0];
