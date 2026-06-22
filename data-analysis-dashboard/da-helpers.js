@@ -152,62 +152,60 @@ var DP_COV = {
 
 function dpControlHtml(P) {
   var lbl = 'color:var(--so-charcoal);opacity:.75;font-size:14px;';
-  var inp = 'padding:8px 10px;border:1px solid var(--so-border);border-radius:7px;font-size:14px;color:var(--so-charcoal);background:var(--so-white);font-family:inherit;';
+  var inp = 'padding:9px 11px;font-size:14px;font-family:inherit;';
   var h = '';
   h += '<div class="dp-wrap" style="display:flex;flex-direction:column">';
 
-  h += '<div style="font-size:11px;font-weight:700;color:var(--so-text-muted);letter-spacing:.05em;margin-bottom:9px">1&nbsp;&nbsp;PERIOD</div>';
-  h += '<div class="dp-seg" data-dp="' + P + '" data-mode-sel="rolling" style="display:inline-flex;background:var(--so-dune-dark1);border:1px solid var(--so-border);border-radius:999px;padding:4px;gap:4px;width:fit-content;margin-bottom:12px">';
-  h += '<button type="button" class="dp-seg-btn" data-mode="rolling" style="border:0;border-radius:999px;padding:8px 22px;cursor:pointer;font-size:14px;font-weight:500;font-family:inherit">Rolling</button>';
-  h += '<button type="button" class="dp-seg-btn" data-mode="custom" style="border:0;border-radius:999px;padding:8px 22px;cursor:pointer;font-size:14px;font-weight:500;font-family:inherit">Custom range</button>';
+  // ---- Card 1: Period ----
+  h += '<div class="da2-card">';
+  h += '<div class="da2-head"><span class="da2-ix">1</span><span class="da2-title">' + dpSvg('calendar', 17) + 'Period</span></div>';
+  h += '<div class="da2-sub">Analyze data from a specific window or all time.</div>';
+  h += '<div class="dp-seg" data-dp="' + P + '" data-mode-sel="rolling">';
+  h += '<button type="button" class="dp-seg-btn" data-mode="rolling">Rolling</button>';
+  h += '<button type="button" class="dp-seg-btn" data-mode="custom">Custom range</button>';
   h += '</div>';
-
-  h += '<div class="dp-rolling" data-dp-roll="' + P + '" style="display:flex;align-items:center;gap:11px;flex-wrap:wrap">';
+  h += '<div class="dp-rolling" data-dp-roll="' + P + '" style="display:flex;align-items:center;gap:11px;flex-wrap:wrap;margin-top:14px">';
   h += '<span style="' + lbl + '">Last</span>';
-  h += '<input type="number" id="' + P + 'RollN" value="12" min="1" max="120" style="width:68px;' + inp + '">';
-  h += '<select id="' + P + 'RollUnit" style="width:128px;' + inp + '"><option value="month" selected>months</option><option value="year">years</option></select>';
+  h += '<input type="number" id="' + P + 'RollN" value="12" min="1" max="120" style="width:72px;' + inp + '">';
+  h += '<select id="' + P + 'RollUnit" style="width:132px;' + inp + '"><option value="month" selected>months</option><option value="year">years</option></select>';
   h += '<span style="color:var(--so-text-muted);display:inline-flex">' + dpSvg('arrow', 16) + '</span>';
-  h += '<span id="' + P + 'Preview" style="color:var(--so-green-light);font-size:14px;font-weight:600"></span>';
+  h += '<span id="' + P + 'Preview" style="color:var(--so-green-light);font-size:15px;font-weight:700"></span>';
   h += '</div>';
-
-  h += '<div class="dp-custom" data-dp-cust="' + P + '" style="display:none;align-items:center;gap:11px;flex-wrap:wrap">';
+  h += '<div class="dp-custom" data-dp-cust="' + P + '" style="display:none;align-items:center;gap:11px;flex-wrap:wrap;margin-top:14px">';
   h += '<span style="' + lbl + '">From</span>';
-  h += '<input type="date" id="' + P + 'DateFrom" style="width:158px;' + inp + '">';
+  h += '<input type="date" id="' + P + 'DateFrom" style="width:162px;' + inp + '">';
   h += '<span style="' + lbl + '">to</span>';
-  h += '<input type="date" id="' + P + 'DateTo" style="width:158px;' + inp + '">';
+  h += '<input type="date" id="' + P + 'DateTo" style="width:162px;' + inp + '">';
   h += '<span id="' + P + 'Span" style="color:var(--so-text-muted);font-size:13px"></span>';
   h += '</div>';
-
-  h += '<div style="height:1px;background:var(--so-dune-dark2);margin:14px 0"></div>';
-
-  h += '<div style="display:flex;align-items:center;gap:7px;margin-bottom:4px">';
-  h += '<span style="font-size:11px;font-weight:700;color:var(--so-text-muted);letter-spacing:.05em">2&nbsp;&nbsp;SCOPE</span>';
-  h += '<span title="Scope decides which records count toward the quality and integrity scores. The period always bounds the activity and momentum metrics, whatever the scope." style="color:var(--so-text-muted);cursor:help;display:inline-flex">' + dpSvg('info', 14) + '</span>';
   h += '</div>';
-  h += '<div style="font-size:13px;color:var(--so-text-muted);margin-bottom:12px">Which records the period selects for the quality and integrity scores.</div>';
 
-  h += '<div class="dp-scope" data-dp="' + P + '" data-scope-sel="active" style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:11px">';
+  // ---- Card 2: Scope ----
+  h += '<div class="da2-card">';
+  h += '<div class="da2-head"><span class="da2-ix">2</span><span class="da2-title">' + dpSvg('database', 17) + 'Scope<span title="Scope decides which records count toward the quality and integrity scores. The period always bounds the activity and momentum metrics, whatever the scope." style="color:var(--so-text-muted);cursor:help;display:inline-flex">' + dpSvg('info', 14) + '</span></span></div>';
+  h += '<div class="da2-sub">Which records the period selects for the quality and integrity scores.</div>';
+  h += '<div class="dp-scope" data-dp="' + P + '" data-scope-sel="active" style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:16px">';
   for (var i = 0; i < DP_SCOPES.length; i++) {
     var sc = DP_SCOPES[i];
-    h += '<div class="dp-scope-btn" data-scope="' + sc.id + '" style="position:relative;background:var(--so-white);border:1px solid var(--so-border);border-radius:var(--radius);padding:12px 13px 11px;cursor:pointer;min-height:68px">';
-    if (sc.rec) h += '<span style="position:absolute;top:-9px;left:12px;font-size:10px;font-weight:700;color:var(--so-white);background:var(--so-green);border-radius:5px;padding:2px 8px">Recommended</span>';
-    h += '<span class="dp-card-chk" style="position:absolute;top:10px;right:10px;color:var(--so-green);display:none">' + dpSvg('check', 16) + '</span>';
-    h += '<div style="display:flex;align-items:center;gap:8px"><span style="color:var(--so-green);display:inline-flex">' + dpSvg(sc.icon, 18) + '</span><span style="font-size:14px;font-weight:600;color:var(--so-charcoal)">' + sc.title + '</span></div>';
-    h += '<div style="font-size:12px;color:var(--so-text-muted);margin-top:7px;line-height:1.45">' + sc.desc + '</div>';
+    h += '<div class="dp-scope-btn" data-scope="' + sc.id + '" style="position:relative;background:var(--so-white);border:1px solid var(--so-border);padding:13px 15px 12px;cursor:pointer;min-height:70px">';
+    if (sc.rec) h += '<span style="position:absolute;top:-10px;left:14px;font-size:10px;font-weight:700;letter-spacing:.03em;color:var(--so-white);background:var(--so-green);border-radius:999px;padding:3px 10px">Recommended</span>';
+    h += '<span class="dp-card-chk" style="position:absolute;top:13px;right:13px;color:var(--so-green-light);display:none">' + dpSvg('check', 16) + '</span>';
+    h += '<div style="display:flex;align-items:center;gap:8px"><span style="color:var(--so-green-light);display:inline-flex">' + dpSvg(sc.icon, 18) + '</span><span style="font-size:15px;font-weight:700;color:var(--so-charcoal)">' + sc.title + '</span></div>';
+    h += '<div style="font-size:12.5px;color:var(--so-text-muted);margin-top:7px;line-height:1.45">' + sc.desc + '</div>';
     h += '</div>';
   }
   h += '</div>';
 
   h += dpCountBarHtml(P);
 
-  h += '<div style="height:1px;background:var(--so-dune-dark2);margin:14px 0"></div>';
-
+  h += '<div style="height:1px;background:var(--so-dune-dark2);margin:18px 0 14px"></div>';
   h += '<div style="display:flex;align-items:center;gap:7px;margin-bottom:13px">';
   h += '<span title="For each entity, this is which records the scores count under the chosen scope." style="color:var(--so-text-muted);cursor:help;display:inline-flex">' + dpSvg('info', 14) + '</span>';
-  h += '<span style="font-size:13px;color:var(--so-charcoal)">With <span id="' + P + 'CovScope" style="font-weight:600;color:var(--so-green)">Active base</span>, the scores cover</span>';
+  h += '<span style="font-size:13px;color:var(--so-charcoal)">With <span id="' + P + 'CovScope" style="font-weight:700;color:var(--so-green-light)">Active base</span>, the scores cover</span>';
   h += '</div>';
   h += '<div id="' + P + 'CovGrid" style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px"></div>';
   h += '<div style="display:flex;align-items:center;gap:8px;margin-top:15px"><span style="color:var(--so-text-muted);display:inline-flex">' + dpSvg('clock', 15) + '</span><span style="font-size:12px;color:var(--so-text-muted)">Adoption and momentum always measure activity inside the period, whatever the scope.</span></div>';
+  h += '</div>';
 
   h += '</div>';
   return h;
@@ -221,9 +219,10 @@ function dpPaintGroup(container) {
     var cards = container.getElementsByClassName('dp-scope-btn');
     for (var i = 0; i < cards.length; i++) {
       var on = cards[i].getAttribute('data-scope') === sel;
-      cards[i].style.border = on ? '2px solid var(--so-green)' : '1px solid var(--so-border)';
-      cards[i].style.background = on ? 'var(--so-dune)' : 'var(--so-white)';
-      cards[i].style.padding = on ? '11px 12px 10px' : '12px 13px 11px';
+      cards[i].style.border = on ? '1.5px solid var(--so-green-light)' : '1px solid var(--so-border)';
+      cards[i].style.background = on ? '#eaf2ef' : 'var(--so-white)';
+      cards[i].style.boxShadow = on ? '0 0 0 3px rgba(15,92,87,.08)' : 'none';
+      cards[i].style.padding = on ? '12.5px 14.5px 11.5px' : '13px 15px 12px';
       var chk = cards[i].getElementsByClassName('dp-card-chk')[0];
       if (chk) chk.style.display = on ? 'inline-flex' : 'none';
     }
@@ -329,17 +328,100 @@ function dpUpdateScopeCount(P) {
   _dpCountSeq[P] = seq;
   ajax(scopeCountUrl + dpScopeCountParams(P), function(o) {
     if (seq !== _dpCountSeq[P]) return; // a newer request for this control superseded this one
-    if (!o || typeof o.scoped === 'undefined') { numEl.textContent = ''; if (barEl) barEl.style.width = '0'; return; }
+    if (!o || typeof o.scoped === 'undefined') { numEl.textContent = ''; if (barEl) barEl.style.width = '0'; if (typeof dpUpdateBar === 'function') dpUpdateBar(P); return; }
     var s = o.scoped | 0;
     var t = o.total | 0;
     numEl.innerHTML = '<strong style="color:var(--so-green);font-weight:700">' + dpNum(s) + '</strong> of ' + dpNum(t);
     if (barEl) { barEl.style.opacity = '1'; barEl.style.width = (t > 0 ? Math.max(2, Math.round(s / t * 100)) : 0) + '%'; }
+    if (typeof dpUpdateBar === 'function') dpUpdateBar(P);
   });
 }
 
 function dpScheduleCount(P) {
   if (_dpCountTimer[P]) clearTimeout(_dpCountTimer[P]);
   _dpCountTimer[P] = setTimeout(function() { dpUpdateScopeCount(P); }, 280);
+}
+
+// ---- Sticky bottom action bar (setup intake only) ----
+function dpEntCount() {
+  var card = document.getElementById('setupEntitiesCard');
+  if (!card) return 0;
+  var boxes = card.querySelectorAll('input[type="checkbox"]');
+  var n = 0;
+  for (var i = 0; i < boxes.length; i++) { if (boxes[i].checked) n++; }
+  return n;
+}
+
+function dpBuildActionBar(P) {
+  if (P !== 'setup') return;
+  var inner = document.querySelector('#setupScreen .setup-inner');
+  if (!inner || document.getElementById('setupActionBar')) return;
+  var play = '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>';
+  var bar = document.createElement('div');
+  bar.id = 'setupActionBar';
+  bar.innerHTML =
+    '<div class="ab-inner">' +
+      '<span class="ab-chip" id="abPeriod">' + dpSvg('calendar', 15) + '<span>Last 12 months</span></span>' +
+      '<span class="ab-chip" id="abScope">' + dpSvg('database', 15) + '<span>Active base</span></span>' +
+      '<span class="ab-chip" id="abComp">' + dpSvg('activity', 15) + '<b>\u2014</b><span>companies</span></span>' +
+      '<span class="ab-meta" id="abMeta"></span>' +
+      '<button type="button" class="ab-start" id="abStart">' + play + 'Start Analysis</button>' +
+    '</div>';
+  inner.appendChild(bar);
+  var btn = document.getElementById('abStart');
+  if (btn) btn.addEventListener('click', function() { if (!btn.disabled && typeof launchDashboard === 'function') launchDashboard(); });
+  dpUpdateBar('setup');
+}
+
+function dpUpdateBar(P) {
+  if (P !== 'setup' || !document.getElementById('setupActionBar')) return;
+  var mode = dpMode(P);
+  // Period chip label
+  var periodLabel;
+  if (mode === 'custom') {
+    periodLabel = 'Custom range';
+  } else {
+    var nEl = document.getElementById(P + 'RollN');
+    var uEl = document.getElementById(P + 'RollUnit');
+    var n = nEl ? parseInt(nEl.value, 10) : NaN;
+    var u = uEl ? uEl.value : 'month';
+    if (isNaN(n) || n < 1) periodLabel = 'Rolling';
+    else periodLabel = 'Last ' + n + ' ' + (u === 'year' ? (n === 1 ? 'year' : 'years') : (n === 1 ? 'month' : 'months'));
+  }
+  var pe = document.querySelector('#abPeriod span'); if (pe) pe.textContent = periodLabel;
+  // Scope chip
+  var scId = dpScope(P), scTitle = 'Active base';
+  for (var i = 0; i < DP_SCOPES.length; i++) { if (DP_SCOPES[i].id === scId) scTitle = DP_SCOPES[i].title; }
+  var se = document.querySelector('#abScope span'); if (se) se.textContent = scTitle;
+  // Companies chip (read the resolved scope count)
+  var rawEl = document.getElementById(P + 'ScopeCountNum');
+  var raw = rawEl ? (rawEl.textContent || '') : '';
+  var digits = raw.split(' of ')[0].replace(/[^\d]/g, '');
+  var companies = digits ? parseInt(digits, 10) : NaN;
+  var ce = document.querySelector('#abComp b'); if (ce) ce.textContent = isNaN(companies) ? '\u2014' : dpNum(companies);
+  // Ready state + run meta
+  var ent = dpEntCount();
+  var ready = true, reason = '';
+  if (ent < 1) { ready = false; reason = 'Select at least one entity'; }
+  else if (mode === 'custom') {
+    var f = (document.getElementById(P + 'DateFrom') || {}).value || '';
+    var t = (document.getElementById(P + 'DateTo') || {}).value || '';
+    if (!f || !t || f > t) { ready = false; reason = 'Set a valid date range'; }
+  } else {
+    var rn = parseInt((document.getElementById(P + 'RollN') || {}).value, 10);
+    if (isNaN(rn) || rn < 1) { ready = false; reason = 'Enter a length of at least 1'; }
+  }
+  var meta = document.getElementById('abMeta');
+  if (meta) {
+    if (!ready) { meta.className = 'ab-meta warn'; meta.textContent = reason; }
+    else {
+      meta.className = 'ab-meta';
+      var est = isNaN(companies) ? null : Math.max(1, Math.round(companies / 1600));
+      meta.innerHTML = (est ? 'est. <b>~' + est + ' min</b> \u00b7 ' : '') + ent + ' ' + (ent === 1 ? 'entity' : 'entities');
+    }
+  }
+  var btn = document.getElementById('abStart');
+  if (btn) btn.disabled = !ready;
 }
 
 document.addEventListener('click', function(e) {
@@ -518,36 +600,20 @@ function dpBootReveal() {
   }, 780);
 }
 
-function dpInjectStyles() {
-  if (document.getElementById('dpStyles')) return;
-  var st = document.createElement('style');
-  st.id = 'dpStyles';
-  st.textContent =
-    '.header-date-select{display:none}' +
-    '.header-date-select ~ .custom-date-input{display:none}' +
-    '.header-date-select ~ .btn-analyze{display:none}' +
-    '.dp-seg-btn{transition:background-color .2s ease,color .2s ease}' +
-    '.dp-seg-btn:hover{box-shadow:0 1px 6px rgba(6,66,62,.15)}' +
-    '.dp-scope-btn{transition:border-color .15s ease,background-color .15s ease,box-shadow .15s ease,transform .15s ease}' +
-    '.dp-scope-btn:hover{box-shadow:0 3px 12px rgba(6,66,62,.13);transform:translateY(-2px)}' +
-    '.dp-wrap input,.dp-wrap select{transition:box-shadow .15s ease,border-color .15s ease}' +
-    '.dp-wrap input:hover,.dp-wrap select:hover{box-shadow:0 1px 4px rgba(6,66,62,.12)}' +
-    '.dp-wrap input:focus,.dp-wrap select:focus{outline:none;box-shadow:0 0 0 3px rgba(6,66,62,.15)}' +
-    '.dp-rolling,.dp-custom{animation:dpFade .22s ease}' +
-    '@keyframes dpFade{from{opacity:0;transform:translateY(-3px)}to{opacity:1;transform:translateY(0)}}' +
-    // Keep the intake from showing a page-level horizontal scrollbar (for example when the
-    // entities grid is collapsed). A wide entities grid scrolls inside its own card instead.
-    '.setup-overlay,.setup-inner{overflow-x:hidden}' +
-    '.setup-entity-grid,.aa-entity-grid{overflow-x:auto;overflow-y:hidden}';
-  document.head.appendChild(st);
-}
-
 function dpInit() {
-  dpInjectStyles();
   dpBuild('setup', 'setupDateFilter');
   dpBuild('aa', 'aaDateFilter');
   dpCollapseEntities('setupEntitiesCard');
   dpCollapseEntities('aaEntitiesCard');
+  dpBuildActionBar('setup');
+  // Keep the action bar summary and ready state in sync with any intake change.
+  var sc = document.getElementById('setupScreen');
+  if (sc) {
+    var refresh = function() { setTimeout(function() { dpUpdateBar('setup'); }, 0); };
+    sc.addEventListener('click', refresh);
+    sc.addEventListener('input', refresh);
+    sc.addEventListener('change', refresh);
+  }
   dpBootReveal();
 }
 if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', dpInit); } else { dpInit(); }
