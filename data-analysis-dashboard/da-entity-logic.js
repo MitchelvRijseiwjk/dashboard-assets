@@ -1632,7 +1632,20 @@ function gatherEntityData(key) {
     if (o.withActivities !== undefined) checkData.noActivities = total - (o.withActivities || 0);
     if (o.withAmount !== undefined) checkData.noAmount = total - (o.withAmount || 0);
     compData.withActivity = o.withActivities || 0;
-    compData.stageProgression = o.withActivities || 0; // approximate
+    // Real stage adoption: sales with a pipeline stage (probability) set. Read the
+    // "(No value)" bucket from the stage distribution so this matches the Overview tab.
+    var saleNoStage = 0;
+    if (ov.distributions) {
+      for (var sdi = 0; sdi < ov.distributions.length; sdi++) {
+        var sdd = ov.distributions[sdi];
+        if (sdd && sdd.title && sdd.title.toLowerCase().indexOf('stage') >= 0 && sdd.items) {
+          for (var sdj = 0; sdj < sdd.items.length; sdj++) {
+            if ((sdd.items[sdj].name || '').toLowerCase() === '(no value)') saleNoStage = sdd.items[sdj].count || 0;
+          }
+        }
+      }
+    }
+    compData.stageProgression = total - saleNoStage;
     if (!cpl) {
       cpl = { amount: o.withAmount || 0, saleType: total, stage: total, probability: total, closeDate: total };
     }
@@ -1999,7 +2012,7 @@ function renderAdoptionTab(key) {
       var adBad = 100 - d.pct;
       var adAttn = attnScore(adBad, d.weight);
       var adReason = '<b>' + attnBandWord(adAttn) + ' attention.</b> ' + _capFirst(d.weight) + ' weight, ' + Math.round(adBad) + '% of records not covered. Higher coverage lifts Adoption.';
-      var adRow = '<tr><td class="attn-col">' + attnIconHtml(adAttn, adReason) + '</td><td>' + d.label + '</td>';
+      var adRow = '<tr><td class="attn-col">' + attnIconHtml(adAttn, adReason) + '</td><td>' + d.label + (d.desc ? sbInfoIcon(d.desc) : '') + '</td>';
       adRow += '<td class="col-right">' + fmtNum(cnt) + '</td>';
       adRow += '<td style="text-align:center"><span class="imp-badge ' + wCls + '">' + d.weight + '</span></td>';
       adRow += '<td class="col-right">' + barCell(d.pct, col) + '</td></tr>';
@@ -2030,7 +2043,7 @@ function renderAdoptionTab(key) {
       var wCls2 = c.weight === 'high' ? 'required' : (c.weight === 'medium' ? 'normal' : 'excluded');
       var igAttn = attnScore(c.affected, c.weight);
       var igReason = '<b>' + attnBandWord(igAttn) + ' attention.</b> ' + _capFirst(c.weight) + ' weight, ' + Math.round(c.affected) + '% of records affected. Fewer affected lifts Data Integrity.';
-      var igRow = '<tr><td class="attn-col">' + attnIconHtml(igAttn, igReason) + '</td><td>' + c.label + '</td>';
+      var igRow = '<tr><td class="attn-col">' + attnIconHtml(igAttn, igReason) + '</td><td>' + c.label + (c.desc ? sbInfoIcon(c.desc) : '') + '</td>';
       igRow += '<td class="col-right">' + fmtNum(cnt2) + '</td>';
       igRow += '<td style="text-align:center"><span class="imp-badge ' + wCls2 + '">' + c.weight + '</span></td>';
       igRow += '<td class="col-right">' + barCell(c.affected, col2) + '</td></tr>';
