@@ -407,14 +407,14 @@
     .setup-overlay.hiding{opacity:0;pointer-events:none}
     .setup-overlay.hidden{display:none}
     .setup-inner{flex:1;min-height:0;display:flex;flex-direction:column;width:100%;margin:0;padding:0;overflow:hidden}
-    .setup-brand{flex:none;padding:18px 40px 10px;margin:0}
+    .setup-brand{flex:none;padding:14px 40px 8px;margin:0}
     .setup-brand .hugo-logo{width:170px;height:auto}
     .setup-tabs{display:none}
     .setup-tab{padding:8px 18px;font-size:.84rem;font-weight:500;color:var(--so-text-muted);cursor:pointer;border-bottom:2px solid transparent;transition:all .15s;margin-bottom:-1px}
     .setup-tab:hover{color:var(--so-charcoal)}
     .setup-tab.active{color:var(--so-green);border-bottom-color:var(--so-green);font-weight:600}
     .setup-tabs .btn-launch{margin-left:auto;padding:7px 24px;font-size:.82rem;margin-bottom:6px}
-    .setup-tab-content{flex:1;min-height:0;display:block;overflow-y:auto;overflow-x:hidden;padding:6px 40px 22px}
+    .setup-tab-content{flex:1;min-height:0;display:block;overflow-y:auto;overflow-x:hidden;padding:4px 40px 14px}
     .setup-tab-panel{max-width:880px;margin:0 auto}
     .setup-tab-panel.active{visibility:visible}
     .setup-grid{display:block;margin:0}
@@ -461,6 +461,7 @@
     .dp-seg-btn:hover{color:var(--so-charcoal)}
     .dp-scope-btn{transition:border-color .15s ease,background-color .15s ease,box-shadow .15s ease,transform .15s ease;border-radius:14px}
     .dp-scope-btn:hover{box-shadow:0 3px 12px rgba(6,66,62,.12);transform:translateY(-2px)}
+    .dp-cov-toggle:hover{color:var(--so-green)}
     .dp-wrap input,.dp-wrap select{border:1px solid var(--so-border);border-radius:11px;background:var(--so-white);color:var(--so-charcoal);font-weight:600;font-family:inherit;transition:box-shadow .15s ease,border-color .15s ease}
     .dp-wrap input:hover,.dp-wrap select:hover{box-shadow:0 1px 4px rgba(6,66,62,.1)}
     .dp-wrap input:focus,.dp-wrap select:focus{outline:none;border-color:var(--so-green-light);box-shadow:0 0 0 3px rgba(15,92,87,.14)}
