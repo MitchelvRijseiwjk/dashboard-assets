@@ -1429,9 +1429,11 @@ function launchDashboard() {
   var setupTabs = document.querySelector('.setup-tabs');
   var loadingDiv = document.getElementById('setupLoadingState');
   var tabContent = document.querySelector('.setup-tab-content');
+  var actionBar = document.getElementById('setupActionBar');
   if (tabContent) tabContent.style.display = 'none';
   if (setupTabs) setupTabs.style.display = 'none';
-  if (loadingDiv) loadingDiv.style.display = '';
+  if (actionBar) actionBar.style.display = 'none';
+  if (loadingDiv) loadingDiv.style.display = 'flex';
   setupAnalysisRunning = true;
   startAnalyzeAll();
 }
