@@ -198,13 +198,17 @@ function dpControlHtml(P) {
 
   h += dpCountBarHtml(P);
 
-  h += '<div style="height:1px;background:var(--so-dune-dark2);margin:18px 0 14px"></div>';
-  h += '<div style="display:flex;align-items:center;gap:7px;margin-bottom:13px">';
+  h += '<button type="button" class="dp-cov-toggle" data-dp-cov="' + P + '" style="display:inline-flex;align-items:center;gap:8px;margin-top:16px;background:none;border:none;color:var(--so-green-light);font-weight:700;font-size:14px;font-family:inherit;cursor:pointer;padding:4px 0">';
+  h += '<span class="dp-cov-cx" style="display:inline-flex;transition:transform .2s">' + dpSvg('chevron', 16) + '</span>What gets included';
+  h += '</button>';
+  h += '<div class="dp-cov-wrap" data-dp-cov-wrap="' + P + '" style="display:none">';
+  h += '<div style="display:flex;align-items:center;gap:7px;margin:13px 0 13px">';
   h += '<span title="For each entity, this is which records the scores count under the chosen scope." style="color:var(--so-text-muted);cursor:help;display:inline-flex">' + dpSvg('info', 14) + '</span>';
   h += '<span style="font-size:13px;color:var(--so-charcoal)">With <span id="' + P + 'CovScope" style="font-weight:700;color:var(--so-green-light)">Active base</span>, the scores cover</span>';
   h += '</div>';
   h += '<div id="' + P + 'CovGrid" style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px"></div>';
   h += '<div style="display:flex;align-items:center;gap:8px;margin-top:15px"><span style="color:var(--so-text-muted);display:inline-flex">' + dpSvg('clock', 15) + '</span><span style="font-size:12px;color:var(--so-text-muted)">Adoption and momentum always measure activity inside the period, whatever the scope.</span></div>';
+  h += '</div>';
   h += '</div>';
 
   h += '</div>';
@@ -426,7 +430,7 @@ function dpUpdateBar(P) {
 
 document.addEventListener('click', function(e) {
   var b = e.target;
-  while (b && b !== document && (!b.className || typeof b.className !== 'string' || (b.className.indexOf('dp-seg-btn') < 0 && b.className.indexOf('dp-scope-btn') < 0))) {
+  while (b && b !== document && (!b.className || typeof b.className !== 'string' || (b.className.indexOf('dp-seg-btn') < 0 && b.className.indexOf('dp-scope-btn') < 0 && b.className.indexOf('dp-cov-toggle') < 0))) {
     b = b.parentNode;
   }
   if (!b || b === document) return;
@@ -443,6 +447,15 @@ document.addEventListener('click', function(e) {
     dpPaintGroup(sc);
     dpUpdateCov(sc.getAttribute('data-dp'));
     dpScheduleCount(sc.getAttribute('data-dp'));
+  } else if (b.className.indexOf('dp-cov-toggle') > -1) {
+    var cP = b.getAttribute('data-dp-cov');
+    var wrap = document.querySelector('.dp-cov-wrap[data-dp-cov-wrap="' + cP + '"]');
+    var cx = b.querySelector('.dp-cov-cx');
+    if (wrap) {
+      var open = wrap.style.display !== 'none';
+      wrap.style.display = open ? 'none' : '';
+      if (cx) cx.style.transform = open ? 'rotate(0deg)' : 'rotate(180deg)';
+    }
   }
 });
 
