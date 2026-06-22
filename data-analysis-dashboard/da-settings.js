@@ -35,9 +35,9 @@
         { key: 'noOwner',       label: 'No owner',            desc: 'Without owner, accountability and follow-up disappear', query: 'company.associate_id <= 0', isNew: true }
       ],
       engagementComponents: [
-        { key: 'withPerson',   label: 'Persons',    alwaysOn: false },
-        { key: 'withActivity', label: 'Activities',  alwaysOn: false },
-        { key: 'withPipeline', label: 'Pipeline',    alwaysOn: false }
+        { key: 'withPerson',   label: 'Persons',    desc: 'Companies with at least one contact person registered.', alwaysOn: false },
+        { key: 'withActivity', label: 'Activities',  desc: 'Companies with at least one activity logged in the period.', alwaysOn: false },
+        { key: 'withPipeline', label: 'Pipeline',    desc: 'Companies with at least one open sale in the period.', alwaysOn: false }
       ],
       hasPipelineConfig: true
     },
@@ -57,8 +57,8 @@
         { key: 'noActivity',  label: 'No activity',          desc: 'No interaction logged for over a year, relationship dormant', query: 'count(appointment WHERE activeDate >= now - 12 months) = 0', isNew: true }
       ],
       engagementComponents: [
-        { key: 'withActivity', label: 'Activities',    alwaysOn: false },
-        { key: 'withSales',    label: 'Linked Sales',  alwaysOn: false }
+        { key: 'withActivity', label: 'Activities',    desc: 'Contacts with at least one activity logged in the period.', alwaysOn: false },
+        { key: 'withSales',    label: 'Linked Sales',  desc: 'Contacts connected to at least one sale.', alwaysOn: false }
       ],
       hasPipelineConfig: false
     },
@@ -76,12 +76,12 @@
       integrityChecks: [
         { key: 'noContact',     label: 'No contact linked',  desc: 'Sales without a contact person are hard to follow up', query: 'sale.person_id <= 0' },
         { key: 'staleSale',     label: 'Stale sale',         desc: 'Forecast is overstated as close-date has already passed', query: 'sale.status = Open AND sale.saledate < NOW()' },
-        { key: 'noActivities',  label: 'No activities logged', desc: 'No activities suggest the deal has stalled or been forgotten', query: 'count(appointment WHERE sale_id = sale) = 0' },
+        { key: 'noActivities',  label: 'No activities logged', desc: 'No activities suggest the deal has stalled or been forgotten. Under the Active base scope this sits near zero, since active sales are selected partly by their activity.', query: 'count(appointment WHERE sale_id = sale) = 0' },
         { key: 'noAmount',      label: 'No amount',          desc: 'Without amount, pipeline value cannot be forecasted', query: 'sale.amount <= 0', isNew: true }
       ],
       engagementComponents: [
-        { key: 'withActivity',     label: 'Activities logged',  alwaysOn: false },
-        { key: 'stageProgression', label: 'Stage progression',  alwaysOn: false }
+        { key: 'withActivity',     label: 'Activities logged',  desc: 'Sales with at least one activity logged. Under the Active base scope this sits near 100 percent, because active sales are selected partly by their activity, so it is not a discriminating signal here.', alwaysOn: false },
+        { key: 'stageProgression', label: 'Stage progression',  desc: 'Sales that have a pipeline stage (probability) filled in, rather than left at no value. This is the share that can actually be forecast on.', alwaysOn: false }
       ],
       hasPipelineConfig: false
     },
@@ -98,8 +98,8 @@
         { key: 'noActivities', label: 'No activities',  desc: 'No activities suggest delivery has stalled or paused', query: 'count(appointment WHERE project_id = project) = 0' }
       ],
       engagementComponents: [
-        { key: 'withActivity',     label: 'Activities logged',   alwaysOn: false },
-        { key: 'memberEngagement', label: 'Member engagement',   alwaysOn: false }
+        { key: 'withActivity',     label: 'Activities logged',   desc: 'Projects with at least one activity logged in the period.', alwaysOn: false },
+        { key: 'memberEngagement', label: 'Member engagement',   desc: 'Projects that have at least one team member assigned.', alwaysOn: false }
       ],
       hasPipelineConfig: false
     },
@@ -110,8 +110,8 @@
         { key: 'noOwner', label: 'Unassigned (no owner)', desc: 'Ticket has no owner, so it is not being handled by anyone', query: 'ticket WHERE owned_by = 1' }
       ],
       engagementComponents: [
-        { key: 'resolutionRate', label: 'Resolved',   alwaysOn: false },
-        { key: 'engagement',     label: 'Replied to',  alwaysOn: false }
+        { key: 'resolutionRate', label: 'Resolved',   desc: 'Tickets whose status maps to a closed base status. Custom statuses can map to a closed base, so this may read higher than the visible open or closed split.', alwaysOn: false },
+        { key: 'engagement',     label: 'Replied to',  desc: 'Tickets where at least one reply was sent to the requester.', alwaysOn: false }
       ],
       hasPipelineConfig: false
     }
@@ -896,7 +896,7 @@
       var count = checkData[c.key];
       if (count === undefined || count === null) continue;
       var pct = Math.min(100, Math.round(count / total * 1000) / 10);
-      items.push({ key: c.key, label: c.label, affected: pct, weight: cc.weight });
+      items.push({ key: c.key, label: c.label, desc: c.desc, affected: pct, weight: cc.weight });
       wItems.push({ weight: cc.weight, enabled: true });
     }
     if (items.length === 0) return null;
@@ -925,7 +925,7 @@
       var count = componentData[c.key];
       if (count === undefined || count === null) continue;
       var pct = Math.min(100, Math.round(count / total * 1000) / 10);
-      items.push({ key: c.key, label: c.label, pct: pct, weight: cc.weight });
+      items.push({ key: c.key, label: c.label, desc: c.desc, pct: pct, weight: cc.weight });
       wItems.push({ weight: cc.weight, enabled: true });
     }
     if (items.length === 0) return null;
