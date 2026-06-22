@@ -534,7 +534,11 @@ function dpInjectStyles() {
     '.dp-wrap input:hover,.dp-wrap select:hover{box-shadow:0 1px 4px rgba(6,66,62,.12)}' +
     '.dp-wrap input:focus,.dp-wrap select:focus{outline:none;box-shadow:0 0 0 3px rgba(6,66,62,.15)}' +
     '.dp-rolling,.dp-custom{animation:dpFade .22s ease}' +
-    '@keyframes dpFade{from{opacity:0;transform:translateY(-3px)}to{opacity:1;transform:translateY(0)}}';
+    '@keyframes dpFade{from{opacity:0;transform:translateY(-3px)}to{opacity:1;transform:translateY(0)}}' +
+    // Keep the intake from showing a page-level horizontal scrollbar (for example when the
+    // entities grid is collapsed). A wide entities grid scrolls inside its own card instead.
+    '.setup-overlay,.setup-inner{overflow-x:hidden}' +
+    '.setup-entity-grid,.aa-entity-grid{overflow-x:auto;overflow-y:hidden}';
   document.head.appendChild(st);
 }
 
