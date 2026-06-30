@@ -668,7 +668,7 @@ function _ruleRows(entityKey) {
     var r = rs[i]; if (r.active === false) continue;
     for (var j = 0; j < r.rows.length; j++) {
       var w = r.rows[j];
-      rows.push([r.ruleId, j, w.condField, w.condOp, w.condVal, w.reqField, w.reqOp].join('~'));
+      rows.push([r.ruleId, j, w.condField, w.condOp, w.condVal, w.reqField, w.reqOp, w.owner || ''].join('~'));
     }
   }
   return rows;
