@@ -2054,7 +2054,7 @@ function renderAdoptionTab(key) {
     // --- Rule checks (from intake conditional rules) ---
     var ruleResults = (window.rulesData && window.rulesData[key]) ? window.rulesData[key] : [];
     if (ruleResults.length > 0) {
-      hInt += '<tr><td colspan="5" style="padding:8px;font-size:11px;font-weight:500;letter-spacing:.03em;color:var(--so-green-light);background:var(--so-dune-dark1);border-bottom:1px solid var(--so-border)"><span style="display:inline-flex;align-items:center;gap:6px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="6" y1="3" x2="6" y2="15"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/></svg>Rule checks &middot; ' + ruleResults.length + ' evaluated</span></td></tr>';
+      hInt += '<tr><td colspan="5" style="padding:12px 8px 8px;font-size:12px;font-weight:600;letter-spacing:.02em;color:var(--so-green);border-bottom:1px solid var(--so-border);border-top:2px solid var(--so-border)"><span style="display:inline-flex;align-items:center;gap:6px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="6" y1="3" x2="6" y2="15"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/></svg>Rule checks &middot; ' + ruleResults.length + ' evaluated</span></td></tr>';
       var rRows = [];
       for (var ri = 0; ri < ruleResults.length; ri++) {
         var rv = ruleResults[ri];
