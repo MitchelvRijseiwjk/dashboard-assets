@@ -2050,6 +2050,33 @@ function renderAdoptionTab(key) {
       igRows.push({ attn: igAttn, badness: c.affected, html: igRow });
     }
     hInt += attnSortRows(igRows);
+
+    // --- Rule checks (from intake conditional rules) ---
+    var ruleResults = (window.rulesData && window.rulesData[key]) ? window.rulesData[key] : [];
+    if (ruleResults.length > 0) {
+      hInt += '<tr><td colspan="5" style="padding:8px;font-size:11px;font-weight:500;letter-spacing:.03em;color:var(--so-green-light);background:var(--so-dune-dark1);border-bottom:1px solid var(--so-border)"><span style="display:inline-flex;align-items:center;gap:6px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="6" y1="3" x2="6" y2="15"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/></svg>Rule checks &middot; ' + ruleResults.length + ' evaluated</span></td></tr>';
+      var rRows = [];
+      for (var ri = 0; ri < ruleResults.length; ri++) {
+        var rv = ruleResults[ri];
+        var rvPct = (rv.segmentTotal > 0) ? Math.round(rv.violations / rv.segmentTotal * 100 * 10) / 10 : 0;
+        var rvCol = slColorInv(rvPct);
+        var rvW = rv.weight || 'high';
+        var rvWCls = rvW === 'high' ? 'required' : (rvW === 'medium' ? 'normal' : 'excluded');
+        var rvAttn = attnScore(rvPct, rvW);
+        var rvTip = 'Rule: for category <b>' + (rv.condLabel || '?') + '</b>, field <b>' + (rv.reqLabel || '?') + '</b> must be filled.';
+        if (rv.segmentTotal > 0) rvTip += '<br>' + rv.violations + ' of ' + fmtNum(rv.segmentTotal) + ' records in this segment are missing the field.';
+        if (rv.ownerLabel) rvTip += '<br><span style="display:inline-flex;align-items:center;gap:4px;margin-top:4px;font-size:11px;font-weight:600;color:var(--so-green-light);background:var(--so-meadow);padding:2px 8px;border-radius:4px">' + rv.ownerLabel + '</span>';
+        var rvReason = '<b>' + attnBandWord(rvAttn) + ' attention.</b> ' + _capFirst(rvW) + ' weight, ' + rvPct + '% of segment affected.';
+        var rvRow = '<tr><td class="attn-col">' + attnIconHtml(rvAttn, rvReason) + '</td>';
+        rvRow += '<td>' + (rv.condLabel || '?') + ' &rarr; ' + (rv.reqLabel || '?') + sbInfoIcon(rvTip) + '</td>';
+        rvRow += '<td class="col-right">' + fmtNum(rv.violations || 0) + '</td>';
+        rvRow += '<td style="text-align:center"><span class="imp-badge ' + rvWCls + '">' + rvW + '</span></td>';
+        rvRow += '<td class="col-right">' + barCell(rvPct, rvCol) + '</td></tr>';
+        rRows.push({ attn: rvAttn, badness: rvPct, html: rvRow });
+      }
+      hInt += attnSortRows(rRows);
+    }
+
     hInt += '</tbody></table></div>';
   }
 
