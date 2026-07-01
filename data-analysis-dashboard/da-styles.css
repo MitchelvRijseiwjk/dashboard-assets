@@ -821,7 +821,7 @@
 .sb-iw{position:relative;display:inline-flex;align-items:center;margin-left:5px;color:var(--so-text-muted);vertical-align:middle}
 .sb-iw svg{cursor:help;opacity:.65}
 .sb-iw:hover svg{opacity:1}
-.sb-itip{display:none;position:absolute;top:21px;left:-8px;z-index:30;width:222px;background:var(--so-white);border:1px solid var(--so-border);border-radius:8px;box-shadow:0 5px 16px rgba(0,0,0,.12);padding:9px 11px;font-size:.72rem;font-weight:400;line-height:1.5;color:#5f5e5a;letter-spacing:0;text-transform:none}
+.sb-itip{display:none;position:absolute;bottom:calc(100% + 8px);left:-8px;z-index:100;width:222px;background:var(--so-white);border:1px solid var(--so-border);border-radius:8px;box-shadow:0 5px 16px rgba(0,0,0,.12);padding:9px 11px;font-size:.72rem;font-weight:400;line-height:1.5;color:#5f5e5a;letter-spacing:0;text-transform:none}
 .sb-iw:hover .sb-itip{display:block}
 .sb-foot{border-top:1px solid var(--so-dune);margin-top:14px;padding-top:11px}
 .da-loading{display:flex;align-items:center;justify-content:center;gap:10px;padding:48px 20px;color:var(--so-text-muted);font-size:.85rem}
@@ -838,7 +838,7 @@
 .attn-col{width:20px;text-align:center;padding-left:14px;padding-right:2px}
 .attn-iw{position:relative;display:inline-flex;cursor:help;vertical-align:middle}
 .attn-dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#d2cfc9}
-.attn-tip{display:none;position:absolute;top:24px;left:-6px;z-index:30;width:230px;background:var(--so-white);border:1px solid var(--so-border);border-radius:8px;box-shadow:0 6px 18px rgba(0,0,0,.13);padding:9px 11px;font-size:.72rem;font-weight:400;line-height:1.5;color:#5a5953;text-align:left;text-transform:none;letter-spacing:0;white-space:normal}
+.attn-tip{display:none;position:absolute;bottom:calc(100% + 8px);left:-6px;z-index:100;width:230px;background:var(--so-white);border:1px solid var(--so-border);border-radius:8px;box-shadow:0 6px 18px rgba(0,0,0,.13);padding:9px 11px;font-size:.72rem;font-weight:400;line-height:1.5;color:#5a5953;text-align:left;text-transform:none;letter-spacing:0;white-space:normal}
 .attn-iw:hover .attn-tip{display:block}
 .attn-tip b{color:var(--so-charcoal);font-weight:600}
 /* keep the attention icon and its tooltip readable even on dimmed/unused rows */
