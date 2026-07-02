@@ -9,7 +9,14 @@ function renderUdef(ent, idx, entityKey) {
     var udefCfg = (typeof daSettings !== 'undefined' && entityKey) ? (daSettings.getSettings(entityKey).udefFieldConfig || {}) : {};
     var Q = String.fromCharCode(39);
     var tid = 'tbl-u' + idx;
-    h += '<div class="tbl-cap"><b>Higher completeness is better.</b> Custom fields feed the Data Quality score. Sorted by attention, so important fields with the largest gaps sit on top.</div>';
+    // When a period filter is active, UDEF coverage is measured over records
+    // CREATED in the period (Option A). The standard fields use the active-in-period
+    // population, so the two denominators differ by design. Make that explicit here.
+    var udefScopeNote = '';
+    if (typeof activeScope !== 'undefined' && activeScope !== 'all' && ent.total !== undefined) {
+      udefScopeNote = ' Coverage is measured over the ' + fmtNum(ent.total) + ' records created in the selected period, which can differ from the record counts on the other tabs.';
+    }
+    h += '<div class="tbl-cap"><b>Higher completeness is better.</b> Custom fields feed the Data Quality score. Sorted by attention, so important fields with the largest gaps sit on top.' + udefScopeNote + '</div>';
     h += '<table class="data-table" id="' + tid + '">';
     h += '<thead><tr>';
     h += '<th class="attn-col" onclick="sortT(' + Q + tid + Q + ',0)"><span class="sort-arrow active">' + svgSortD + '</span></th>';
