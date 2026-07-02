@@ -268,10 +268,15 @@ function dpUpdatePreview(P) {
   var el = document.getElementById(P + 'Preview');
   if (!el) return;
   var r = dpResolve(P);
-  if (r.mode !== 'rolling') { el.textContent = ''; return; }
-  var M = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-  var d = new Date(r.from + 'T00:00:00');
-  el.textContent = d.getDate() + ' ' + M[d.getMonth()] + ' ' + d.getFullYear() + ' to today';
+  if (r.mode === 'rolling') {
+    var M = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    var d = new Date(r.from + 'T00:00:00');
+    el.textContent = d.getDate() + ' ' + M[d.getMonth()] + ' ' + d.getFullYear() + ' to today';
+  } else if (r.mode === 'custom' && r.from) {
+    el.textContent = r.from + (r.to ? (' \u2192 ' + r.to) : ' \u2192 \u2026');
+  } else {
+    el.textContent = '';
+  }
 }
 
 function dpUpdateSpan(P) {
@@ -445,6 +450,8 @@ document.addEventListener('click', function(e) {
     var sc = b.parentNode;
     sc.setAttribute('data-scope-sel', b.getAttribute('data-scope'));
     dpPaintGroup(sc);
+    // Keep the global activeScope in sync (B-6 fix)
+    activeScope = b.getAttribute('data-scope');
     dpUpdateCov(sc.getAttribute('data-dp'));
     dpScheduleCount(sc.getAttribute('data-dp'));
   } else if (b.className.indexOf('dp-cov-toggle') > -1) {
@@ -695,9 +702,17 @@ function dateFilterNotice(suppressFilter) {
   var key = currentAnalysisEntity;
   var df = suppressFilter ? '' : activeFilterValue[key];
   var lbl = activeFilterLabel[key];
+  var dt = activeWindowTo || '';
   var pill = scanPillHtml();
   if (!df && !pill) return '';
-  var sinceSuffix = (lbl && lbl.toLowerCase().indexOf('since') === 0) ? '' : ' (since ' + df + ')';
+  var sinceSuffix = '';
+  if (lbl && lbl.toLowerCase().indexOf('since') === 0) {
+    sinceSuffix = '';
+  } else if (df && dt) {
+    sinceSuffix = ' (' + df + ' \u2192 ' + dt + ')';
+  } else if (df) {
+    sinceSuffix = ' (since ' + df + ')';
+  }
   var left = df
     ? '<span class="fn-icon">&#9202;</span><span>Filtered: <strong>' + lbl + '</strong>' + sinceSuffix + '</span>'
     : '';
