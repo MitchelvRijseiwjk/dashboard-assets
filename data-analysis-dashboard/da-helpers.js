@@ -156,19 +156,6 @@ function dpControlHtml(P) {
   var h = '';
   h += '<div class="dp-wrap" style="display:flex;flex-direction:column">';
 
-  // ---- Intake Form banner (setup screen) ----
-  if (P === 'setup') {
-    var cfgEl = document.getElementById('cfgData');
-    var ifu = cfgEl ? cfgEl.getAttribute('data-intake-form-url') : '';
-    if (ifu) {
-      h += '<div class="dp-intake-bar" onclick="window.open(\'' + ifu + '\',\'_blank\')">';
-      h += '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1"/></svg>';
-      h += '<span class="dp-intake-label">Configure what the Health Check measures in the Intake Form.</span>';
-      h += '<span class="dp-intake-open">Open <svg width="11" height="11" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 2h7v7"/><path d="M12 2L2 12"/></svg></span>';
-      h += '</div>';
-    }
-  }
-
   // ---- Card 1: Period ----
   h += '<div class="da2-card">';
   h += '<div class="da2-head"><span class="da2-ix">1</span><span class="da2-title">' + dpSvg('calendar', 17) + 'Period</span></div>';
@@ -629,6 +616,21 @@ function dpBootReveal() {
 function dpInit() {
   dpBuild('setup', 'setupDateFilter');
   dpBuild('aa', 'aaDateFilter');
+
+  // Insert intake banner above the setup grid (not inside a card)
+  var cfgEl = document.getElementById('cfgData');
+  var ifu = cfgEl ? cfgEl.getAttribute('data-intake-form-url') : '';
+  var grid = document.querySelector('#setupTab-config .setup-grid');
+  if (ifu && grid) {
+    var bar = document.createElement('div');
+    bar.className = 'dp-intake-bar';
+    bar.setAttribute('onclick', "window.open('" + ifu + "','_blank')");
+    bar.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1"/></svg>'
+      + '<span class="dp-intake-label">Configure what the Health Check measures in the Intake Form.</span>'
+      + '<span class="dp-intake-open">Open <svg width="11" height="11" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 2h7v7"/><path d="M12 2L2 12"/></svg></span>';
+    grid.parentNode.insertBefore(bar, grid);
+  }
+
   dpCollapseEntities('setupEntitiesCard');
   dpCollapseEntities('aaEntitiesCard');
   dpBuildActionBar('setup');
