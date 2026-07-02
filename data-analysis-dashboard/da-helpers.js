@@ -156,15 +156,15 @@ function dpControlHtml(P) {
   var h = '';
   h += '<div class="dp-wrap" style="display:flex;flex-direction:column">';
 
-  // ---- Intake Form banner (Analyze All only) ----
-  if (P === 'aa') {
+  // ---- Intake Form banner (setup screen) ----
+  if (P === 'setup') {
     var cfgEl = document.getElementById('cfgData');
     var ifu = cfgEl ? cfgEl.getAttribute('data-intake-form-url') : '';
     if (ifu) {
-      h += '<div class="aa-intake-bar" onclick="window.open(\'' + ifu + '\',\'_blank\')" style="display:flex;align-items:center;gap:9px;background:rgba(6,66,62,.03);border:1px solid rgba(6,66,62,.10);border-radius:9px;padding:9px 16px;margin-bottom:16px;cursor:pointer">';
-      h += '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="display:block;opacity:.85"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1"/></svg>';
-      h += '<span style="flex:1;font-size:13px;color:var(--so-green)">Configure what the Health Check measures in the Intake Form.</span>';
-      h += '<span style="font-size:12.5px;font-weight:500;color:var(--so-green)">Open ↗</span>';
+      h += '<div class="dp-intake-bar" onclick="window.open(\'' + ifu + '\',\'_blank\')">';
+      h += '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1"/></svg>';
+      h += '<span class="dp-intake-label">Configure what the Health Check measures in the Intake Form.</span>';
+      h += '<span class="dp-intake-open">Open <svg width="11" height="11" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 2h7v7"/><path d="M12 2L2 12"/></svg></span>';
       h += '</div>';
     }
   }
