@@ -895,6 +895,7 @@
       if (!cc || !cc.enabled) continue;
       var count = checkData[c.key];
       if (count === undefined || count === null) continue;
+      if (count < 0) count = 0; // guard: a negative flag count must never lift the score above 100
       var pct = Math.min(100, Math.round(count / total * 1000) / 10);
       items.push({ key: c.key, label: c.label, desc: c.desc, affected: pct, weight: cc.weight });
       wItems.push({ weight: cc.weight, enabled: true });
