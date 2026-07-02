@@ -570,6 +570,7 @@ function pushStdListValues(key, d) {
       var it = dist.items[j];
       var nm = it.name;
       if (nm === '(No value)') continue; // empty bucket is not a selectable value
+      if (nm === '(Other)') continue; // reconciliation bucket (deleted/missing list items), not selectable
       var c = it.count || 0;
       items.push({ n: nm, c: c, p: tot > 0 ? (c / tot * 100) : 0, i: it.idx });
     }
