@@ -691,16 +691,18 @@ function dateFilterNotice(suppressFilter) {
   var dt = activeWindowTo || '';
   var pill = scanPillHtml();
   if (!df && !pill) return '';
-  var sinceSuffix = '';
-  if (lbl && lbl.toLowerCase().indexOf('since') === 0) {
-    sinceSuffix = '';
-  } else if (df && dt) {
-    sinceSuffix = ' (' + df + ' \u2192 ' + dt + ')';
-  } else if (df) {
-    sinceSuffix = ' (since ' + df + ')';
+  // Build the label. When a bounded window has an end date, show the full
+  // range and do NOT keep the "Since ..." label (which reads as open-ended).
+  // The earlier suppression bug lived here: a label starting with "since"
+  // caused the end date to be dropped, which is exactly when it is needed.
+  var shownLabel = lbl;
+  if (df && dt) {
+    shownLabel = df + ' \u2192 ' + dt;
+  } else if (df && lbl && lbl.toLowerCase().indexOf('since') !== 0) {
+    shownLabel = 'since ' + df;
   }
   var left = df
-    ? '<span class="fn-icon">&#9202;</span><span>Filtered: <strong>' + lbl + '</strong>' + sinceSuffix + '</span>'
+    ? '<span class="fn-icon">&#9202;</span><span>Filtered: <strong>' + shownLabel + '</strong></span>'
     : '';
   return '<div class="filter-notice" style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap">'
     + '<div style="display:flex;align-items:center;gap:8px">' + left + '</div>'
