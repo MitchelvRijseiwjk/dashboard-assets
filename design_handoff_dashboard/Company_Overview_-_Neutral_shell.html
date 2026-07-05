@@ -1,0 +1,696 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Company · Overview — redesign</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    /* surfaces — intake palette: warm-grey canvas + near-white cards */
+    --page: #ece9e2;          /* warm-grey canvas (matches the intake) */
+    --card: #fcfbf7;          /* near-white, faint warm */
+    --card-border: #e3dfd5;
+    --card-shadow: 0 1px 2px rgba(40,50,40,.03), 0 8px 22px rgba(40,50,40,.04);
+    --ink: #173a32;
+    --ink-soft: #2c4a42;
+    --muted: #5a6760;
+    --faint: #6f7972;
+    --line: #e6e2d9;
+    --line-soft: #eeebe3;
+
+    /* recessed surfaces — step DOWN from the card so empty rails/tracks read ON it (not vs white) */
+    --track: #e7e2d7;              /* empty donut arc / progress / minibar rail */
+    --group-band: #eef2f0;         /* sticky group-header band */
+    --zebra: #faf9f5;              /* table zebra stripe */
+
+    /* neutral chip language — hairline edge + minimal fill; the ink/dot carries meaning */
+    --chip-fill: #f1efe8;
+    --chip-line: #ddd8cc;
+    --chip-ink:  #625d51;
+    --chip-line-teal: #cfe0da;     /* hairline for categorical (teal) chips */
+
+    /* SuperOffice brand surfaces */
+    --green: #15564b;
+    --shell: #ece9e2;          /* shell + menu share the canvas tone */
+    --side-2: rgba(0,0,0,.04);  /* hover (adapts to any bg) */
+    --side-active: #ffffff;    /* active: white pill */
+    --side-text: #303a35;
+    --side-faint: #837e72;
+
+    /* SEMANTIC ramp — ONLY for scores / health. -bg/-ink/-line make a soft chip that reads on the card */
+    --good: #2f8f5b;  --good-bg: #e7f3ec;  --good-ink: #226a43;  --good-line: #cbe4d3;
+    --mod:  #b9832f;  --mod-bg:  #f3e4ca;  --mod-ink:  #785012;  --mod-line:  #e4caa0;
+    --bad:  #c0473a;  --bad-bg:  #f8e9e6;  --bad-ink:  #9e3529;  --bad-line:  #e6c1b6;
+
+    /* CATEGORICAL ramp — for distributions (non-semantic, brand teal) */
+    --c1: #0d5f59;
+    --c2: #2f817a;
+    --c3: #51a399;
+    --c4: #82c2b8;
+    --c5: #b3ddd5;
+    --c6: #dcebe7;
+    --cn: #c8c2b4;  /* neutral 'other' */
+
+    --green-deep: #0c4a3f;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body { background: var(--page); color: var(--ink); font-family: 'Hanken Grotesk', system-ui, sans-serif; }
+  .app { display: grid; grid-template-columns: 250px 1fr; height: 100%; background: var(--shell); }
+
+  /* ---------------- sidebar (blends into the shell, like Wispr) ---------------- */
+  .side { background: transparent; color: var(--side-text); display: flex; flex-direction: column; padding: 20px 14px 14px; overflow-y: auto; }
+  html:not([data-surface]) .side { border-right: 1px solid var(--line); }
+  .brand { display: flex; align-items: center; gap: 11px; padding: 4px 8px 22px; }
+  .brand .mk { width: 30px; height: 30px; border-radius: 9px; background: #0fb; background: linear-gradient(160deg,#1f7a6b,#0c4a3f); display: grid; place-items: center; flex: none; }
+  .brand .mk svg { color: #eafaf5; }
+  .brand b { color: var(--green); font-weight: 800; font-size: 19px; letter-spacing: -.01em; line-height: 1; }
+  .brand b span { color: #3f8174; }
+  .brand small { display: block; color: var(--side-faint); font-size: 10.5px; letter-spacing: .12em; text-transform: uppercase; margin-top: 3px; font-weight: 600; }
+  .nav-top { display: flex; align-items: center; gap: 11px; padding: 11px 12px; border-radius: 10px; color: var(--green-deep); font-weight: 700; font-size: 15px; }
+  .nav-sec { color: var(--side-faint); font-size: 10.5px; letter-spacing: .13em; text-transform: uppercase; font-weight: 700; padding: 16px 12px 7px; }
+  .nav-item { display: flex; align-items: center; gap: 11px; padding: 9px 12px; border-radius: 10px; color: var(--side-text); font-weight: 500; font-size: 14.5px; cursor: pointer; }
+  .nav-item:hover { background: var(--side-2); }
+  .nav-item.active { background: var(--side-active); color: var(--green-deep); font-weight: 700; }
+  .nav-item svg { color: currentColor; opacity: .9; flex: none; }
+  .side .spacer { flex: 1; }
+  .side .credit { color: var(--side-faint); font-size: 12px; text-align: center; padding: 14px; opacity: .8; }
+
+  /* ---------------- main (flat by default; floats in float-* themes) ---------------- */
+  .main { overflow-y: auto; position: relative; background: var(--page); }
+  .head { display: flex; align-items: center; gap: 12px; padding: 15px 36px 11px; }
+  .head .eicon { width: 34px; height: 34px; border-radius: 50%; background: #e7f0ec; display: grid; place-items: center; flex: none; }
+  .head .eicon svg { color: var(--green-deep); width: 18px; height: 18px; }
+  .head h1 { margin: 0; font-size: 20px; font-weight: 800; letter-spacing: -.01em; color: var(--ink); white-space: nowrap; }
+  .head .export { margin-left: auto; align-self: center; display: inline-flex; align-items: center; gap: 8px; background: var(--card); border: 1px solid var(--line); border-radius: 9px; padding: 8px 14px; font-weight: 600; font-size: 13.5px; color: var(--ink); cursor: pointer; }
+
+  .tabs { display: flex; gap: 24px; padding: 0 36px; }
+  .tab { padding: 0 1px 13px; font-weight: 600; font-size: 14.5px; color: var(--muted); cursor: pointer; border-bottom: 2.5px solid transparent; }
+  .tab.active { color: var(--ink); border-color: var(--green-deep); }
+
+  .wrap { padding: 22px 36px 60px; }
+
+  .filter { display: flex; align-items: center; gap: 12px; background: var(--card); border: 1px solid var(--card-border); border-radius: 12px; padding: 12px 16px; color: var(--muted); font-size: 14px; }
+  .filter .fl { display: inline-flex; align-items: center; gap: 8px; }
+  .filter .period-btn { display: inline-flex; align-items: center; gap: 7px; background: var(--page); border: 1px solid var(--chip-line); border-radius: 8px; padding: 6px 11px; font-weight: 700; color: var(--ink); cursor: pointer; font-size: 13.5px; }
+  .filter .scan { margin-left: auto; display: inline-flex; align-items: center; gap: 7px; background: var(--good-bg); color: var(--good-ink); border: 1px solid var(--good-line); border-radius: 999px; padding: 6px 13px; font-weight: 600; font-size: 13px; }
+
+  .seclabel { color: var(--faint); font-size: 11.5px; letter-spacing: .12em; text-transform: uppercase; font-weight: 700; margin: 26px 2px 12px; }
+
+  .card { position: relative; background: var(--card); border: 1px solid var(--card-border); border-radius: 16px; padding: 24px 26px; box-shadow: var(--card-shadow); }
+  /* Option A — tinted card + tinted header row; data body is a full-bleed white band to the tinted border (no zebra) */
+  .card.sheeted { padding: 18px 0 0; --track: #e7e2d7; --chip-fill: #f1efe8; --chip-line: #ddd8cc; --line: #e6e2d9; --line-soft: #eeebe3; --group-band: #eef2f0; --good-bg: #e7f3ec; --mod-bg: #f3e4ca; --bad-bg: #f8e9e6; }
+  body:not(.show-annot) .card.sheeted { overflow: hidden; }
+  .card.sheeted .cardhead2 { padding: 0 24px; }
+  .card.sheeted p.sub { padding: 0 24px; }
+  .card.sheeted .passchip { margin-left: 24px; margin-right: 24px; }
+  .card.sheeted .tbl:not(.assoc) thead th { border-bottom: none; }
+  .card.sheeted .tbl:not(.assoc) thead th:first-child { padding-left: 24px; }
+  .card.sheeted .tbl:not(.assoc) thead th:last-child { padding-right: 24px; }
+  .card.sheeted .tbl:not(.assoc) tbody td { background: #ffffff; }
+  .card.sheeted .tbl:not(.assoc) tbody td:first-child { padding-left: 24px; }
+  .card.sheeted .tbl:not(.assoc) tbody td:last-child { padding-right: 24px; }
+  .card.sheeted .tbl:not(.assoc) tbody tr:first-child td { border-top: 1px solid var(--card-border); }
+  /* associate: member rows white (no zebra); column headers + group bands stay tinted */
+  .card.sheeted .assoc-scroll { background: #ffffff; }
+  .card.sheeted .memberrow td { background: #ffffff; }
+
+  /* health hero */
+  .hero { display: grid; grid-template-columns: 220px 1fr; gap: 8px; }
+  .donut-wrap { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; border-right: 1px solid var(--line-soft); padding-right: 18px; }
+  .donut { width: 132px; height: 132px; border-radius: 50%; display: grid; place-items: center; position: relative;
+    background: conic-gradient(from -90deg, var(--good) 0 81%, var(--track) 81% 100%); }
+  .donut::before { content: ''; position: absolute; inset: 15px; background: var(--card); border-radius: 50%; }
+  .donut .val { position: relative; font-size: 30px; font-weight: 800; color: var(--ink); }
+  .donut .val sup { font-size: 14px; font-weight: 700; color: var(--muted); }
+  .donut-wrap .ttl { font-weight: 700; font-size: 14px; color: var(--ink); white-space: nowrap; }
+  .badge { display: inline-flex; align-items: center; gap: 6px; border-radius: 999px; padding: 4px 11px; font-size: 12.5px; font-weight: 700; }
+  .badge .dot { width: 7px; height: 7px; border-radius: 50%; }
+  .badge.good { background: var(--good-bg); color: var(--good-ink); border: 1px solid var(--good-line); } .badge.good .dot { background: var(--good); }
+  .badge.mod  { background: var(--mod-bg);  color: var(--mod-ink);  border: 1px solid var(--mod-line); } .badge.mod .dot  { background: var(--mod); }
+
+  .subs { padding-left: 26px; display: flex; flex-direction: column; gap: 2px; }
+  .subrow { display: grid; grid-template-columns: 1fr auto auto; align-items: center; gap: 18px; padding: 13px 0; }
+  .subrow + .subrow { border-top: 1px solid var(--line-soft); }
+  .subrow .lab b { font-size: 15.5px; font-weight: 700; color: var(--ink); }
+  .subrow .lab .w { font-size: 11px; font-weight: 700; color: var(--chip-ink); background: var(--chip-fill); border: 1px solid var(--chip-line); border-radius: 5px; padding: 2px 6px; margin-left: 8px; letter-spacing: .02em; }
+  .subrow .lab p { margin: 3px 0 0; color: var(--muted); font-size: 13px; }
+  .subrow .barwrap { display: flex; align-items: center; gap: 14px; width: 320px; justify-content: flex-end; }
+  .subrow .pct { font-weight: 800; font-size: 15px; width: 46px; text-align: right; font-variant-numeric: tabular-nums; }
+  .bar { height: 9px; border-radius: 999px; background: var(--track); overflow: hidden; flex: 1; }
+  .bar > i { display: block; height: 100%; border-radius: 999px; }
+
+  .hero-foot { display: flex; align-items: center; gap: 16px; margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--line-soft); }
+  .hero-foot .summary { color: var(--ink-soft); font-size: 14px; }
+  .hero-foot .summary b { font-weight: 700; }
+  .legend { display: flex; align-items: center; gap: 14px; color: var(--muted); font-size: 12.5px; }
+  .legend .lg { display: inline-flex; align-items: center; gap: 6px; }
+  .legend .lg i { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
+  .hero-foot .note { margin-left: auto; color: var(--faint); font-size: 12px; font-style: italic; }
+
+  /* kpi cards */
+  .kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+  .kpi { background: var(--card); border: 1px solid var(--line-soft); border-radius: 14px; padding: 18px 20px; box-shadow: 0 1px 2px rgba(40,50,40,.03), 0 10px 24px rgba(40,50,40,.04); }
+  .kpi .kl { color: var(--faint); font-size: 11.5px; letter-spacing: .1em; text-transform: uppercase; font-weight: 700; display: flex; align-items: center; gap: 7px; }
+  .kpi .kv { font-size: 33px; font-weight: 800; color: var(--ink); margin: 9px 0 4px; font-variant-numeric: tabular-nums; letter-spacing: -.01em; }
+  .kpi .ks { color: var(--muted); font-size: 13px; }
+  .kpi .kdot { width: 7px; height: 7px; border-radius: 50%; display: inline-block; }
+  .kpi .act { margin-top: 11px; display: inline-flex; align-items: center; gap: 6px; color: var(--c1); font-weight: 700; font-size: 13px; cursor: pointer; background: none; border: none; padding: 0; font-family: inherit; }
+  .kpi .act:hover { text-decoration: underline; }
+
+  /* composition */
+  .compbar { display: flex; height: 30px; border-radius: 9px; overflow: hidden; gap: 2px; }
+  .compbar > span { display: grid; place-items: center; font-size: 12px; font-weight: 700; color: #fff; min-width: 2px; }
+  .complegend { display: flex; gap: 26px; margin-top: 13px; flex-wrap: wrap; }
+  .complegend .ci { display: flex; align-items: center; gap: 9px; font-size: 13.5px; }
+  .complegend .ci i { width: 11px; height: 11px; border-radius: 3px; flex: none; margin-top: 3px; }
+  .complegend .ci b { color: var(--ink); font-weight: 700; } .complegend .ci .n { color: var(--faint); margin-left: 4px; }
+
+  .subhead { color: var(--muted); font-size: 13.5px; margin: 22px 0 11px; font-weight: 600; }
+  .engbar { display: flex; height: 26px; border-radius: 8px; overflow: hidden; gap: 2px; }
+  .engbar > span { display: grid; place-items: center; font-size: 11.5px; font-weight: 700; color: #fff; }
+  .enggrid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 32px; margin-top: 14px; }
+  .eitem { display: flex; gap: 11px; }
+  .eitem i { width: 11px; height: 11px; border-radius: 3px; flex: none; margin-top: 4px; }
+  .eitem .t b { color: var(--ink); font-weight: 700; font-size: 14px; }
+  .eitem .t .n { color: var(--faint); font-weight: 600; margin-left: 5px; font-size: 13px; }
+  .eitem .t p { margin: 2px 0 0; color: var(--muted); font-size: 12.5px; }
+  .eitem .t .mini { margin-left: auto; }
+
+  /* bar chart */
+  .chartcard h3 { margin: 0; font-size: 17px; font-weight: 700; color: var(--ink); }
+  .chartcard .cdesc { margin: 5px 0 0; color: var(--muted); font-size: 13.5px; }
+  .chart { display: flex; align-items: flex-end; gap: 18px; height: 240px; padding: 26px 8px 0; border-bottom: 1px solid var(--line); }
+  .col { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 8px; height: 100%; }
+  .col .cval { font-size: 12.5px; font-weight: 700; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+  .col .cbar { width: 100%; max-width: 46px; border-radius: 6px 6px 0 0; background: var(--c1); }
+  .col.partial .cbar { background: var(--c4); }
+  .xaxis { display: flex; gap: 18px; padding: 9px 8px 0; }
+  .xaxis span { flex: 1; text-align: center; color: var(--muted); font-size: 12.5px; font-variant-numeric: tabular-nums; }
+  .chartfoot { margin-top: 16px; background: var(--chip-fill); border: 1px solid var(--chip-line); border-radius: 10px; padding: 12px 16px; color: var(--muted); font-size: 13px; }
+
+  /* category mix */
+  .catbar { display: flex; height: 30px; border-radius: 9px; overflow: hidden; gap: 2px; }
+  .catbar > span { display: grid; place-items: center; font-size: 12px; font-weight: 700; color: #fff; min-width: 2px; }
+  .catlegend { display: flex; flex-wrap: wrap; gap: 8px 18px; margin-top: 13px; }
+  .catlegend .cl { display: inline-flex; align-items: center; gap: 7px; font-size: 13px; color: var(--ink-soft); }
+  .catlegend .cl i { width: 10px; height: 10px; border-radius: 3px; }
+  .ctxnote { float: right; color: var(--faint); font-size: 12px; font-style: italic; }
+
+  /* insights — no left-accent bar; priority shown via tag + order */
+  .insight { display: flex; align-items: center; gap: 16px; background: var(--card); border: 1px solid var(--line-soft); border-radius: 14px; padding: 17px 20px; box-shadow: 0 1px 2px rgba(40,50,40,.03), 0 8px 20px rgba(40,50,40,.03); }
+  .insight + .insight { margin-top: 12px; }
+  .insight.primary { background: var(--group-band); border-color: var(--chip-line-teal); }
+  .insight .ico { width: 36px; height: 36px; border-radius: 10px; background: #d3e6de; border: 1px solid var(--chip-line-teal); color: var(--c1); display: grid; place-items: center; flex: none; }
+  .insight .tx { font-size: 14px; color: var(--ink-soft); } .insight .tx b { color: var(--ink); font-weight: 700; }
+  .tag { display: inline-block; font-size: 10.5px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--c1); background: transparent; border: 1px solid var(--chip-line-teal); border-radius: 6px; padding: 2px 8px; margin-right: 9px; vertical-align: 1.5px; }
+  .tag.warn { color: var(--mod-ink); background: var(--mod-bg); border-color: var(--mod-line); }
+  .insight .acts { margin-left: auto; display: flex; gap: 9px; flex: none; }
+  .btn-s { display: inline-flex; align-items: center; gap: 7px; border-radius: 9px; padding: 9px 15px; font-weight: 700; font-size: 13px; cursor: pointer; font-family: inherit; white-space: nowrap; }
+  .btn-s.primary { background: var(--green-deep); color: #fff; border: none; }
+  .btn-s.ghost { background: #fff; color: var(--ink); border: 1px solid var(--line); }
+  .btn-s.primary:hover { background: #0a3a31; } .btn-s.ghost:hover { border-color: #cfcabd; }
+
+  .vspace { height: 16px; }
+
+  /* ---- tabs / sticky / tables (added) ---- */
+  .topsticky { position: sticky; top: 0; z-index: 30; background: var(--page); border-bottom: 1px solid var(--line); }
+
+  /* ===== surface variants (style switcher) ===== */
+  html[data-surface="float-mono"] {
+    --shell: #f2efe9; --page: #ffffff; --card: #f2efe9; --card-border: #e8e4dc; --card-shadow: none;
+    /* tint the recessed tokens down so they read against the tinted card */
+    --line: #e0dacd; --line-soft: #e6e1d5;
+    --track: #d5cec0;
+    --group-band: #e6ece8; --zebra: #ede9e0;
+    --chip-fill: #ece6db; --chip-line: #d7d0c2; --chip-line-teal: #bcd2cc;
+    --good-bg: #d3e8d8; --mod-bg: #e8d5b0; --bad-bg: #eccfc6;
+  }
+  /* Plat & warm — now a FLOATING variant: light menu + light cards on a dark-tinted floating stage */
+  html[data-surface="warm"] {
+    --shell: #fcfbf7;   /* light — menu + gutter behind the floating stage */
+    --page:  #ece9e2;   /* the floating stage keeps the current warm dark tint */
+    --card:  #fcfbf7;   /* cards light, same tone as the menu */
+    --card-border: #e5e1d6;
+    /* light menu → active/hover must read DARKER than the menu (white pill is invisible here) */
+    --side-active: #dfeae4;        /* soft green pill, clearly reads on the light menu */
+    --side-2: rgba(21,86,75,.07);  /* faint green hover, same family as active */
+  }
+  html[data-surface="float-mono"] .main,
+  html[data-surface="warm"] .main { margin: 12px 12px 12px 6px; border-radius: 18px; box-shadow: 0 2px 12px rgba(40,45,40,.07); }
+  html[data-surface="float-mono"] .topsticky,
+  html[data-surface="warm"] .topsticky { border-radius: 18px 18px 0 0; }
+
+  .surfacepick { position: fixed; left: 18px; bottom: 18px; z-index: 60; display: flex; align-items: center; gap: 4px; background: rgba(255,255,255,.92); backdrop-filter: blur(8px); border: 1px solid var(--line); border-radius: 999px; padding: 5px 6px 5px 14px; box-shadow: 0 6px 18px rgba(0,0,0,.1); }
+  .surfacepick .sp-label { font-size: 12px; font-weight: 700; color: var(--muted); margin-right: 5px; }
+  .surfacepick button { border: none; background: transparent; border-radius: 999px; padding: 7px 13px; font-size: 12.5px; font-weight: 600; color: var(--ink-soft); cursor: pointer; font-family: inherit; }
+  .surfacepick button.on { background: var(--green-deep); color: #fff; }
+  .topsticky.stuck { box-shadow: 0 6px 16px rgba(40,50,40,.06); }
+  .tabpanel[hidden] { display: none; }
+
+  .tbl { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+  .tbl th { text-align: left; color: var(--faint); font-size: 11px; letter-spacing: .07em; text-transform: uppercase; font-weight: 700; padding: 0 14px 11px; border-bottom: 1px solid var(--line); }
+  .tbl td { padding: 12px 14px; border-bottom: 1px solid var(--line-soft); color: var(--ink-soft); }
+  .tbl tbody tr:last-child td { border-bottom: none; }
+  .tbl .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .tbl .excl td { opacity: .5; }
+  .minibar { display: inline-block; width: 120px; height: 8px; border-radius: 999px; background: var(--track); overflow: hidden; vertical-align: middle; flex: none; }
+  .minibar > i { display: block; height: 100%; border-radius: 999px; background: var(--good); }
+  .pct-cell { display: flex; align-items: center; gap: 12px; justify-content: flex-end; }
+  .pct-cell b { width: 50px; text-align: right; font-weight: 800; color: var(--ink); font-variant-numeric: tabular-nums; }
+  .imp { font-size: 11px; font-weight: 700; border-radius: 6px; padding: 3px 9px; white-space: nowrap; }
+  .imp.req { background: var(--good-bg); color: var(--good-ink); border: 1px solid var(--good-line); }
+  .imp.norm { background: var(--chip-fill); color: var(--chip-ink); border: 1px solid var(--chip-line); }
+  .imp.exc { background: transparent; color: var(--faint); border: 1px solid var(--chip-line); }
+  .typechip { font-size: 12px; color: var(--muted); background: var(--chip-fill); border: 1px solid var(--chip-line); border-radius: 6px; padding: 3px 9px; white-space: nowrap; }
+  .cardhead2 { display: flex; align-items: center; gap: 10px; margin-bottom: 4px; }
+  .cardhead2 h3 { margin: 0; font-size: 16px; font-weight: 700; color: var(--ink); white-space: nowrap; }
+  .cardhead2 .count { margin-left: auto; font-size: 12.5px; color: var(--chip-ink); background: var(--chip-fill); border: 1px solid var(--chip-line); border-radius: 999px; padding: 4px 11px; font-weight: 700; white-space: nowrap; flex: none; }
+  .passchip { display: flex; align-items: center; gap: 9px; background: var(--good-bg); border: 1px solid var(--good-line); border-radius: 10px; padding: 11px 14px; color: var(--good-ink); font-weight: 600; font-size: 13.5px; margin-top: 12px; }
+  .passchip svg { flex: none; }
+
+  /* associate breakdown — sticky group headers + collapsible */
+  .assoc-scroll { max-height: 470px; overflow-y: auto; }
+  .tbl.assoc th { position: sticky; top: 0; background: var(--card); z-index: 3; padding: 11px 14px; }
+  .tbl.assoc th:first-child, .tbl.assoc td:first-child { padding-left: 24px; }
+  .tbl.assoc th:last-child, .tbl.assoc td:last-child { padding-right: 24px; }
+  .grouprow td { position: sticky; top: 37px; background: var(--group-band); font-weight: 800; color: var(--ink); cursor: pointer; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); z-index: 2; }
+  .grouprow .gchev { display: inline-block; transition: transform .15s; margin-right: 9px; color: var(--c1); font-size: 11px; }
+  .grouprow:not(.collapsed) .gchev { transform: rotate(90deg); }
+  .grouprow .gn { color: var(--c2); font-weight: 700; margin-left: 8px; background: transparent; border: 1px solid var(--chip-line-teal); border-radius: 999px; padding: 1px 9px; font-size: 12px; }
+  .memberrow td { color: var(--ink-soft); }
+  .memberrow.alt td { background: var(--zebra); }
+  .memberrow td:first-child { padding-left: 46px; }
+  .memberrow .sub2 { color: var(--faint); font-size: 12px; }
+
+  /* ---------------- annotation overlay ---------------- */
+  .annot-toggle { position: fixed; right: 22px; bottom: 22px; z-index: 60; display: inline-flex; align-items: center; gap: 9px; background: #1c1a17; color: #fff; border: none; border-radius: 999px; padding: 13px 20px; font-weight: 700; font-size: 14px; cursor: pointer; box-shadow: 0 8px 24px rgba(0,0,0,.25); font-family: inherit; }
+  .annot-toggle .d { width: 9px; height: 9px; border-radius: 50%; background: #d98a2b; }
+  body.show-annot .annot-toggle { background: var(--green-deep); }
+
+  .pin { position: absolute; z-index: 40; width: 26px; height: 26px; border-radius: 50%; background: #d98a2b; color: #fff; font-weight: 800; font-size: 13px; display: none; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,.25); border: 2px solid #fff; }
+  body.show-annot .pin { display: inline-flex; animation: pop .25s ease backwards; }
+  @keyframes pop { from { transform: scale(0); } }
+  .pin .note { position: absolute; top: 32px; left: 50%; transform: translateX(-50%); width: 268px; background: #1c1a17; color: #f3efe9; font-weight: 500; font-size: 12.5px; line-height: 1.5; border-radius: 10px; padding: 12px 14px; box-shadow: 0 8px 24px rgba(0,0,0,.3); opacity: 0; visibility: hidden; transition: .15s; pointer-events: none; z-index: 50; }
+  .pin .note b { color: #fff; }
+  .pin .note::before { content: ''; position: absolute; top: -6px; left: 50%; transform: translateX(-50%) rotate(45deg); width: 12px; height: 12px; background: #1c1a17; }
+  .pin:hover .note, .pin.open .note { opacity: 1; visibility: visible; }
+  .pin.left .note { left: auto; right: -4px; transform: none; } .pin.left .note::before { left: auto; right: 16px; }
+
+  body.show-annot .ann-target { box-shadow: 0 0 0 2px #d98a2b, 0 12px 30px rgba(40,50,40,.06) !important; }
+</style>
+</head>
+<body>
+<div class="app">
+  <!-- ===== SIDEBAR ===== -->
+  <aside class="side">
+    <div class="brand">
+      <span class="mk"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 13h4l3-8 4 16 3-8h4"/></svg></span>
+      <div><b>SuperOffice</b><small>Data Analysis</small></div>
+    </div>
+    <div class="nav-top"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h4l3-8 4 16 3-8h4"/></svg> Health Check</div>
+    <div class="nav-sec">Entities</div>
+    <div class="nav-item active"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="4" y="3" width="11" height="18" rx="1.5"/><path d="M19 8v13M15 21h6M7.5 7h2M7.5 11h2M7.5 15h2" stroke-linecap="round"/></svg> Company</div>
+    <div class="nav-item"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="3.5"/><path d="M5 20c0-3.6 3.1-6 7-6s7 2.4 7 6" stroke-linecap="round"/></svg> Contact</div>
+    <div class="nav-item"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3.5" y="4.5" width="17" height="16" rx="2"/><path d="M3.5 9h17M8 3v3M16 3v3" stroke-linecap="round"/></svg> Activities</div>
+    <div class="nav-item"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2" stroke-linecap="round"/></svg> Sale</div>
+    <div class="nav-item"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M5 4h11l3 3v13H5z"/><path d="M8.5 11h7M8.5 15h7" stroke-linecap="round"/></svg> Project</div>
+    <div class="nav-item"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 6h16M4 12h16M4 18h10" stroke-linecap="round"/></svg> Requests</div>
+    <div class="nav-item"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3.5"/></svg> Marketing</div>
+    <div class="nav-sec">Other</div>
+    <div class="nav-item"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 5h16l-6 7v6l-4 2v-8z" stroke-linejoin="round"/></svg> Selection</div>
+    <div class="nav-item"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3.5" y="5" width="17" height="14" rx="1.5"/><path d="M3.5 10h17M9 5v14" stroke-linecap="round"/></svg> Extra Tables</div>
+    <div class="nav-sec">Tools</div>
+    <div class="nav-item"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M8 6l10 6-10 6z"/></svg> Analyze All</div>
+    <div class="nav-item"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1" stroke-linecap="round"/></svg> Settings</div>
+    <div class="spacer"></div>
+    <div class="credit">Powered by Hugo</div>
+  </aside>
+
+  <!-- ===== MAIN ===== -->
+  <main class="main">
+    <div class="topsticky">
+    <div class="head">
+      <span class="eicon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="4" y="3" width="11" height="18" rx="1.5"/><path d="M19 8v13M15 21h6M7.5 7h2M7.5 11h2M7.5 15h2" stroke-linecap="round"/></svg></span>
+      <h1>Company</h1>
+      <button class="export"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V3M8 7l4-4 4 4M5 15v4h14v-4"/></svg> Export</button>
+    </div>
+    <div class="tabs">
+      <span class="tab active" data-tab="overview">Overview</span>
+      <span class="tab" data-tab="quality">Data Quality</span>
+      <span class="tab" data-tab="integrity">Integrity</span>
+      <span class="tab" data-tab="adoption">Adoption</span>
+    </div>
+    </div><!-- /topsticky -->
+
+    <div class="wrap">
+      <!-- filter bar -->
+      <div class="filter ann-target" style="position:relative">
+        <span class="fl"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M9 12h6" stroke-linecap="round"/></svg> Filtered:</span>
+        <button class="period-btn">Since 2025-06-01 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></button>
+        <span class="scan"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg> Last scan 22 Jun 2026</span>
+        <span class="pin left" style="top:-10px; right:-10px">6<span class="note"><b>Periode bewerkbaar.</b> De filter is nu een echte control — pas de periode hier aan zonder terug te gaan naar het startscherm.</span></span>
+      </div>
+
+      <div class="tabpanel" data-panel="overview">
+      <!-- HEALTH HERO -->
+      <div class="vspace"></div>
+      <div class="card hero ann-target">
+        <div class="donut-wrap">
+          <div class="donut"><span class="val">81<sup>%</sup></span></div>
+          <div class="ttl">Overall Health</div>
+          <span class="badge good"><span class="dot"></span> Good</span>
+        </div>
+        <div class="subs">
+          <div class="subrow">
+            <div class="lab"><b>Data Quality</b><span class="w">weighs 40%</span><p>Field completeness across records</p></div>
+            <span class="badge mod"><span class="dot"></span> Moderate</span>
+            <div class="barwrap"><div class="bar"><i style="width:63%; background:var(--mod)"></i></div><span class="pct" style="color:var(--mod)">63%</span></div>
+          </div>
+          <div class="subrow">
+            <div class="lab"><b>Data Integrity</b><span class="w">weighs 35%</span><p>Missing contacts and reachability</p></div>
+            <span class="badge good"><span class="dot"></span> Good</span>
+            <div class="barwrap"><div class="bar"><i style="width:97%; background:var(--good)"></i></div><span class="pct" style="color:var(--good)">97%</span></div>
+          </div>
+          <div class="subrow">
+            <div class="lab"><b>Adoption</b><span class="w">weighs 25%</span><p>Contact coverage, activities and pipeline</p></div>
+            <span class="badge good"><span class="dot"></span> Good</span>
+            <div class="barwrap"><div class="bar"><i style="width:86%; background:var(--good)"></i></div><span class="pct" style="color:var(--good)">86%</span></div>
+          </div>
+        </div>
+        <div class="hero-foot" style="grid-column:1 / -1">
+          <span class="summary">Company data is healthy overall. <b>Data integrity is strong.</b> Field completeness is the main gap and offers the clearest wins.</span>
+          <span class="note">Overall = weighted average of the three · measured against your own data</span>
+        </div>
+        <div style="grid-column:1 / -1; display:flex; align-items:center; gap:14px; margin-top:12px">
+          <span style="color:var(--faint); font-size:12px; font-weight:700; letter-spacing:.06em; text-transform:uppercase">Score bands</span>
+          <div class="legend">
+            <span class="lg"><i style="background:var(--bad)"></i> &lt;15</span>
+            <span class="lg"><i style="background:var(--mod)"></i> 15–39</span>
+            <span class="lg"><i style="background:#c9b03a"></i> 40–69</span>
+            <span class="lg"><i style="background:var(--good)"></i> 70+ Good</span>
+          </div>
+        </div>
+        <span class="pin" style="top:14px; right:14px">1<span class="note"><b>Score-transparantie.</b> De drie subscores tonen nu hun <b>gewicht</b> (40/35/25%), en de "score bands"-legenda hangt onder de donut waar hij hoort. Zo zie je hoe 81% tot stand komt.</span></span>
+      </div>
+
+      <!-- STATE -->
+      <div class="seclabel">State · where things stand</div>
+      <div class="kpis ann-target" style="position:relative">
+        <div class="kpi"><div class="kl">Companies</div><div class="kv">3.152</div><div class="ks">of 39.839 total</div></div>
+        <div class="kpi">
+          <div class="kl"><span class="kdot" style="background:var(--cn)"></span> Dormant tail</div>
+          <div class="kv">36.687</div>
+          <div class="ks">92% with no recent activity</div>
+          <button class="act">Create selection <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
+        </div>
+        <div class="kpi"><div class="kl">New this year</div><div class="kv">428</div><div class="ks">registered this year</div></div>
+        <div class="kpi"><div class="kl"><span class="kdot" style="background:var(--good)"></span> With contact person</div><div class="kv">96.4%</div><div class="ks">3.039 companies</div></div>
+        <span class="pin" style="top:-11px; right:-11px">2<span class="note"><b>Rood spaarzaam.</b> De dormant tail was alarmrood, maar het is geen <i>fout</i> — het is een opschoonkans. Nu neutraal met een statusstip + directe actie <b>Create selection</b>.</span></span>
+      </div>
+
+      <!-- DATABASE COMPOSITION -->
+      <div class="seclabel">Database composition</div>
+      <div class="card ann-target">
+        <div class="compbar">
+          <span style="width:7.9%; background:var(--c1)">7.9%</span>
+          <span style="width:92.1%; background:var(--cn); color:#6b6657">Dormant tail · 36.687 companies with no recent activity</span>
+        </div>
+        <div class="complegend">
+          <div class="ci"><i style="background:var(--c1)"></i><div><b>Active companies</b><span class="n">3.152 · 7.9%</span></div></div>
+          <div class="ci"><i style="background:var(--cn)"></i><div><b>Dormant tail</b><span class="n">36.687 · 92.1%</span></div></div>
+        </div>
+        <div class="subhead">How engaged the active companies are</div>
+        <div class="engbar">
+          <span style="width:30.2%; background:var(--c1)">30.2%</span>
+          <span style="width:63.9%; background:var(--c3)">63.9%</span>
+          <span style="width:2.3%; background:var(--c5)"></span>
+          <span style="width:3.6%; background:var(--cn)"></span>
+        </div>
+        <div class="enggrid">
+          <div class="eitem"><i style="background:var(--c1)"></i><div class="t"><b>Fully Engaged</b><span class="n">953 · 30.2%</span><p>Contact person + recent activity + open sale</p></div></div>
+          <div class="eitem"><i style="background:var(--c3)"></i><div class="t"><b>Active, No Pipeline</b><span class="n">2.013 · 63.9%</span><p>Contact person + recent activity, but no open sale</p></div></div>
+          <div class="eitem"><i style="background:var(--c5)"></i><div class="t"><b>Dormant Contacts</b><span class="n">73 · 2.3%</span><p>Has contact person, but no activity in 12 months</p></div></div>
+          <div class="eitem"><i style="background:var(--cn)"></i><div class="t"><b>Empty Shells</b><span class="n">113 · 3.6%</span><p>No contact person registered</p></div></div>
+        </div>
+        <span class="pin left" style="top:14px; right:14px">3<span class="note"><b>Niet-semantisch palet.</b> Dit is een verdeling, geen score. De oranje/rode balken (die "slecht" suggereerden) zijn vervangen door een <b>sequential teal-ramp</b> + grijs. Kleur betekent nu alleen "andere categorie".</span></span>
+      </div>
+
+      <!-- TRAJECTORY -->
+      <div class="seclabel">Trajectory · over time</div>
+      <div class="card chartcard">
+        <h3>Active companies by registration year</h3>
+        <p class="cdesc">Each bar counts the currently active companies by the year they were first registered. 750 were registered before this range.</p>
+        <div class="chart">
+          <div class="col"><span class="cval">109</span><div class="cbar" style="height:36px"></div></div>
+          <div class="col"><span class="cval">149</span><div class="cbar" style="height:49px"></div></div>
+          <div class="col"><span class="cval">175</span><div class="cbar" style="height:58px"></div></div>
+          <div class="col"><span class="cval">326</span><div class="cbar" style="height:107px"></div></div>
+          <div class="col"><span class="cval">172</span><div class="cbar" style="height:57px"></div></div>
+          <div class="col"><span class="cval">103</span><div class="cbar" style="height:34px"></div></div>
+          <div class="col"><span class="cval">139</span><div class="cbar" style="height:46px"></div></div>
+          <div class="col"><span class="cval">193</span><div class="cbar" style="height:63px"></div></div>
+          <div class="col"><span class="cval">608</span><div class="cbar" style="height:200px"></div></div>
+          <div class="col partial"><span class="cval">428</span><div class="cbar" style="height:141px"></div></div>
+        </div>
+        <div class="xaxis"><span>2017</span><span>2018</span><span>2019</span><span>2020</span><span>2021</span><span>2022</span><span>2023</span><span>2024</span><span>2025</span><span>2026</span></div>
+        <div class="chartfoot">Only currently active companies are counted here, grouped by registration year. 2026 (lighter) is a partial year. Companies that are no longer active are left out, so this reflects the registration years of the part of the base still in use.</div>
+      </div>
+
+      <!-- CONTEXT -->
+      <div class="seclabel">Context</div>
+      <div class="card ann-target">
+        <div style="display:flex; align-items:center; margin-bottom:13px"><h3 style="margin:0; font-size:16px; font-weight:700; color:var(--ink)">Category mix</h3><span class="ctxnote">for context, not something to act on</span></div>
+        <div class="catbar">
+          <span style="width:23.7%; background:var(--c1)">24%</span>
+          <span style="width:18.7%; background:var(--c2)">19%</span>
+          <span style="width:16.9%; background:var(--c3)">17%</span>
+          <span style="width:12.6%; background:var(--c4)">13%</span>
+          <span style="width:10.6%; background:var(--c5)">11%</span>
+          <span style="width:5.5%; background:var(--c6)"></span>
+          <span style="width:12%; background:var(--cn)"></span>
+        </div>
+        <div class="catlegend">
+          <span class="cl"><i style="background:var(--c1)"></i> D-Customer 23.7%</span>
+          <span class="cl"><i style="background:var(--c2)"></i> Prospect 18.7%</span>
+          <span class="cl"><i style="background:var(--c3)"></i> Suspect 16.9%</span>
+          <span class="cl"><i style="background:var(--c4)"></i> Hot-prospect 12.6%</span>
+          <span class="cl"><i style="background:var(--c5)"></i> C-Customer 10.6%</span>
+          <span class="cl"><i style="background:var(--c6)"></i> B-Customer 5.5%</span>
+          <span class="cl"><i style="background:var(--cn)"></i> Other 12%</span>
+        </div>
+        <span class="pin left" style="top:14px; right:14px">4<span class="note"><b>Categorisch palet.</b> Categorieën hebben geen goed/slecht-volgorde, dus geen groen→rood. Eén nette teal-reeks + grijs voor "Other" houdt het rustig en consistent met de rest.</span></span>
+      </div>
+
+      <!-- INSIGHTS -->
+      <div class="seclabel">Insights · recommended actions</div>
+      <div class="ann-target" style="position:relative; border-radius:12px">
+        <div class="insight primary">
+          <span class="ico"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h18M6 12h12M10 17h4"/></svg></span>
+          <span class="tx"><span class="tag">Recommended</span> <b>36.687 companies (92%) are a dormant tail.</b> No recent activity — the clearest candidates for cleanup or archiving.</span>
+          <span class="acts">
+            <button class="btn-s primary">Create selection</button>
+            <button class="btn-s ghost">Export list</button>
+          </span>
+        </div>
+        <div class="insight">
+          <span class="ico" style="background:var(--mod-bg); color:var(--mod-ink); border-color:var(--mod-line)"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4M12 17h.01M10.3 4l-7 12a2 2 0 0 0 1.7 3h14a2 2 0 0 0 1.7-3l-7-12a2 2 0 0 0-3.4 0z"/></svg></span>
+          <span class="tx"><span class="tag warn">Worth checking</span> <b>113 empty shells.</b> Active companies with no contact person at all. Worth checking whether they are still needed or can be cleaned up.</span>
+          <span class="acts">
+            <button class="btn-s ghost">Review 113</button>
+          </span>
+        </div>
+        <span class="pin" style="top:-11px; right:-11px">5<span class="note"><b>Van diagnose naar actie — zónder accentbalk.</b> De gekleurde left-border (de “designed by Claude”-tell) is weg. Urgentie staat nu in een klein <b>label-tag</b> + de volgorde, plus directe actieknoppen.</span></span>
+      </div>
+      </div><!-- /overview panel -->
+
+      <!-- ============ DATA QUALITY ============ -->
+      <div class="tabpanel" data-panel="quality" hidden>
+        <div class="vspace"></div>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:18px; align-items:start">
+          <div class="card ann-target sheeted">
+            <div class="cardhead2"><h3>Quality flags</h3><span class="count">3.152 companies</span></div>
+            <p class="sub" style="margin:2px 0 14px">Lower is better. Sorted by attention — flags hitting the most records on top.</p>
+            <table class="tbl">
+              <tbody>
+                <tr><td><span class="kdot" style="background:var(--mod); margin-right:9px"></span>Unreachable</td><td class="num">188</td><td><div class="pct-cell"><span class="minibar" style="width:90px"><i style="width:6%; background:var(--mod)"></i></span><b>6%</b></div></td></tr>
+                <tr><td><span class="kdot" style="background:var(--mod); margin-right:9px"></span>No contact person</td><td class="num">113</td><td><div class="pct-cell"><span class="minibar" style="width:90px"><i style="width:3.6%; background:var(--mod)"></i></span><b>3.6%</b></div></td></tr>
+                <tr><td><span class="kdot" style="background:var(--faint); margin-right:9px"></span>No owner</td><td class="num">1</td><td><div class="pct-cell"><span class="minibar" style="width:90px"><i style="width:1%"></i></span><b>0%</b></div></td></tr>
+              </tbody>
+            </table>
+            <div class="passchip"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7"/></svg> 3 checks with no issues · No category · No business type · No duplicate domain</div>
+            <div style="margin:14px 24px 14px; padding-top:12px; border-top:1px dashed var(--line); display:flex; align-items:center; gap:10px; opacity:.65; font-size:13px"><span style="flex:1">No org. number <span style="color:var(--faint)">(not in score)</span></span><span class="num" style="width:60px">2.082</span><b style="width:56px; text-align:right; font-variant-numeric:tabular-nums">66.1%</b></div>
+            <span class="pin" style="top:16px; right:16px">7<span class="note"><b>Ruis eruit.</b> Checks zónder problemen (count 0) staan niet meer als lege regels — ze zijn samengevouwen tot één "3 checks zonder problemen ✓". Zo springen de échte gaps eruit.</span></span>
+          </div>
+
+          <div class="card sheeted">
+            <div class="cardhead2"><h3>Standard field completeness</h3><span class="count">3.152 companies</span></div>
+            <p class="sub" style="margin:2px 0 14px">Higher is better. Required fields with gaps sit on top.</p>
+            <table class="tbl">
+              <thead><tr><th>Field</th><th class="num">Filled</th><th>Importance</th><th style="text-align:right">Completeness</th></tr></thead>
+              <tbody>
+                <tr><td>Org. number</td><td class="num">1.070</td><td><span class="imp norm">Normal</span></td><td><div class="pct-cell"><span class="minibar"><i style="width:33.9%; background:var(--mod)"></i></span><b>33.9%</b></div></td></tr>
+                <tr><td>Postcode</td><td class="num">2.890</td><td><span class="imp req">Required</span></td><td><div class="pct-cell"><span class="minibar"><i style="width:91.7%"></i></span><b>91.7%</b></div></td></tr>
+                <tr><td>Webpage</td><td class="num">2.899</td><td><span class="imp req">Required</span></td><td><div class="pct-cell"><span class="minibar"><i style="width:92%"></i></span><b>92%</b></div></td></tr>
+                <tr><td>Address</td><td class="num">3.073</td><td><span class="imp req">Required</span></td><td><div class="pct-cell"><span class="minibar"><i style="width:97.5%"></i></span><b>97.5%</b></div></td></tr>
+                <tr><td>Category</td><td class="num">3.152</td><td><span class="imp req">Required</span></td><td><div class="pct-cell"><span class="minibar"><i style="width:100%"></i></span><b>100%</b></div></td></tr>
+                <tr class="excl"><td>Email address</td><td class="num">647</td><td><span class="imp exc">Excluded</span></td><td><div class="pct-cell"><span class="minibar"><i style="width:20.5%; background:var(--faint)"></i></span><b>20.5%</b></div></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="seclabel">Custom fields · 18 active</div>
+        <div class="card ann-target sheeted">
+          <div class="cardhead2"><h3>Company</h3><span style="color:var(--muted); font-size:13px; margin-left:2px">— 18 active fields</span><span class="count">39.839 records</span></div>
+          <p class="sub" style="margin:2px 0 14px">Higher is better. Important fields with the largest gaps on top.</p>
+          <div class="well">
+          <table class="tbl">
+            <thead><tr><th>Field label</th><th>Type</th><th class="num">Filled</th><th>Importance</th><th style="text-align:right">Completeness</th></tr></thead>
+            <tbody>
+              <tr><td><span class="kdot" style="background:var(--bad); margin-right:9px"></span>Calling List</td><td><span class="typechip">Long text</span></td><td class="num">0 <span style="color:var(--faint)">/ 39.839</span></td><td><span class="imp norm">Normal</span></td><td><div class="pct-cell"><span class="minibar"><i style="width:0%"></i></span><b>0%</b></div></td></tr>
+              <tr><td><span class="kdot" style="background:var(--bad); margin-right:9px"></span>DOT Basisprijs</td><td><span class="typechip">Decimal</span></td><td class="num">20 <span style="color:var(--faint)">/ 39.839</span></td><td><span class="imp norm">Normal</span></td><td><div class="pct-cell"><span class="minibar"><i style="width:0.1%"></i></span><b>0.1%</b></div></td></tr>
+              <tr><td><span class="kdot" style="background:var(--mod); margin-right:9px"></span>Creditworthiness</td><td><span class="typechip">Dropdown</span></td><td class="num">2.152 <span style="color:var(--faint)">/ 39.839</span></td><td><span class="imp norm">Normal</span></td><td><div class="pct-cell"><span class="minibar"><i style="width:5.4%; background:var(--mod)"></i></span><b>5.4%</b></div></td></tr>
+              <tr><td><span class="kdot" style="background:var(--mod); margin-right:9px"></span>Term of Payment</td><td><span class="typechip">Number</span></td><td class="num">5.753 <span style="color:var(--faint)">/ 39.839</span></td><td><span class="imp norm">Normal</span></td><td><div class="pct-cell"><span class="minibar"><i style="width:14.4%; background:var(--mod)"></i></span><b>14.4%</b></div></td></tr>
+              <tr><td><span class="kdot" style="background:var(--mod); margin-right:9px"></span>Province</td><td><span class="typechip">Dropdown</span></td><td class="num">6.519 <span style="color:var(--faint)">/ 39.839</span></td><td><span class="imp norm">Normal</span></td><td><div class="pct-cell"><span class="minibar"><i style="width:16.4%; background:var(--mod)"></i></span><b>16.4%</b></div></td></tr>
+              <tr class="excl"><td>Relation of</td><td><span class="typechip">Dropdown</span></td><td class="num">30.112 <span style="color:var(--faint)">/ 39.839</span></td><td><span class="imp exc">Excluded</span></td><td><div class="pct-cell"><span class="minibar"><i style="width:75.6%; background:var(--faint)"></i></span><b>75.6%</b></div></td></tr>
+            </tbody>
+          </table>
+          </div>
+          <span class="pin" style="top:16px; right:16px">8<span class="note"><b>Tabel-ergonomie.</b> Het percentage is nu primair (vet, rechts uitgelijnd), de ratio secundair en grijs, de balken hebben een vaste breedte. Geen tweeregelige cellen meer — veel rustiger te scannen.</span></span>
+        </div>
+      </div>
+
+      <!-- ============ INTEGRITY ============ -->
+      <div class="tabpanel" data-panel="integrity" hidden>
+        <div class="vspace"></div>
+        <div class="card">
+          <div class="cardhead2"><h3>Data integrity</h3><span class="badge good" style="margin-left:auto"><span class="dot"></span> 97% · Good</span></div>
+          <p class="sub" style="margin-top:2px">Missing contacts and reachability. Integrity is strong — only minor gaps remain. Same component system as the other tabs.</p>
+        </div>
+        <div class="seclabel">State · reachability</div>
+        <div class="kpis">
+          <div class="kpi"><div class="kl"><span class="kdot" style="background:var(--good)"></span> With contact person</div><div class="kv">96.4%</div><div class="ks">3.039 companies</div></div>
+          <div class="kpi"><div class="kl"><span class="kdot" style="background:var(--good)"></span> Reachable</div><div class="kv">94.0%</div><div class="ks">2.964 companies</div></div>
+          <div class="kpi"><div class="kl"><span class="kdot" style="background:var(--good)"></span> Has owner</div><div class="kv">99.9%</div><div class="ks">3.151 companies</div></div>
+          <div class="kpi"><div class="kl">Linked to sales</div><div class="kv">76.7%</div><div class="ks">2.418 companies</div></div>
+        </div>
+        <div class="seclabel">Insights · recommended actions</div>
+        <div class="insight">
+          <span class="ico" style="background:var(--mod-bg); color:var(--mod-ink); border-color:var(--mod-line)"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4M12 17h.01M10.3 4l-7 12a2 2 0 0 0 1.7 3h14a2 2 0 0 0 1.7-3l-7-12a2 2 0 0 0-3.4 0z"/></svg></span>
+          <span class="tx"><span class="tag warn">Worth checking</span> <b>188 companies are unreachable.</b> No valid phone or email on the record — they can't be contacted through the CRM.</span>
+          <span class="acts"><button class="btn-s primary">Create selection</button><button class="btn-s ghost">Export list</button></span>
+        </div>
+      </div>
+
+      <!-- ============ ADOPTION ============ -->
+      <div class="tabpanel" data-panel="adoption" hidden>
+        <div class="vspace"></div>
+        <div class="card sheeted">
+          <div class="cardhead2"><h3>Adoption score</h3><span class="badge good" style="margin-left:auto"><span class="dot"></span> 86% · Good</span></div>
+          <p class="sub" style="margin:2px 0 14px">Higher coverage is better. Heavily-weighted components with the largest gaps on top.</p>
+          <table class="tbl">
+            <thead><tr><th>Component</th><th class="num">Count</th><th>Weight</th><th style="text-align:right">Completeness</th></tr></thead>
+            <tbody>
+              <tr><td>Pipeline</td><td class="num">953</td><td><span class="imp norm">Low</span></td><td><div class="pct-cell"><span class="minibar"><i style="width:30.2%; background:var(--mod)"></i></span><b>30.2%</b></div></td></tr>
+              <tr><td>Activities</td><td class="num">2.966</td><td><span class="imp req">High</span></td><td><div class="pct-cell"><span class="minibar"><i style="width:94.1%"></i></span><b>94.1%</b></div></td></tr>
+              <tr><td>Persons</td><td class="num">3.039</td><td><span class="imp req">High</span></td><td><div class="pct-cell"><span class="minibar"><i style="width:96.4%"></i></span><b>96.4%</b></div></td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="seclabel">Company segments</div>
+        <div class="card sheeted">
+          <table class="tbl">
+            <thead><tr><th>Segment</th><th class="num">Companies</th><th>Description</th><th class="num">Share</th></tr></thead>
+            <tbody>
+              <tr><td><span class="kdot" style="background:var(--c1); margin-right:9px"></span>Fully Engaged</td><td class="num">953</td><td style="color:var(--muted)">Contact person + recent activity + open sale</td><td class="num"><b>30.2%</b></td></tr>
+              <tr><td><span class="kdot" style="background:var(--c3); margin-right:9px"></span>Active, No Pipeline</td><td class="num">2.013</td><td style="color:var(--muted)">Contact person + recent activity, no open sale</td><td class="num"><b>63.9%</b></td></tr>
+              <tr><td><span class="kdot" style="background:var(--c5); margin-right:9px"></span>Dormant Contacts</td><td class="num">73</td><td style="color:var(--muted)">Has contact person, no activity in 12 months</td><td class="num"><b>2.3%</b></td></tr>
+              <tr><td><span class="kdot" style="background:var(--cn); margin-right:9px"></span>Empty Shells</td><td class="num">113</td><td style="color:var(--muted)">No contact person registered</td><td class="num"><b>3.6%</b></td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="seclabel">Associate breakdown</div>
+        <div class="card ann-target sheeted" style="padding:18px 0 0">
+          <div class="cardhead2" style="padding:0 24px"><h3>By associate &amp; group</h3><span style="color:var(--muted); font-size:13px; margin-left:4px">30 users · 9 groups</span><span class="count">sorted by completeness</span></div>
+          <div class="assoc-scroll">
+            <table class="tbl assoc">
+              <thead><tr><th>Associate</th><th class="num">Companies</th><th class="num">With persons</th><th class="num">With activities</th><th class="num">Stale</th><th style="text-align:right">Completeness</th></tr></thead>
+              <tbody>
+                <tr class="grouprow"><td colspan="5"><span class="gchev">▸</span>E. van Wijk Forwarding – Verkoop <span class="gn">10 users</span></td><td><div class="pct-cell"><span class="minibar" style="width:74px"><i style="width:69%"></i></span><b>69%</b></div></td></tr>
+                <tr class="memberrow"><td>Jean Paul Waarde</td><td class="num">551</td><td class="num">528</td><td class="num">534</td><td class="num">17</td><td><div class="pct-cell"><span class="minibar" style="width:74px"><i style="width:69%"></i></span><b>69%</b></div></td></tr>
+                <tr class="memberrow alt"><td>Stijn Kuiper</td><td class="num">512</td><td class="num">512</td><td class="num">501</td><td class="num">11</td><td><div class="pct-cell"><span class="minibar" style="width:74px"><i style="width:69%"></i></span><b>69%</b></div></td></tr>
+                <tr class="memberrow"><td>Stijn Pol</td><td class="num">204</td><td class="num">203</td><td class="num">202</td><td class="num">2</td><td><div class="pct-cell"><span class="minibar" style="width:74px"><i style="width:70%"></i></span><b>70%</b></div></td></tr>
+                <tr class="grouprow"><td colspan="5"><span class="gchev">▸</span>EvW NL – Verkoop <span class="gn">7 users</span></td><td><div class="pct-cell"><span class="minibar" style="width:74px"><i style="width:75%"></i></span><b>75%</b></div></td></tr>
+                <tr class="memberrow"><td>Derk Groenenberg</td><td class="num">232</td><td class="num">212</td><td class="num">230</td><td class="num">2</td><td><div class="pct-cell"><span class="minibar" style="width:74px"><i style="width:75%"></i></span><b>75%</b></div></td></tr>
+                <tr class="memberrow alt"><td>Leendert Pols</td><td class="num">231</td><td class="num">224</td><td class="num">227</td><td class="num">4</td><td><div class="pct-cell"><span class="minibar" style="width:74px"><i style="width:74%"></i></span><b>74%</b></div></td></tr>
+                <tr class="memberrow"><td>Johan Schoeman</td><td class="num">58</td><td class="num">57</td><td class="num">58</td><td class="num">0</td><td><div class="pct-cell"><span class="minibar" style="width:74px"><i style="width:70%"></i></span><b>70%</b></div></td></tr>
+                <tr class="grouprow"><td colspan="5"><span class="gchev">▸</span>EvW RO – Sales <span class="gn">4 users</span></td><td><div class="pct-cell"><span class="minibar" style="width:74px"><i style="width:74%"></i></span><b>74%</b></div></td></tr>
+                <tr class="memberrow"><td>Attila Kerekes</td><td class="num">171</td><td class="num">168</td><td class="num">159</td><td class="num">12</td><td><div class="pct-cell"><span class="minibar" style="width:74px"><i style="width:74%"></i></span><b>74%</b></div></td></tr>
+                <tr class="memberrow alt"><td>Oviediu Burcus</td><td class="num">60</td><td class="num">59</td><td class="num">57</td><td class="num">3</td><td><div class="pct-cell"><span class="minibar" style="width:74px"><i style="width:88%"></i></span><b>88%</b></div></td></tr>
+                <tr class="memberrow"><td>Silviu Sas</td><td class="num">28</td><td class="num">26</td><td class="num">26</td><td class="num">2</td><td><div class="pct-cell"><span class="minibar" style="width:74px"><i style="width:87%"></i></span><b>87%</b></div></td></tr>
+              </tbody>
+            </table>
+          </div>
+          <span class="pin" style="top:16px; right:16px">9<span class="note"><b>Grote tabel, beheersbaar.</b> Groepskoppen zijn <b>sticky</b> én <b>inklapbaar</b> (klik op een groep), met lichte zebra en de completeness-balk als kernmetric. Standaard gesorteerd op completeness i.p.v. één lange platte lijst.</span></span>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<div class="surfacepick">
+  <span class="sp-label">Stijl</span>
+  <button data-s="warm">Plat &amp; warm</button>
+  <button data-s="float-mono">Zwevend mono</button>
+</div>
+<button class="annot-toggle" onclick="document.body.classList.toggle('show-annot')"><span class="d"></span> <span class="lbl">Toon verbeteringen</span></button>
+<script>
+  const btn = document.querySelector('.annot-toggle');
+  btn.addEventListener('click', () => {
+    btn.querySelector('.lbl').textContent = document.body.classList.contains('show-annot') ? 'Verberg verbeteringen' : 'Toon verbeteringen';
+  });
+  document.querySelectorAll('.pin').forEach(p => p.addEventListener('click', e => { e.stopPropagation(); p.classList.toggle('open'); }));
+
+  // tab switching
+  const main = document.querySelector('.main');
+  document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
+    t.classList.add('active');
+    const id = t.dataset.tab;
+    document.querySelectorAll('.tabpanel').forEach(p => { p.hidden = p.dataset.panel !== id; });
+    main.scrollTop = 0;
+  }));
+
+  // sticky shadow
+  main.addEventListener('scroll', () => {
+    document.querySelector('.topsticky').classList.toggle('stuck', main.scrollTop > 4);
+  });
+
+  // collapsible associate groups
+  document.querySelectorAll('.grouprow').forEach(g => g.addEventListener('click', () => {
+    g.classList.toggle('collapsed');
+    let n = g.nextElementSibling;
+    while (n && n.classList.contains('memberrow')) { n.hidden = g.classList.contains('collapsed'); n = n.nextElementSibling; }
+  }));
+
+  // surface style switcher
+  const root = document.documentElement;
+  function applySurface(s) {
+    if (s === 'flat') root.removeAttribute('data-surface'); else root.setAttribute('data-surface', s);
+    document.querySelectorAll('.surfacepick button').forEach(b => b.classList.toggle('on', b.dataset.s === s));
+  }
+  document.querySelectorAll('.surfacepick button').forEach(b => b.addEventListener('click', () => {
+    localStorage.setItem('so_surface', b.dataset.s); applySurface(b.dataset.s);
+  }));
+  let _saved = localStorage.getItem('so_surface');
+  if (_saved === 'flat' || _saved === 'float-warm') _saved = 'warm';
+  applySurface((_saved === 'warm' || _saved === 'float-mono') ? _saved : 'float-mono');
+</script>
+</body>
+</html>

@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Zware tabellen in Zwevend mono — richtingen</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<style>
+  :root{
+    --ink:#173a32; --ink-soft:#2c4a42; --muted:#5a6760; --faint:#6f7972;
+    --green:#15564b; --green-deep:#0c4a3f;
+    --good:#2f8f5b; --mod:#d2862a; --bad:#c0473a;
+    --good-bg:#d3e8d8; --good-ink:#226a43; --good-line:#cbe4d3;
+    /* defaults = tinted (float-mono) context; overridden per option */
+    --card:#f2efe9; --card-border:#e8e4dc;
+    --line:#e0dacd; --line-soft:#e6e1d5;
+    --track:#d5cec0; --chip-fill:#ece6db; --chip-line:#d7d0c2; --chip-ink:#625d51;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0; background:#ffffff; color:var(--ink); font-family:'Hanken Grotesk',system-ui,sans-serif; padding:34px 30px 64px;}
+  .doc-h{max-width:1280px; margin:0 auto;}
+  .doc-h h1{font-size:22px; font-weight:800; letter-spacing:-.01em; margin:0 0 7px;}
+  .doc-h p{margin:0; color:var(--muted); font-size:14.5px; max-width:820px; line-height:1.55;}
+  .row{max-width:1280px; margin:28px auto 0; display:flex; gap:22px; align-items:flex-start; flex-wrap:wrap;}
+  .opt{flex:1 1 370px; min-width:346px;}
+  .badge{display:inline-flex; align-items:center; gap:9px; font-weight:800; font-size:12px; letter-spacing:.05em; text-transform:uppercase; color:var(--green-deep);}
+  .badge .n{width:23px; height:23px; border-radius:7px; background:#e2ece7; border:1px solid #cadfd8; color:var(--green-deep); display:grid; place-items:center; font-size:12px;}
+  .opt h2{font-size:15.5px; font-weight:700; margin:10px 0 3px;}
+  .opt .desc{margin:0 0 15px; color:var(--muted); font-size:13px; line-height:1.5; min-height:52px;}
+
+  .card{position:relative; border-radius:16px; padding:20px 20px 8px;}
+  .cardhead2{display:flex; align-items:center; gap:10px; margin-bottom:4px; padding:0 2px;}
+  .cardhead2 h3{margin:0; font-size:16px; font-weight:700; color:var(--ink); white-space:nowrap;}
+  .cardhead2 .count{margin-left:auto; font-size:12px; color:var(--chip-ink); background:var(--chip-fill); border:1px solid var(--chip-line); border-radius:999px; padding:4px 10px; font-weight:700; white-space:nowrap;}
+  .sub{margin:2px 2px 12px; color:var(--muted); font-size:12.5px;}
+
+  .tbl{width:100%; border-collapse:collapse; font-size:13px;}
+  .tbl th{text-align:left; color:var(--faint); font-size:10.5px; letter-spacing:.07em; text-transform:uppercase; font-weight:700; padding:0 11px 10px; border-bottom:1px solid var(--line);}
+  .tbl td{padding:10px 11px; border-bottom:1px solid var(--line-soft); color:var(--ink-soft);}
+  .tbl tbody tr:last-child td{border-bottom:none;}
+  .tbl .num{text-align:right; font-variant-numeric:tabular-nums; white-space:nowrap;}
+  .f{color:var(--faint);}
+  .kdot{width:7px; height:7px; border-radius:50%; display:inline-block; margin-right:8px; vertical-align:1px;}
+  .minibar{display:inline-block; width:96px; height:8px; border-radius:999px; background:var(--track); overflow:hidden; vertical-align:middle;}
+  .minibar>i{display:block; height:100%; border-radius:999px; background:var(--good);}
+  .pct-cell{display:flex; align-items:center; gap:11px; justify-content:flex-end;}
+  .pct-cell b{width:46px; text-align:right; font-weight:800; color:var(--ink); font-variant-numeric:tabular-nums;}
+  .imp{font-size:10.5px; font-weight:700; border-radius:6px; padding:3px 8px; white-space:nowrap;}
+  .imp.norm{background:var(--chip-fill); color:var(--chip-ink); border:1px solid var(--chip-line);}
+  .imp.exc{background:transparent; color:var(--faint); border:1px solid var(--chip-line);}
+  .typechip{font-size:11.5px; color:var(--muted); background:var(--chip-fill); border:1px solid var(--chip-line); border-radius:6px; padding:3px 8px; white-space:nowrap;}
+
+  /* ===== A — tinted card, white data-sheet inset ===== */
+  .opt-a .card{background:var(--card); border:1px solid var(--card-border);}
+  .opt-a .sheet{background:#ffffff; border:1px solid #ece9e1; border-radius:12px; padding:5px 11px; margin-top:6px;
+    --track:#e8e3d8; --chip-fill:#f3f1ea; --chip-line:#e4dfd4; --line:#ebe8e1; --line-soft:#f1efe9;}
+
+  /* ===== B — lighter table-card (near-white) ===== */
+  .opt-b .card{background:#fbfaf6; border:1px solid #eae6dc;
+    --track:#e7e2d7; --chip-fill:#f1efe8; --chip-line:#ddd8cc; --line:#e6e2d9; --line-soft:#eeebe3;}
+
+  /* ===== C — tinted card, white zebra + firmer rules ===== */
+  .opt-c .card{background:var(--card); border:1px solid var(--card-border);}
+  .opt-c .tbl tbody tr:nth-child(even) td{background:#fbfaf7;}
+  .opt-c .tbl td{border-bottom-color:var(--line);}
+
+  .rec{display:inline-block; margin-top:12px; font-size:11px; font-weight:800; letter-spacing:.05em; text-transform:uppercase; color:var(--good-ink); background:var(--good-bg); border:1px solid var(--good-line); border-radius:6px; padding:3px 9px;}
+</style>
+</head>
+<body>
+  <div class="doc-h">
+    <h1>Zware tabellen in Zwevend mono — 3 richtingen</h1>
+    <p>Zelfde tabel (Custom fields · Company), zelfde float-mono look. Alleen de manier waarop de dichte data leest verschilt. Kies een richting — ik pas 'm daarna toe op álle tabel-kaarten (Data Quality, Custom fields, Associate breakdown); insight-kaarten blijven getint.</p>
+  </div>
+  <div class="row">
+
+    <!-- A -->
+    <div class="opt opt-a">
+      <div class="badge"><span class="n">A</span> Witte data-sheet</div>
+      <h2>Getinte kaart, tabel op een wit vel</h2>
+      <p class="desc">De kaart blijft getint (identiteit blijft), maar de tabel zit op een ingebed wit vlak — cijfers op maximaal contrast. Beste van twee werelden.</p>
+      <div class="card">
+        <div class="cardhead2"><h3>Company</h3><span class="count">39.839 records</span></div>
+        <div class="sheet">
+          <table class="tbl">
+            <thead><tr><th>Field label</th><th>Type</th><th class="num">Filled</th><th>Importance</th><th style="text-align:right">Completeness</th></tr></thead>
+            <tbody>
+              <tr><td><span class="kdot" style="background:var(--bad)"></span>Calling List</td><td><span class="typechip">Long text</span></td><td class="num">0 <span class="f">/ 39.839</span></td><td><span class="imp norm">Normal</span></td><td><div class="pct-cell"><span class="minibar"><i style="width:0%"></i></span><b>0%</b></div></td></tr>
+              <tr><td><span class="kdot" style="background:var(--bad)"></span>DOT Basisprijs</td><td><span class="typechip">Decimal</span></td><td class="num">20 <span class="f">/ 39.839</span></td><td><span class="imp norm">Normal</span></td><td><div class="pct-cell"><span class="minibar"><i style="width:0.1%"></i></span><b>0.1%</b></div></td></tr>
+              <tr><td><span class="kdot" style="background:var(--mod)"></span>Creditworthiness</td><td><span class="typechip">Dropdown</span></td><td class="num">2.152 <span class="f">/ 39.839</span></td><td><span class="imp norm">Normal</span></td><td><div class="pct-cell"><span class="minibar"><i style="width:5.4%; background:var(--mod)"></i></span><b>5.4%</b></div></td></tr>
+              <tr><td><span class="kdot" style="background:var(--mod)"></span>Term of Payment</td><td><span class="typechip">Number</span></td><td class="num">5.753 <span class="f">/ 39.839</span></td><td><span class="imp norm">Normal</span></td><td><div class="pct-cell"><span class="minibar"><i style="width:14.4%; background:var(--mod)"></i></span><b>14.4%</b></div></td></tr>
+              <tr><td><span class="kdot" style="background:var(--mod)"></span>Province</td><td><span class="typechip">Dropdown</span></td><td class="num">6.519 <span class="f">/ 39.839</span></td><td><span class="imp norm">Normal</span></td><td><div class="pct-cell"><span class="minibar"><i style="width:16.4%; background:var(--mod)"></i></span><b>16.4%</b></div></td></tr>
+              <tr><td>Relation of</td><td><span class="typechip">Dropdown</span></td><td class="num">30.112 <span class="f">/ 39.839</span></td><td><span class="imp exc">Excluded</span></td><td><div class="pct-cell"><span class="minibar"><i style="width:75.6%; background:var(--faint)"></i></span><b>75.6%</b></div></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <span class="rec">Mijn voorkeur</span>
+    </div>
+
+    <!-- B -->
+    <div class="opt opt-b">
+      <div class="badge"><span class="n">B</span> Lichte tabel-kaart</div>
+      <h2>Deze kaart wordt bijna-wit</h2>
+      <p class="desc">Insight-kaarten blijven getint; kaarten mét een zware tabel worden bijna-wit. Maximale leesbaarheid, maar de kaart-familie wordt tweeledig.</p>
+      <div class="card">
+        <div class="cardhead2"><h3>Company</h3><span class="count">39.839 records</span></div>
+        <table class="tbl">
+          <thead><tr><th>Field label</th><th>Type</th><th class="num">Filled</th><th>Importance</th><th style="text-align:right">Completeness</th></tr></thead>
+          <tbody>
+            <tr><td><span class="kdot" style="background:var(--bad)"></span>Calling List</td><td><span class="typechip">Long text</span></td><td class="num">0 <span class="f">/ 39.839</span></td><td><span class="imp norm">Normal</span></td><td><div class="pct-cell"><span class="minibar"><i style="width:0%"></i></span><b>0%</b></div></td></tr>
+            <tr><td><span class="kdot" style="background:var(--bad)"></span>DOT Basisprijs</td><td><span class="typechip">Decimal</span></td><td class="num">20 <span class="f">/ 39.839</span></td><td><span class="imp norm">Normal</span></td><td><div class="pct-cell"><span class="minibar"><i style="width:0.1%"></i></span><b>0.1%</b></div></td></tr>
+            <tr><td><span class="kdot" style="background:var(--mod)"></span>Creditworthiness</td><td><span class="typechip">Dropdown</span></td><td class="num">2.152 <span class="f">/ 39.839</span></td><td><span class="imp norm">Normal</span></td><td><div class="pct-cell"><span class="minibar"><i style="width:5.4%; background:var(--mod)"></i></span><b>5.4%</b></div></td></tr>
+            <tr><td><span class="kdot" style="background:var(--mod)"></span>Term of Payment</td><td><span class="typechip">Number</span></td><td class="num">5.753 <span class="f">/ 39.839</span></td><td><span class="imp norm">Normal</span></td><td><div class="pct-cell"><span class="minibar"><i style="width:14.4%; background:var(--mod)"></i></span><b>14.4%</b></div></td></tr>
+            <tr><td><span class="kdot" style="background:var(--mod)"></span>Province</td><td><span class="typechip">Dropdown</span></td><td class="num">6.519 <span class="f">/ 39.839</span></td><td><span class="imp norm">Normal</span></td><td><div class="pct-cell"><span class="minibar"><i style="width:16.4%; background:var(--mod)"></i></span><b>16.4%</b></div></td></tr>
+            <tr><td>Relation of</td><td><span class="typechip">Dropdown</span></td><td class="num">30.112 <span class="f">/ 39.839</span></td><td><span class="imp exc">Excluded</span></td><td><div class="pct-cell"><span class="minibar"><i style="width:75.6%; background:var(--faint)"></i></span><b>75.6%</b></div></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- C -->
+    <div class="opt opt-c">
+      <div class="badge"><span class="n">C</span> Zebra op tint</div>
+      <h2>Getinte kaart, witte zebra</h2>
+      <p class="desc">De kaart blijft volledig getint. Om-en-om witte rijen + iets stevigere lijnen tillen de data op — geen extra vlak, blijft plat en rustig.</p>
+      <div class="card">
+        <div class="cardhead2"><h3>Company</h3><span class="count">39.839 records</span></div>
+        <table class="tbl">
+          <thead><tr><th>Field label</th><th>Type</th><th class="num">Filled</th><th>Importance</th><th style="text-align:right">Completeness</th></tr></thead>
+          <tbody>
+            <tr><td><span class="kdot" style="background:var(--bad)"></span>Calling List</td><td><span class="typechip">Long text</span></td><td class="num">0 <span class="f">/ 39.839</span></td><td><span class="imp norm">Normal</span></td><td><div class="pct-cell"><span class="minibar"><i style="width:0%"></i></span><b>0%</b></div></td></tr>
+            <tr><td><span class="kdot" style="background:var(--bad)"></span>DOT Basisprijs</td><td><span class="typechip">Decimal</span></td><td class="num">20 <span class="f">/ 39.839</span></td><td><span class="imp norm">Normal</span></td><td><div class="pct-cell"><span class="minibar"><i style="width:0.1%"></i></span><b>0.1%</b></div></td></tr>
+            <tr><td><span class="kdot" style="background:var(--mod)"></span>Creditworthiness</td><td><span class="typechip">Dropdown</span></td><td class="num">2.152 <span class="f">/ 39.839</span></td><td><span class="imp norm">Normal</span></td><td><div class="pct-cell"><span class="minibar"><i style="width:5.4%; background:var(--mod)"></i></span><b>5.4%</b></div></td></tr>
+            <tr><td><span class="kdot" style="background:var(--mod)"></span>Term of Payment</td><td><span class="typechip">Number</span></td><td class="num">5.753 <span class="f">/ 39.839</span></td><td><span class="imp norm">Normal</span></td><td><div class="pct-cell"><span class="minibar"><i style="width:14.4%; background:var(--mod)"></i></span><b>14.4%</b></div></td></tr>
+            <tr><td><span class="kdot" style="background:var(--mod)"></span>Province</td><td><span class="typechip">Dropdown</span></td><td class="num">6.519 <span class="f">/ 39.839</span></td><td><span class="imp norm">Normal</span></td><td><div class="pct-cell"><span class="minibar"><i style="width:16.4%; background:var(--mod)"></i></span><b>16.4%</b></div></td></tr>
+            <tr><td>Relation of</td><td><span class="typechip">Dropdown</span></td><td class="num">30.112 <span class="f">/ 39.839</span></td><td><span class="imp exc">Excluded</span></td><td><div class="pct-cell"><span class="minibar"><i style="width:75.6%; background:var(--faint)"></i></span><b>75.6%</b></div></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+</body>
+</html>
