@@ -1,14 +1,87 @@
 @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap');
-    :root {
-      --so-green:#06423e; --so-green-light:#0f5c57; --so-green-dark:#002420;
-      --so-coast:#b2c7eb; --so-coast-dark1:#6a8cb9; --so-coast-dark2:#395d9c;
-      --so-dune:#f2efea; --so-dune-dark1:#eeecea; --so-dune-dark2:#e7e4e0;
-      --so-meadow:#b7dea9; --so-meadow-dark1:#61974e; --so-meadow-dark2:#286712;
-      --so-plum:#712f4a; --so-coral:#f48a6d; --so-coral-dark:#da6849; --so-mango:#f5a623;
-      --so-charcoal:#1c1c1e; --so-white:#ffffff; --so-bg:#f2efea;
-      --so-border:#ddd9d4; --so-text-muted:#888; --radius:8px;
-      --sl-good:#2e7d32; --sl-ok:#f9a825; --sl-warn:#ef6c00; --sl-bad:#c62828;
-    }
+:root {
+  /* ================================================================
+     Health Check design system (float-mono redesign).
+     Base tokens + the float-mono surface baked in as the shipping
+     default, so no data-surface attribute on <html> is required.
+     The legacy --so-* / --sl-* tokens are aliased onto this system
+     so the many existing inline var(--so-*) usages recolour without
+     touching the JS. Warm theme stays available via
+     html[data-surface="warm"] but is not shipped with a switcher.
+     ================================================================ */
+
+  /* --- Text / ink --- */
+  --ink:#173a32; --ink-soft:#2c4a42; --muted:#5a6760; --faint:#6f7972;
+
+  /* --- Semantic ramp (status / score ONLY) --- */
+  --good:#2f8f5b; --good-ink:#226a43; --good-line:#cbe4d3;
+  --mod:#b9832f;  --mod-ink:#785012;  --mod-line:#e4caa0;
+  --bad:#c0473a;  --bad-ink:#9e3529;  --bad-line:#e6c1b6;
+  /* semantic soft fills: float-mono (deepened) values */
+  --good-bg:#d3e8d8; --mod-bg:#e8d5b0; --bad-bg:#eccfc6;
+
+  /* --- Categorical ramp (distributions ONLY, brand teal) --- */
+  --c1:#0d5f59; --c2:#2f817a; --c3:#51a399; --c4:#82c2b8; --c5:#b3ddd5; --c6:#dcebe7;
+  --cn:#c8c2b4; /* neutral "other / rest" */
+
+  /* --- Brand / sidebar --- */
+  --green:#15564b; --green-deep:#0c4a3f;
+  --side-text:#303a35; --side-faint:#837e72;
+
+  /* --- Neutral chip language (float-mono values) --- */
+  --chip-fill:#ece6db; --chip-line:#d7d0c2; --chip-ink:#625d51; --chip-line-teal:#bcd2cc;
+
+  /* --- Surface (float-mono = shipping default) --- */
+  --shell:#f2efe9; --page:#ffffff; --card:#f2efe9; --card-border:#e8e4dc; --card-shadow:none;
+  --line:#e0dacd; --line-soft:#e6e1d5; --track:#d5cec0;
+  --group-band:#e6ece8; --zebra:#ede9e0;
+  --side-active:#ffffff; --side-2:rgba(0,0,0,.04);
+
+  --radius:8px;
+
+  /* ================================================================
+     Legacy alias layer (bridge). Old tokens -> new system.
+     Heavy tokens (so-green 117x, so-text-muted 83x, so-border 64x)
+     map with confidence. Accent mappings (coast/meadow/coral/plum/
+     mango) are provisional non-data UI bridges, and the 4-band ->
+     3-band score collapse (ok->mod, warn->bad) is finalised per page
+     when the charts and the score-colour function are refactored.
+     ================================================================ */
+  --so-green:var(--green-deep); --so-green-light:var(--green); --so-green-dark:var(--green-deep);
+  --so-charcoal:var(--ink); --so-text-muted:var(--muted);
+  --so-border:var(--line); --so-bg:var(--shell); --so-dune:var(--card); --so-white:var(--page);
+  --so-dune-dark1:var(--line-soft); --so-dune-dark2:var(--card-border);
+
+  /* accents -> nearest new role (provisional) */
+  --so-coast:var(--chip-fill); --so-coast-dark1:var(--chip-line); --so-coast-dark2:var(--muted);
+  --so-meadow:var(--good-bg); --so-meadow-dark1:var(--good); --so-meadow-dark2:var(--good-ink);
+  --so-coral:var(--mod); --so-coral-dark:var(--mod-ink);
+  --so-plum:var(--bad-ink); --so-mango:var(--mod);
+
+  /* score bands -> semantic (4-band collapsed to 3) */
+  --sl-good:var(--good); --sl-ok:var(--mod); --sl-warn:var(--bad); --sl-bad:var(--bad);
+}
+
+/* --- Optional warm theme (kept available; not shipped via a switcher) --- */
+html[data-surface="warm"] {
+  --shell:#fcfbf7; --page:#ece9e2; --card:#fcfbf7; --card-border:#e5e1d6;
+  --track:#e7e2d7; --line:#e6e2d9; --line-soft:#eeebe3;
+  --chip-fill:#f1efe8; --chip-line:#ddd8cc; --chip-line-teal:#cfe0da;
+  --good-bg:#e7f3ec; --mod-bg:#f3e4ca; --bad-bg:#f8e9e6;
+  --side-active:#dfeae4; --side-2:rgba(21,86,75,.07);
+}
+
+/* --- Sheeted table reset (P7): resets recessed/fill tokens to the
+   white-context so white data rows read crisp against the tinted card.
+   Structural sheeted rules (full-bleed rows, overflow) are applied
+   per page together with each table's markup. --- */
+.card.sheeted {
+  padding:18px 0 0;
+  --track:#e7e2d7; --chip-fill:#f1efe8; --chip-line:#ddd8cc;
+  --line:#e6e2d9; --line-soft:#eeebe3; --group-band:#eef2f0;
+  --good-bg:#e7f3ec; --mod-bg:#f3e4ca; --bad-bg:#f8e9e6;
+}
+
 
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: 'DM Sans', sans-serif; display: flex; height: 100vh; background: var(--so-bg); color: var(--so-charcoal); overflow: hidden; }
