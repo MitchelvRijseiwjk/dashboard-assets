@@ -787,14 +787,14 @@ function renderCompanyOverviewV2() {
     h += secLabel('Insights');
     h += '<div class="entity-card" style="background:var(--card);border:1px solid #e6e1d8;border-radius:12px;padding:16px">';
     if (iDormPct >= 40) {
-      h += '<div style="border-left:3px solid ' + BAD + ';background:#fdeeed;padding:9px 12px;border-radius:0 6px 6px 0;margin-bottom:9px;font-size:12px;line-height:1.5;color:#3c423f"><b style="color:#1c2b29">' + fmtNum(iDorm) + ' companies (' + iDormPct + '%) are a dormant tail.</b> They have no recent activity and are the clearest candidates for cleanup or archiving.</div>';
+      h += '<div style="border-left:3px solid var(--cn);background:transparent;padding:9px 12px;border-radius:0 6px 6px 0;margin-bottom:9px;font-size:12px;line-height:1.5;color:#3c423f"><b style="color:#1c2b29">' + fmtNum(iDorm) + ' companies (' + iDormPct + '%) are a dormant tail.</b> They have no recent activity and are the clearest candidates for cleanup or archiving.</div>';
     }
     if (fn && fn.segments) {
       for (var fi = 0; fi < fn.segments.length; fi++) {
         var sg = fn.segments[fi];
         var nm = (sg.name || '').toLowerCase();
         if (nm.indexOf('empty') >= 0 && sg.count > 0) {
-          h += '<div style="border-left:3px solid #ef6c00;background:#fdf4ec;padding:9px 12px;border-radius:0 6px 6px 0;font-size:12px;line-height:1.5;color:#3c423f"><b style="color:#1c2b29">' + fmtNum(sg.count) + ' empty shells.</b> Active companies with no contact person at all. Worth checking whether they are still needed or can be cleaned up.</div>';
+          h += '<div style="border-left:3px solid var(--mod);background:transparent;padding:9px 12px;border-radius:0 6px 6px 0;font-size:12px;line-height:1.5;color:#3c423f"><b style="color:#1c2b29">' + fmtNum(sg.count) + ' empty shells.</b> Active companies with no contact person at all. Worth checking whether they are still needed or can be cleaned up.</div>';
           break;
         }
       }
