@@ -615,10 +615,10 @@ function renderCompanyOverviewV2() {
     return '<div style="font-size:.68rem;letter-spacing:.06em;text-transform:uppercase;color:#a79e8d;font-weight:600;margin:16px 2px 10px">' + t + '</div>';
   }
   function kpiCard(label, value, sub, alert) {
-    var bd = alert ? ';border-color:#f0d9c2' : '';
-    var vc = alert ? BAD : GREEN;
-    var lc = alert ? '#c0631a' : MUTED;
-    return '<div class="stat-card" style="background:#fff;border:1px solid #e6e1d8;border-radius:12px;padding:14px' + bd + '">' +
+    var bd = alert ? ';border-color:var(--line)' : '';
+    var vc = alert ? MUTED : GREEN;
+    var lc = MUTED;
+    return '<div class="stat-card" style="background:var(--card);border:1px solid #e6e1d8;border-radius:12px;padding:14px' + bd + '">' +
       '<div style="font-size:11px;letter-spacing:.04em;text-transform:uppercase;color:' + lc + ';margin-bottom:6px">' + label + '</div>' +
       '<div style="font-size:24px;font-weight:500;line-height:1.1;color:' + vc + '">' + value + '</div>' +
       '<div style="font-size:12px;color:' + MUTED + ';margin-top:4px">' + sub + '</div></div>';
@@ -663,7 +663,7 @@ function renderCompanyOverviewV2() {
     var actPct = dbC > 0 ? (tC / dbC * 100) : 0;
     var dormPctC = 100 - actPct;
     h += secLabel('Database composition');
-    h += '<div class="entity-card" style="background:#fbfaf7;border:1px solid #dcd5c8;border-radius:12px;padding:16px">';
+    h += '<div class="entity-card" style="background:var(--card);border:1px solid #dcd5c8;border-radius:12px;padding:16px">';
     h += '<div style="display:flex;height:30px;border-radius:6px;overflow:hidden;margin-bottom:10px">';
     h += '<div style="width:' + actPct.toFixed(1) + '%;background:' + GREEN + ';display:flex;align-items:center;justify-content:center;color:#fff;font-size:11px;font-weight:600">' + (actPct >= 6 ? actPct.toFixed(0) + '%' : '') + '</div>';
     h += '<div style="width:' + dormPctC.toFixed(1) + '%;background:#d8cfc2;display:flex;align-items:center;padding-left:12px;font-size:12px;color:#7a6f5c;font-weight:500">Dormant tail \u00b7 ' + fmtNum(dorm) + ' companies with no recent activity</div>';
@@ -675,18 +675,19 @@ function renderCompanyOverviewV2() {
     if (fn && fn.segments && fn.segments.length > 0) {
       var segs = fn.segments;
       var segTot = fn.total || tC;
+      var engCol = function(nm){ nm=(nm||'').toLowerCase(); if(nm.indexOf('fully')>=0)return '#2f8f5b'; if(nm.indexOf('dormant')>=0)return '#c8c2b4'; if(nm.indexOf('empty')>=0)return '#b9832f'; return '#51a399'; };
       h += '<div style="font-size:12px;color:' + MUTED + ';border-top:1px solid #eee5d8;padding-top:12px;margin-top:10px;margin-bottom:10px">How engaged the active companies are</div>';
       h += '<div style="display:flex;height:26px;border-radius:6px;overflow:hidden;margin-bottom:12px">';
       for (var sa = 0; sa < segs.length; sa++) {
         var sp = segTot > 0 ? (segs[sa].count / segTot * 100) : 0;
         var segIn = sp >= 9 ? '<span style="color:#fff;font-size:10px;font-weight:600;text-shadow:0 1px 1px rgba(0,0,0,.3)">' + sp.toFixed(0) + '%</span>' : '';
-        h += '<div style="width:' + sp.toFixed(1) + '%;background:' + segs[sa].color + ';display:flex;align-items:center;justify-content:center">' + segIn + '</div>';
+        h += '<div style="width:' + sp.toFixed(1) + '%;background:' + engCol(segs[sa].name) + ';display:flex;align-items:center;justify-content:center">' + segIn + '</div>';
       }
       h += '</div>';
       h += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:9px 24px">';
       for (var sb = 0; sb < segs.length; sb++) {
         var sbp = segTot > 0 ? Math.round(segs[sb].count / segTot * 1000) / 10 : 0;
-        h += '<div style="display:flex;gap:7px"><span style="width:10px;height:10px;border-radius:3px;flex:none;background:' + segs[sb].color + ';margin-top:3px"></span><div style="min-width:0"><div style="font-size:12px;color:#1c2b29"><b style="font-weight:600">' + segs[sb].name + '</b> <span style="color:#6b706c;font-weight:500;margin-left:2px">' + fmtNum(segs[sb].count) + ' \u00b7 ' + sbp + '%</span></div>';
+        h += '<div style="display:flex;gap:7px"><span style="width:10px;height:10px;border-radius:3px;flex:none;background:' + engCol(segs[sb].name) + ';margin-top:3px"></span><div style="min-width:0"><div style="font-size:12px;color:#1c2b29"><b style="font-weight:600">' + segs[sb].name + '</b> <span style="color:#6b706c;font-weight:500;margin-left:2px">' + fmtNum(segs[sb].count) + ' \u00b7 ' + sbp + '%</span></div>';
         if (segs[sb].description) h += '<div style="font-size:11px;color:#8a8f8b;line-height:1.35;margin-top:1px">' + segs[sb].description + '</div>';
         h += '</div></div>';
       }
@@ -728,7 +729,7 @@ function renderCompanyOverviewV2() {
     }
     svg += '</svg>';
     h += secLabel('Trajectory \u00b7 over time');
-    h += '<div class="entity-card" style="background:#faf8f3;border:1px solid #e6e1d8;border-radius:12px;padding:18px">';
+    h += '<div class="entity-card" style="background:var(--card);border:1px solid #e6e1d8;border-radius:12px;padding:18px">';
     if (saturated) {
       h += '<div style="font-size:14px;font-weight:500;color:' + GREEN + ';margin-bottom:3px">Active companies by registration year</div>';
       h += '<div style="font-size:12px;color:' + MUTED + ';margin-bottom:12px">Each bar counts the currently active companies by the year they were first registered. ' + fmtNum(trendBefore) + ' were registered before this range.</div>';
@@ -755,11 +756,11 @@ function renderCompanyOverviewV2() {
       var items = catDist.items.slice().sort(function(a, b) { return b.count - a.count; });
       var catTot = catDist.total || 0;
       if (catTot <= 0) { catTot = 0; for (var ck = 0; ck < items.length; ck++) catTot += items[ck].count; }
-      var palette = ['#06423e', '#0f5c57', '#2e7d32', '#ef6c00', '#5dcaa5', '#b7dea9'];
+      var palette = ['#0d5f59', '#2f817a', '#51a399', '#82c2b8', '#b3ddd5', '#dcebe7'];
       var topN = items.slice(0, 6), otherC = 0;
       for (var ok = 6; ok < items.length; ok++) otherC += items[ok].count;
       h += secLabel('Context');
-      h += '<div class="entity-card" style="background:#fff;border:1px solid #e6e1d8;border-radius:12px;padding:16px">';
+      h += '<div class="entity-card" style="background:var(--card);border:1px solid #e6e1d8;border-radius:12px;padding:16px">';
       h += '<div style="display:flex;align-items:center;margin-bottom:10px"><div style="font-size:13px;font-weight:500;color:' + GREEN + '">Category mix</div><span style="margin-left:auto;font-size:11px;color:#a09a8e">for context, not something to act on</span></div>';
       h += '<div style="display:flex;height:26px;border-radius:5px;overflow:hidden;margin-bottom:8px">';
       for (var pi = 0; pi < topN.length; pi++) {
@@ -784,7 +785,7 @@ function renderCompanyOverviewV2() {
     var iDorm = ah.dbTotal - ah.total;
     var iDormPct = ah.dbTotal > 0 ? Math.round(iDorm / ah.dbTotal * 100) : 0;
     h += secLabel('Insights');
-    h += '<div class="entity-card" style="background:#fff;border:1px solid #e6e1d8;border-radius:12px;padding:16px">';
+    h += '<div class="entity-card" style="background:var(--card);border:1px solid #e6e1d8;border-radius:12px;padding:16px">';
     if (iDormPct >= 40) {
       h += '<div style="border-left:3px solid ' + BAD + ';background:#fdeeed;padding:9px 12px;border-radius:0 6px 6px 0;margin-bottom:9px;font-size:12px;line-height:1.5;color:#3c423f"><b style="color:#1c2b29">' + fmtNum(iDorm) + ' companies (' + iDormPct + '%) are a dormant tail.</b> They have no recent activity and are the clearest candidates for cleanup or archiving.</div>';
     }
@@ -821,7 +822,7 @@ function renderSaleOverviewV2() {
 
   var GREEN = 'var(--so-green,#06423e)', OKC = 'var(--sl-ok,#f9a825)', WARN = 'var(--sl-warn,#ef6c00)', BAD = 'var(--sl-bad,#c62828)', GOOD = 'var(--sl-good,#2e7d32)', MUTED = 'var(--so-text-muted,#6b706c)';
   function secLabel(t) { return '<div style="font-size:.68rem;letter-spacing:.06em;text-transform:uppercase;color:#a79e8d;font-weight:600;margin:16px 2px 10px">' + t + '</div>'; }
-  function kpiCard(label, value, sub, alert) { var bd = alert ? ';border-color:#f0d9c2' : ''; var vc = alert ? BAD : GREEN; var lc = alert ? '#c0631a' : MUTED; return '<div class="stat-card" style="background:#fff;border:1px solid #e6e1d8;border-radius:12px;padding:14px' + bd + '"><div style="font-size:11px;letter-spacing:.04em;text-transform:uppercase;color:' + lc + ';margin-bottom:6px">' + label + '</div><div style="font-size:24px;font-weight:500;line-height:1.1;color:' + vc + '">' + value + '</div><div style="font-size:12px;color:' + MUTED + ';margin-top:4px">' + sub + '</div></div>'; }
+  function kpiCard(label, value, sub, alert) { var bd = alert ? ';border-color:#f0d9c2' : ''; var vc = alert ? BAD : GREEN; var lc = alert ? '#c0631a' : MUTED; return '<div class="stat-card" style="background:var(--card);border:1px solid #e6e1d8;border-radius:12px;padding:14px' + bd + '"><div style="font-size:11px;letter-spacing:.04em;text-transform:uppercase;color:' + lc + ';margin-bottom:6px">' + label + '</div><div style="font-size:24px;font-weight:500;line-height:1.1;color:' + vc + '">' + value + '</div><div style="font-size:12px;color:' + MUTED + ';margin-top:4px">' + sub + '</div></div>'; }
   function dotLeg(color, label, val, pc) { var nums = ''; if (val !== '') nums += '<span style="font-weight:600;color:#1c2b29;margin-left:8px">' + val + '</span>'; if (pc !== '') nums += '<span style="color:#8a8f8b;margin-left:5px">' + pc + '</span>'; return '<div style="display:flex;align-items:center;gap:7px;font-size:12px;color:#3c423f;margin:4px 0"><span style="width:10px;height:10px;border-radius:3px;flex:none;background:' + color + '"></span><span>' + label + '</span>' + nums + '</div>'; }
   function findDist(key) { for (var i = 0; i < dists.length; i++) { if ((dists[i].title || '').toLowerCase().indexOf(key) >= 0) return dists[i]; } return null; }
   function dval(d, name) { if (d && d.items) { for (var i = 0; i < d.items.length; i++) { if ((d.items[i].name || '').toLowerCase() === name) return d.items[i].count; } } return 0; }
@@ -859,7 +860,7 @@ function renderSaleOverviewV2() {
     circles += '<circle cx="90" cy="90" r="70" fill="none" stroke="' + segs[si].c + '" stroke-width="26" stroke-dasharray="' + sp.toFixed(1) + ' ' + (100 - sp).toFixed(1) + '" stroke-dashoffset="' + (25 - cum).toFixed(1) + '" pathLength="100"/>';
     cum += sp;
   }
-  h += '<div class="entity-card" style="background:#fff;border:1px solid #e6e1d8;border-radius:12px;padding:16px">';
+  h += '<div class="entity-card" style="background:var(--card);border:1px solid #e6e1d8;border-radius:12px;padding:16px">';
   h += '<div style="font-size:13px;font-weight:500;color:' + GREEN + ';margin-bottom:10px">Status split</div>';
   h += '<div style="display:flex;gap:12px;align-items:center"><svg viewBox="0 0 180 180" width="118" height="118" role="img" aria-label="Sale status split"><circle cx="90" cy="90" r="70" fill="none" stroke="#efe9df" stroke-width="26"/>' + circles + '<text x="90" y="86" text-anchor="middle" font-size="17" font-weight="500" fill="#06423e">' + fmtNum(total) + '</text><text x="90" y="103" text-anchor="middle" font-size="10" fill="#8a8f8b">sales</text></svg>';
   h += '<div style="flex:1;min-width:0">' + dotLeg(BAD, 'Lost', fmtNum(lost), pct(lost, total) + '%') + dotLeg(OKC, 'Open', fmtNum(open), pct(open, total) + '%') + dotLeg(GOOD, 'Sold', fmtNum(sold), pct(sold, total) + '%') + dotLeg('#c9c4ba', 'Stalled' + sbInfoIcon('A sale put on hold, neither won nor lost yet.'), fmtNum(stalled), pct(stalled, total) + '%') + '</div></div></div>';
@@ -867,7 +868,7 @@ function renderSaleOverviewV2() {
     var titems = typeD.items.slice().sort(function (a, b) { return b.count - a.count; });
     var ttot = 0; for (var ti = 0; ti < titems.length; ti++) ttot += titems[ti].count;
     var tpal = ['#0f5c57', '#5dcaa5', '#b7dea9', '#c9c4ba'];
-    h += '<div class="entity-card" style="background:#fff;border:1px solid #e6e1d8;border-radius:12px;padding:16px"><div style="font-size:13px;font-weight:500;color:' + GREEN + '">Sale type</div><div style="font-size:11px;color:#8a8f8b;margin:2px 0 11px">From the Sale Type field on each sale, chosen by the user. It is not derived from the data.</div>';
+    h += '<div class="entity-card" style="background:var(--card);border:1px solid #e6e1d8;border-radius:12px;padding:16px"><div style="font-size:13px;font-weight:500;color:' + GREEN + '">Sale type</div><div style="font-size:11px;color:#8a8f8b;margin:2px 0 11px">From the Sale Type field on each sale, chosen by the user. It is not derived from the data.</div>';
     for (var tj = 0; tj < titems.length && tj < 4; tj++) {
       var tp = pct(titems[tj].count, ttot);
       h += '<div style="margin-bottom:9px"><div style="display:flex;font-size:12px;margin-bottom:3px"><span>' + titems[tj].name + '</span><b style="margin-left:auto;color:#6b706c">' + tp + '%</b></div><div style="height:9px;background:#eef0ec;border-radius:5px"><div style="width:' + Math.max(tp, 1).toFixed(0) + '%;height:9px;background:' + tpal[Math.min(tj, 3)] + ';border-radius:5px"></div></div></div>';
@@ -898,7 +899,7 @@ function renderSaleOverviewV2() {
       stageMsg = 'Stage is filled in for most sales and spread across the buckets, which gives a usable basis for pipeline forecasting.';
     }
     h += secLabel(stagePoor ? 'The real gap \u00b7 pipeline data' : 'Pipeline \u00b7 stage tracking');
-    h += '<div class="entity-card" style="background:#fff;border:1px solid #e6e1d8;border-radius:12px;padding:16px"><div style="font-size:13px;font-weight:500;color:' + GREEN + ';margin-bottom:2px">Stage / probability tracking' + sbInfoIcon('The probability field on each sale (Low, Middle or High chance). It is what pipeline forecasting relies on.') + '</div><div style="font-size:12px;color:' + MUTED + ';margin-bottom:12px;line-height:1.5">' + stageMsg + '</div>';
+    h += '<div class="entity-card" style="background:var(--card);border:1px solid #e6e1d8;border-radius:12px;padding:16px"><div style="font-size:13px;font-weight:500;color:' + GREEN + ';margin-bottom:2px">Stage / probability tracking' + sbInfoIcon('The probability field on each sale (Low, Middle or High chance). It is what pipeline forecasting relies on.') + '</div><div style="font-size:12px;color:' + MUTED + ';margin-bottom:12px;line-height:1.5">' + stageMsg + '</div>';
     h += '<div style="display:flex;height:30px;border-radius:6px;overflow:hidden;margin-bottom:12px">';
     h += '<div style="width:' + spNo + '%;background:#d8cfc2;display:flex;align-items:center;padding-left:10px;font-size:11px;color:#7a6f5c;font-weight:500">' + (spNo >= 12 ? spNo.toFixed(0) + '% no stage set' : '') + '</div>';
     h += '<div style="width:' + spLow + '%;background:' + OKC + ';display:flex;align-items:center;justify-content:center;font-size:10px;color:#fff;font-weight:600;text-shadow:0 1px 1px rgba(0,0,0,.3)">' + (spLow >= 14 ? spLow.toFixed(0) + '% low chance' : (spLow >= 7 ? spLow.toFixed(0) + '%' : '')) + '</div>';
@@ -924,7 +925,7 @@ function renderSaleOverviewV2() {
   if (insH === '') {
     insH = '<div style="border-left:3px solid ' + GOOD + ';background:#eef5ec;padding:9px 12px;border-radius:0 6px 6px 0;font-size:12px;line-height:1.5;color:#3c423f">No major data issues stand out for sales in this period.</div>';
   }
-  h += '<div class="entity-card" style="background:#fff;border:1px solid #e6e1d8;border-radius:12px;padding:16px">' + insH + '</div>';
+  h += '<div class="entity-card" style="background:var(--card);border:1px solid #e6e1d8;border-radius:12px;padding:16px">' + insH + '</div>';
 
   el.innerHTML = h;
 }
@@ -940,7 +941,7 @@ function renderContactOverviewV2() {
   var o = ov.overview || {};
   var GREEN = 'var(--so-green,#06423e)', BAD = 'var(--sl-bad,#c62828)', WARN = 'var(--sl-warn,#ef6c00)', MUTED = 'var(--so-text-muted,#6b706c)';
   function secLabel(t) { return '<div style="font-size:.68rem;letter-spacing:.06em;text-transform:uppercase;color:#a79e8d;font-weight:600;margin:16px 2px 10px">' + t + '</div>'; }
-  function kpiCard(label, value, sub, alert) { var bd = alert ? ';border-color:#f0d9c2' : ''; var vc = alert ? BAD : GREEN; var lc = alert ? '#c0631a' : MUTED; return '<div class="stat-card" style="background:#fff;border:1px solid #e6e1d8;border-radius:12px;padding:14px' + bd + '"><div style="font-size:11px;letter-spacing:.04em;text-transform:uppercase;color:' + lc + ';margin-bottom:6px">' + label + '</div><div style="font-size:24px;font-weight:500;line-height:1.1;color:' + vc + '">' + value + '</div><div style="font-size:12px;color:' + MUTED + ';margin-top:4px">' + sub + '</div></div>'; }
+  function kpiCard(label, value, sub, alert) { var bd = alert ? ';border-color:#f0d9c2' : ''; var vc = alert ? BAD : GREEN; var lc = alert ? '#c0631a' : MUTED; return '<div class="stat-card" style="background:var(--card);border:1px solid #e6e1d8;border-radius:12px;padding:14px' + bd + '"><div style="font-size:11px;letter-spacing:.04em;text-transform:uppercase;color:' + lc + ';margin-bottom:6px">' + label + '</div><div style="font-size:24px;font-weight:500;line-height:1.1;color:' + vc + '">' + value + '</div><div style="font-size:12px;color:' + MUTED + ';margin-top:4px">' + sub + '</div></div>'; }
   var total = o.total || 0;
   function P(n) { return total > 0 ? Math.round((o[n] || 0) / total * 1000) / 10 : 0; }
   function bar(label, n) { var p = total > 0 ? Math.round(n / total * 1000) / 10 : 0; return '<div style="margin-bottom:11px"><div style="display:flex;font-size:12px;margin-bottom:4px;color:#3c423f"><span>' + label + '</span><span style="margin-left:auto;color:#6b706c"><b style="color:#1c2b29">' + p + '%</b> &middot; ' + fmtNum(n) + '</span></div><div style="height:10px;background:#eef0ec;border-radius:5px"><div style="width:' + Math.max(p, 1).toFixed(0) + '%;height:10px;background:#0f5c57;border-radius:5px"></div></div></div>'; }
@@ -955,7 +956,7 @@ function renderContactOverviewV2() {
   h += kpiCard('With position', P('withPosition') + '%', fmtNum(o.withPosition || 0) + ' have a role', P('withPosition') < 60);
   h += '</div>';
   h += secLabel('Field completeness');
-  h += '<div class="entity-card" style="background:#fff;border:1px solid #e6e1d8;border-radius:12px;padding:16px"><div style="font-size:12px;color:' + MUTED + ';margin-bottom:12px">How completely the key contact fields are filled in.</div>';
+  h += '<div class="entity-card" style="background:var(--card);border:1px solid #e6e1d8;border-radius:12px;padding:16px"><div style="font-size:12px;color:' + MUTED + ';margin-bottom:12px">How completely the key contact fields are filled in.</div>';
   h += bar('Email address', o.withEmail || 0);
   h += bar('Phone number', o.withPhone || 0);
   h += bar('Position', o.withPosition || 0);
@@ -983,7 +984,7 @@ function renderContactOverviewV2() {
   if (insC === '') {
     insC = '<div style="border-left:3px solid var(--sl-good,#2e7d32);background:#eef5ec;padding:9px 12px;border-radius:0 6px 6px 0;font-size:12px;line-height:1.5;color:#3c423f">Contact detail coverage looks healthy across the main fields.</div>';
   }
-  h += '<div class="entity-card" style="background:#fff;border:1px solid #e6e1d8;border-radius:12px;padding:16px">' + insC + '</div>';
+  h += '<div class="entity-card" style="background:var(--card);border:1px solid #e6e1d8;border-radius:12px;padding:16px">' + insC + '</div>';
   el.innerHTML = h;
 }
 
@@ -999,9 +1000,9 @@ function renderProjectOverviewV2() {
   var dists = ov.distributions || [];
   var GREEN = 'var(--so-green,#06423e)', BAD = 'var(--sl-bad,#c62828)', WARN = 'var(--sl-warn,#ef6c00)', MUTED = 'var(--so-text-muted,#6b706c)';
   function secLabel(t) { return '<div style="font-size:.68rem;letter-spacing:.06em;text-transform:uppercase;color:#a79e8d;font-weight:600;margin:16px 2px 10px">' + t + '</div>'; }
-  function kpiCard(label, value, sub, alert) { var bd = alert ? ';border-color:#f0d9c2' : ''; var vc = alert ? BAD : GREEN; var lc = alert ? '#c0631a' : MUTED; return '<div class="stat-card" style="background:#fff;border:1px solid #e6e1d8;border-radius:12px;padding:14px' + bd + '"><div style="font-size:11px;letter-spacing:.04em;text-transform:uppercase;color:' + lc + ';margin-bottom:6px">' + label + '</div><div style="font-size:24px;font-weight:500;line-height:1.1;color:' + vc + '">' + value + '</div><div style="font-size:12px;color:' + MUTED + ';margin-top:4px">' + sub + '</div></div>'; }
+  function kpiCard(label, value, sub, alert) { var bd = alert ? ';border-color:#f0d9c2' : ''; var vc = alert ? BAD : GREEN; var lc = alert ? '#c0631a' : MUTED; return '<div class="stat-card" style="background:var(--card);border:1px solid #e6e1d8;border-radius:12px;padding:14px' + bd + '"><div style="font-size:11px;letter-spacing:.04em;text-transform:uppercase;color:' + lc + ';margin-bottom:6px">' + label + '</div><div style="font-size:24px;font-weight:500;line-height:1.1;color:' + vc + '">' + value + '</div><div style="font-size:12px;color:' + MUTED + ';margin-top:4px">' + sub + '</div></div>'; }
   function findDist(k) { for (var i = 0; i < dists.length; i++) { if ((dists[i].title || '').toLowerCase().indexOf(k) >= 0) return dists[i]; } return null; }
-  function miniList(title, d) { var s = '<div class="entity-card" style="background:#fff;border:1px solid #e6e1d8;border-radius:12px;padding:16px"><div style="font-size:13px;font-weight:500;color:' + GREEN + ';margin-bottom:10px">' + title + '</div>'; var any = false; if (d && d.items) { for (var i = 0; i < d.items.length; i++) { if (d.items[i].count > 0) { any = true; s += '<div style="display:flex;font-size:12px;margin:5px 0;color:#3c423f"><span>' + d.items[i].name + '</span><b style="margin-left:auto;color:#1c2b29">' + fmtNum(d.items[i].count) + '</b></div>'; } } } if (!any) s += '<div style="font-size:12px;color:' + MUTED + '">No values set.</div>'; return s + '</div>'; }
+  function miniList(title, d) { var s = '<div class="entity-card" style="background:var(--card);border:1px solid #e6e1d8;border-radius:12px;padding:16px"><div style="font-size:13px;font-weight:500;color:' + GREEN + ';margin-bottom:10px">' + title + '</div>'; var any = false; if (d && d.items) { for (var i = 0; i < d.items.length; i++) { if (d.items[i].count > 0) { any = true; s += '<div style="display:flex;font-size:12px;margin:5px 0;color:#3c423f"><span>' + d.items[i].name + '</span><b style="margin-left:auto;color:#1c2b29">' + fmtNum(d.items[i].count) + '</b></div>'; } } } if (!any) s += '<div style="font-size:12px;color:' + MUTED + '">No values set.</div>'; return s + '</div>'; }
 
   var total = o.total || 0, overdue = o.overdue || 0, withMembers = o.withMembers || 0;
   var h = '';
@@ -1031,7 +1032,7 @@ function renderProjectOverviewV2() {
   if (insP === '') {
     insP = '<div style="border-left:3px solid var(--sl-good,#2e7d32);background:#eef5ec;padding:9px 12px;border-radius:0 6px 6px 0;font-size:12px;line-height:1.5;color:#3c423f">No major issues stand out for projects.</div>';
   }
-  h += '<div class="entity-card" style="background:#fff;border:1px solid #e6e1d8;border-radius:12px;padding:16px">' + insP + '</div>';
+  h += '<div class="entity-card" style="background:var(--card);border:1px solid #e6e1d8;border-radius:12px;padding:16px">' + insP + '</div>';
   el.innerHTML = h;
 }
 
@@ -1051,7 +1052,7 @@ function renderRequestsOverviewV2() {
 
   var GREEN = 'var(--so-green,#06423e)', OKC = 'var(--sl-ok,#f9a825)', WARN = 'var(--sl-warn,#ef6c00)', BAD = 'var(--sl-bad,#c62828)', GOOD = 'var(--sl-good,#2e7d32)', MUTED = 'var(--so-text-muted,#6b706c)';
   function secLabel(t) { return '<div style="font-size:.68rem;letter-spacing:.06em;text-transform:uppercase;color:#a79e8d;font-weight:600;margin:16px 2px 10px">' + t + '</div>'; }
-  function kpiCard(label, value, sub, alert) { var bd = alert ? ';border-color:#f0d9c2' : ''; var vc = alert ? BAD : GREEN; var lc = alert ? '#c0631a' : MUTED; return '<div class="stat-card" style="background:#fff;border:1px solid #e6e1d8;border-radius:12px;padding:14px' + bd + '"><div style="font-size:11px;letter-spacing:.04em;text-transform:uppercase;color:' + lc + ';margin-bottom:6px">' + label + '</div><div style="font-size:24px;font-weight:500;line-height:1.1;color:' + vc + '">' + value + '</div><div style="font-size:12px;color:' + MUTED + ';margin-top:4px">' + sub + '</div></div>'; }
+  function kpiCard(label, value, sub, alert) { var bd = alert ? ';border-color:#f0d9c2' : ''; var vc = alert ? BAD : GREEN; var lc = alert ? '#c0631a' : MUTED; return '<div class="stat-card" style="background:var(--card);border:1px solid #e6e1d8;border-radius:12px;padding:14px' + bd + '"><div style="font-size:11px;letter-spacing:.04em;text-transform:uppercase;color:' + lc + ';margin-bottom:6px">' + label + '</div><div style="font-size:24px;font-weight:500;line-height:1.1;color:' + vc + '">' + value + '</div><div style="font-size:12px;color:' + MUTED + ';margin-top:4px">' + sub + '</div></div>'; }
   function findDist(key) { for (var i = 0; i < dists.length; i++) { if ((dists[i].title || '').toLowerCase().indexOf(key) >= 0) return dists[i]; } return null; }
   function pct(n, t) { return t > 0 ? Math.round(n / t * 1000) / 10 : 0; }
 
@@ -1068,7 +1069,7 @@ function renderRequestsOverviewV2() {
     var tot = 0; for (var j = 0; j < items.length; j++) tot += items[j].v;
     var head = items.slice(0, topN);
     var restV = 0; for (var k = topN; k < items.length; k++) restV += items[k].v;
-    var s = '<div class="entity-card" style="background:#fff;border:1px solid #e6e1d8;border-radius:12px;padding:16px"><div style="font-size:13px;font-weight:500;color:' + GREEN + '">' + title + (tip ? sbInfoIcon(tip) : '') + '</div>';
+    var s = '<div class="entity-card" style="background:var(--card);border:1px solid #e6e1d8;border-radius:12px;padding:16px"><div style="font-size:13px;font-weight:500;color:' + GREEN + '">' + title + (tip ? sbInfoIcon(tip) : '') + '</div>';
     s += note ? '<div style="font-size:11px;color:#8a8f8b;margin:2px 0 11px">' + note + '</div>' : '<div style="height:9px"></div>';
     for (var m = 0; m < head.length; m++) {
       var p = pct(head[m].v, tot);
@@ -1140,7 +1141,7 @@ function renderRequestsOverviewV2() {
   if (insR === '') {
     insR = '<div style="border-left:3px solid ' + GOOD + ';background:#eef5ec;padding:9px 12px;border-radius:0 6px 6px 0;font-size:12px;line-height:1.5;color:#3c423f">No major issues stand out for tickets in this period.</div>';
   }
-  h += '<div class="entity-card" style="background:#fff;border:1px solid #e6e1d8;border-radius:12px;padding:16px">' + insR + '</div>';
+  h += '<div class="entity-card" style="background:var(--card);border:1px solid #e6e1d8;border-radius:12px;padding:16px">' + insR + '</div>';
 
   el.innerHTML = h;
 }
