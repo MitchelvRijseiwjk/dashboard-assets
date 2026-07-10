@@ -593,6 +593,24 @@ function pushStdListValues(key, d) {
 // Idempotent: re-callable from every load path; each block guards on its data.
 // Re-inserts the score banner at the end so re-renders keep it.
 // =====================================================
+// ===== Shared Overview components (float-mono redesign) — one source, all entities =====
+function hcKpi(label, value, sub, dot, action) {
+  var d = (typeof dot === 'string' && dot) ? '<span class="kdot" style="background:' + dot + '"></span> ' : '';
+  var a = (typeof action === 'string' && action) ? '<button class="act">' + action + ' <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>' : '';
+  return '<div class="kpi"><div class="kl">' + d + label + '</div><div class="kv">' + value + '</div><div class="ks">' + sub + '</div>' + a + '</div>';
+}
+function hcSecLabel(t) { return '<div class="seclabel">' + t + '</div>'; }
+function hcInsight(kind, bold, rest, buttons) {
+  var primary = kind === 'primary';
+  var ico = primary
+    ? '<span class="ico"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h18M6 12h12M10 17h4"/></svg></span>'
+    : '<span class="ico" style="background:var(--mod-bg);color:var(--mod-ink);border-color:var(--mod-line)"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4M12 17h.01M10.3 4l-7 12a2 2 0 0 0 1.7 3h14a2 2 0 0 0 1.7-3l-7-12a2 2 0 0 0-3.4 0z"/></svg></span>';
+  var tag = primary ? '<span class="tag">Recommended</span>' : '<span class="tag warn">Worth checking</span>';
+  var btns = ''; buttons = buttons || [];
+  for (var i = 0; i < buttons.length; i++) btns += '<button class="btn-s ' + (buttons[i].p ? 'primary' : 'ghost') + '">' + buttons[i].l + '</button>';
+  return '<div class="insight' + (primary ? ' primary' : '') + '">' + ico + '<span class="tx">' + tag + ' <b>' + bold + '</b> ' + rest + '</span><span class="acts">' + btns + '</span></div>';
+}
+
 function renderCompanyOverviewV2() {
   var el = document.getElementById('companyOverviewContent');
   if (!el) return;
@@ -611,14 +629,8 @@ function renderCompanyOverviewV2() {
   var BAD = 'var(--sl-bad,#c62828)';
   var MUTED = 'var(--so-text-muted,#6b706c)';
 
-  function secLabel(t) {
-    return '<div style="font-size:.68rem;letter-spacing:.06em;text-transform:uppercase;color:#a79e8d;font-weight:600;margin:16px 2px 10px">' + t + '</div>';
-  }
-  function kpiCard(label, value, sub, dotColor, action) {
-    var dot = dotColor ? '<span class="kdot" style="background:' + dotColor + '"></span> ' : '';
-    var act = action ? '<button class="act">' + action + ' <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>' : '';
-    return '<div class="kpi"><div class="kl">' + dot + label + '</div><div class="kv">' + value + '</div><div class="ks">' + sub + '</div>' + act + '</div>';
-  }
+  var secLabel = hcSecLabel;
+  var kpiCard = hcKpi;
   function dotLeg(color, label, val, pct) {
     var nums = '';
     if (val !== '') nums += '<span style="font-weight:600;color:#1c2b29;margin-left:8px">' + val + '</span>';
@@ -817,8 +829,8 @@ function renderSaleOverviewV2() {
   var dists = ov.distributions || [];
 
   var GREEN = 'var(--so-green,#06423e)', OKC = 'var(--sl-ok,#f9a825)', WARN = 'var(--sl-warn,#ef6c00)', BAD = 'var(--sl-bad,#c62828)', GOOD = 'var(--sl-good,#2e7d32)', MUTED = 'var(--so-text-muted,#6b706c)';
-  function secLabel(t) { return '<div style="font-size:.68rem;letter-spacing:.06em;text-transform:uppercase;color:#a79e8d;font-weight:600;margin:16px 2px 10px">' + t + '</div>'; }
-  function kpiCard(label, value, sub, alert) { var bd = alert ? ';border-color:#f0d9c2' : ''; var vc = alert ? BAD : GREEN; var lc = alert ? '#c0631a' : MUTED; return '<div class="stat-card" style="background:var(--card);border:1px solid #e6e1d8;border-radius:12px;padding:14px' + bd + '"><div style="font-size:11px;letter-spacing:.04em;text-transform:uppercase;color:' + lc + ';margin-bottom:6px">' + label + '</div><div style="font-size:24px;font-weight:500;line-height:1.1;color:' + vc + '">' + value + '</div><div style="font-size:12px;color:' + MUTED + ';margin-top:4px">' + sub + '</div></div>'; }
+  var secLabel = hcSecLabel;
+  var kpiCard = hcKpi;
   function dotLeg(color, label, val, pc) { var nums = ''; if (val !== '') nums += '<span style="font-weight:600;color:#1c2b29;margin-left:8px">' + val + '</span>'; if (pc !== '') nums += '<span style="color:#8a8f8b;margin-left:5px">' + pc + '</span>'; return '<div style="display:flex;align-items:center;gap:7px;font-size:12px;color:#3c423f;margin:4px 0"><span style="width:10px;height:10px;border-radius:3px;flex:none;background:' + color + '"></span><span>' + label + '</span>' + nums + '</div>'; }
   function findDist(key) { for (var i = 0; i < dists.length; i++) { if ((dists[i].title || '').toLowerCase().indexOf(key) >= 0) return dists[i]; } return null; }
   function dval(d, name) { if (d && d.items) { for (var i = 0; i < d.items.length; i++) { if ((d.items[i].name || '').toLowerCase() === name) return d.items[i].count; } } return 0; }
@@ -936,8 +948,8 @@ function renderContactOverviewV2() {
   if (!ov) return;
   var o = ov.overview || {};
   var GREEN = 'var(--so-green,#06423e)', BAD = 'var(--sl-bad,#c62828)', WARN = 'var(--sl-warn,#ef6c00)', MUTED = 'var(--so-text-muted,#6b706c)';
-  function secLabel(t) { return '<div style="font-size:.68rem;letter-spacing:.06em;text-transform:uppercase;color:#a79e8d;font-weight:600;margin:16px 2px 10px">' + t + '</div>'; }
-  function kpiCard(label, value, sub, alert) { var bd = alert ? ';border-color:#f0d9c2' : ''; var vc = alert ? BAD : GREEN; var lc = alert ? '#c0631a' : MUTED; return '<div class="stat-card" style="background:var(--card);border:1px solid #e6e1d8;border-radius:12px;padding:14px' + bd + '"><div style="font-size:11px;letter-spacing:.04em;text-transform:uppercase;color:' + lc + ';margin-bottom:6px">' + label + '</div><div style="font-size:24px;font-weight:500;line-height:1.1;color:' + vc + '">' + value + '</div><div style="font-size:12px;color:' + MUTED + ';margin-top:4px">' + sub + '</div></div>'; }
+  var secLabel = hcSecLabel;
+  var kpiCard = hcKpi;
   var total = o.total || 0;
   function P(n) { return total > 0 ? Math.round((o[n] || 0) / total * 1000) / 10 : 0; }
   function bar(label, n) { var p = total > 0 ? Math.round(n / total * 1000) / 10 : 0; return '<div style="margin-bottom:11px"><div style="display:flex;font-size:12px;margin-bottom:4px;color:#3c423f"><span>' + label + '</span><span style="margin-left:auto;color:#6b706c"><b style="color:#1c2b29">' + p + '%</b> &middot; ' + fmtNum(n) + '</span></div><div style="height:10px;background:#eef0ec;border-radius:5px"><div style="width:' + Math.max(p, 1).toFixed(0) + '%;height:10px;background:#0f5c57;border-radius:5px"></div></div></div>'; }
@@ -995,8 +1007,8 @@ function renderProjectOverviewV2() {
   var o = ov.overview || {};
   var dists = ov.distributions || [];
   var GREEN = 'var(--so-green,#06423e)', BAD = 'var(--sl-bad,#c62828)', WARN = 'var(--sl-warn,#ef6c00)', MUTED = 'var(--so-text-muted,#6b706c)';
-  function secLabel(t) { return '<div style="font-size:.68rem;letter-spacing:.06em;text-transform:uppercase;color:#a79e8d;font-weight:600;margin:16px 2px 10px">' + t + '</div>'; }
-  function kpiCard(label, value, sub, alert) { var bd = alert ? ';border-color:#f0d9c2' : ''; var vc = alert ? BAD : GREEN; var lc = alert ? '#c0631a' : MUTED; return '<div class="stat-card" style="background:var(--card);border:1px solid #e6e1d8;border-radius:12px;padding:14px' + bd + '"><div style="font-size:11px;letter-spacing:.04em;text-transform:uppercase;color:' + lc + ';margin-bottom:6px">' + label + '</div><div style="font-size:24px;font-weight:500;line-height:1.1;color:' + vc + '">' + value + '</div><div style="font-size:12px;color:' + MUTED + ';margin-top:4px">' + sub + '</div></div>'; }
+  var secLabel = hcSecLabel;
+  var kpiCard = hcKpi;
   function findDist(k) { for (var i = 0; i < dists.length; i++) { if ((dists[i].title || '').toLowerCase().indexOf(k) >= 0) return dists[i]; } return null; }
   function miniList(title, d) { var s = '<div class="entity-card" style="background:var(--card);border:1px solid #e6e1d8;border-radius:12px;padding:16px"><div style="font-size:13px;font-weight:500;color:' + GREEN + ';margin-bottom:10px">' + title + '</div>'; var any = false; if (d && d.items) { for (var i = 0; i < d.items.length; i++) { if (d.items[i].count > 0) { any = true; s += '<div style="display:flex;font-size:12px;margin:5px 0;color:#3c423f"><span>' + d.items[i].name + '</span><b style="margin-left:auto;color:#1c2b29">' + fmtNum(d.items[i].count) + '</b></div>'; } } } if (!any) s += '<div style="font-size:12px;color:' + MUTED + '">No values set.</div>'; return s + '</div>'; }
 
@@ -1047,8 +1059,8 @@ function renderRequestsOverviewV2() {
   var dists = ov.distributions || [];
 
   var GREEN = 'var(--so-green,#06423e)', OKC = 'var(--sl-ok,#f9a825)', WARN = 'var(--sl-warn,#ef6c00)', BAD = 'var(--sl-bad,#c62828)', GOOD = 'var(--sl-good,#2e7d32)', MUTED = 'var(--so-text-muted,#6b706c)';
-  function secLabel(t) { return '<div style="font-size:.68rem;letter-spacing:.06em;text-transform:uppercase;color:#a79e8d;font-weight:600;margin:16px 2px 10px">' + t + '</div>'; }
-  function kpiCard(label, value, sub, alert) { var bd = alert ? ';border-color:#f0d9c2' : ''; var vc = alert ? BAD : GREEN; var lc = alert ? '#c0631a' : MUTED; return '<div class="stat-card" style="background:var(--card);border:1px solid #e6e1d8;border-radius:12px;padding:14px' + bd + '"><div style="font-size:11px;letter-spacing:.04em;text-transform:uppercase;color:' + lc + ';margin-bottom:6px">' + label + '</div><div style="font-size:24px;font-weight:500;line-height:1.1;color:' + vc + '">' + value + '</div><div style="font-size:12px;color:' + MUTED + ';margin-top:4px">' + sub + '</div></div>'; }
+  var secLabel = hcSecLabel;
+  var kpiCard = hcKpi;
   function findDist(key) { for (var i = 0; i < dists.length; i++) { if ((dists[i].title || '').toLowerCase().indexOf(key) >= 0) return dists[i]; } return null; }
   function pct(n, t) { return t > 0 ? Math.round(n / t * 1000) / 10 : 0; }
 
