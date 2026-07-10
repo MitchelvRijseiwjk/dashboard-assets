@@ -958,3 +958,22 @@ html[data-surface="warm"] {
 .entity-card, .detail-section, .stat-card{ background:var(--card); border-color:var(--card-border); box-shadow:none; }
 .entity-header{ background:var(--card); border-bottom-color:var(--line); }
 .entity-header .record-badge{ background:var(--chip-fill); color:var(--muted); }
+
+/* ================================================================
+   Redesign slice 2 (Data Quality / Integrity).
+   Weight/Importance -> neutral emphasis ramp (P1: no green, no blue).
+   Data tables -> sheeted (tinted card + header, white full-bleed rows, P7).
+   ================================================================ */
+
+/* --- Weight / Importance pills: emphasis ramp, not semantic --- */
+.imp-badge.required{ background:#3d4a44; color:#fff; }
+.imp-badge.normal{ background:var(--chip-fill); color:var(--chip-ink); border:1px solid var(--chip-line); }
+.imp-badge.excluded{ background:transparent; color:var(--faint); border:1px solid var(--chip-line); }
+
+/* --- Sheeted data tables: tinted header, white full-bleed rows, no zebra --- */
+.data-table thead th{ background:transparent; color:var(--muted); border-bottom:1px solid var(--line); }
+.data-table thead th:hover{ background:var(--zebra); color:var(--ink); }
+.data-table thead th .sort-arrow.active{ color:var(--green-deep); }
+.data-table tbody td{ background:var(--page); border-bottom:1px solid var(--line-soft); }
+.data-table tbody tr:hover td{ background:var(--zebra); }
+.data-table tbody tr.assoc-group-header:hover td{ background:var(--group-band); }
