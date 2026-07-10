@@ -1765,55 +1765,54 @@ function renderScoreBanner(key) {
   if (!el) return;
   var scores = refreshEntityScores(key);
   if (!scores) return;
-
   var existing = el.querySelector('.scores-banner');
   if (existing) existing.parentNode.removeChild(existing);
-
-  var hasAnything = scores.health || scores.dq || scores.integrity || scores.adoption;
-  if (!hasAnything) return;
-
+  if (!scores.health && !scores.dq && !scores.integrity && !scores.adoption) return;
   var desc = sbDescs[key] || sbDescs.company;
-  var h = '<div class="scores-banner">';
-  h += '<div class="sb-top">';
 
-  // Left: Overall Health ring + verdict word
-  if (scores.health) {
-    var hc = slColor(scores.health.total);
-    var hb = slBand(scores.health.total);
-    h += '<div class="sb-main">';
-    h += '<div class="sb-ring sb-ring-lg" style="--score:' + scores.health.total + ';--color:' + hc + '">';
-    h += '<span class="sb-val sb-val-lg">' + scores.health.total + '<small>%</small></span>';
-    h += '</div>';
-    h += '<div class="sb-main-lbl">Overall Health' + sbInfoIcon(sbTips.health) + '</div>';
-    h += '<span class="sb-band" style="background:' + hb.bg + ';color:' + hb.fg + '"><span class="sb-band-dot" style="background:' + hb.dot + '"></span>' + hb.w + '</span>';
-    h += '</div>';
-  }
-
-  h += '<div class="sb-divider"></div>';
-
-  // Right: 3 sub-score rows
   var subs = [];
-  if (scores.dq) subs.push({ label: 'Data Quality', desc: desc.dq, score: scores.dq.total, tip: sbTips.dq });
-  if (scores.integrity) subs.push({ label: 'Data Integrity', desc: desc.int, score: scores.integrity.total, tip: sbTips.int });
-  if (scores.adoption) subs.push({ label: 'Adoption', desc: desc.adopt, score: scores.adoption.total, tip: sbTips.adopt });
+  if (scores.dq) subs.push({ k: 'dq', label: 'Data Quality', desc: desc.dq, score: scores.dq.total, tip: sbTips.dq });
+  if (scores.integrity) subs.push({ k: 'integrity', label: 'Data Integrity', desc: desc.int, score: scores.integrity.total, tip: sbTips.int });
+  if (scores.adoption) subs.push({ k: 'adoption', label: 'Adoption', desc: desc.adopt, score: scores.adoption.total, tip: sbTips.adopt });
 
-  h += '<div class="sb-list">';
+  var comps = (scores.health && scores.health.components) ? scores.health.components : [];
+  var HPTS = { high: 3, medium: 2, low: 1 };
+  var totalPts = 0;
+  for (var p = 0; p < comps.length; p++) totalPts += (HPTS[comps[p].weight] || 2);
+  function wpctFor(k) { for (var q = 0; q < comps.length; q++) { if (comps[q].key === k) return totalPts > 0 ? Math.round((HPTS[comps[q].weight] || 2) / totalPts * 100) : 0; } return 0; }
+
+  var ht = scores.health ? scores.health.total : (subs.length ? subs[0].score : 0);
+  var hbnd = slBand(ht);
+  var h = '<div class="scores-banner card hero">';
+  h += '<div class="donut-wrap">';
+  h += '<div class="donut" style="background:conic-gradient(from -90deg, ' + slColor(ht) + ' 0 ' + ht + '%, var(--track) ' + ht + '% 100%)"><span class="val">' + ht + '<sup>%</sup></span></div>';
+  h += '<div class="ttl">Overall Health' + sbInfoIcon(sbTips.health) + '</div>';
+  h += '<span class="badge" style="background:' + hbnd.bg + ';color:' + hbnd.fg + '"><span class="dot" style="background:' + hbnd.dot + '"></span> ' + hbnd.w + '</span>';
+  h += '</div>';
+  h += '<div class="subs">';
   for (var i = 0; i < subs.length; i++) {
     var s = subs[i];
     var col = slColor(s.score);
     var bnd = slBand(s.score);
-    h += '<div class="sb-row">';
-    h += '<div class="sb-row-info"><div class="sb-row-lbl">' + s.label + sbInfoIcon(s.tip) + '</div><div class="sb-row-desc">' + s.desc + '</div></div>';
-    h += '<div class="sb-row-band"><span class="sb-band" style="background:' + bnd.bg + ';color:' + bnd.fg + '"><span class="sb-band-dot" style="background:' + bnd.dot + '"></span>' + bnd.w + '</span></div>';
-    h += '<div class="sb-row-val" style="color:' + col + '">' + s.score + '%</div>';
-    h += '<div class="sb-row-bar"><div class="sb-row-fill" style="width:' + s.score + '%;background:' + col + '"></div></div>';
+    var wp = wpctFor(s.k);
+    var wc = wp > 0 ? '<span class="w">weighs ' + wp + '%</span>' : '';
+    h += '<div class="subrow">';
+    h += '<div class="lab"><b>' + s.label + '</b>' + wc + sbInfoIcon(s.tip) + '<p>' + s.desc + '</p></div>';
+    h += '<span class="badge" style="background:' + bnd.bg + ';color:' + bnd.fg + '"><span class="dot" style="background:' + bnd.dot + '"></span> ' + bnd.w + '</span>';
+    h += '<div class="barwrap"><div class="bar"><i style="width:' + s.score + '%;background:' + col + '"></i></div><span class="pct" style="color:' + col + '">' + s.score + '%</span></div>';
     h += '</div>';
   }
   h += '</div>';
-
-  h += '</div>'; // end sb-top
-  h += sbFoot(key, scores);
-  h += '</div>'; // end scores-banner
+  var verdict = sbVerdict(key, scores);
+  h += '<div class="hero-foot" style="grid-column:1 / -1">';
+  if (verdict) h += '<span class="summary">' + verdict + '</span>';
+  h += '<span class="note">Overall = weighted average of the three \u00b7 measured against your own data</span>';
+  h += '</div>';
+  h += '<div style="grid-column:1 / -1; display:flex; align-items:center; gap:14px; margin-top:12px">';
+  h += '<span style="color:var(--faint); font-size:12px; font-weight:700; letter-spacing:.06em; text-transform:uppercase">Score bands</span>';
+  h += '<div class="legend"><span class="lg"><i style="background:var(--bad)"></i> &lt;15</span><span class="lg"><i style="background:var(--mod)"></i> 15\u201339</span><span class="lg"><i style="background:#c9b03a"></i> 40\u201369</span><span class="lg"><i style="background:var(--good)"></i> 70+ Good</span></div>';
+  h += '</div>';
+  h += '</div>';
   var fn = el.querySelector('.filter-notice');
   if (fn) fn.insertAdjacentHTML('afterend', h);
   else el.insertAdjacentHTML('afterbegin', h);
