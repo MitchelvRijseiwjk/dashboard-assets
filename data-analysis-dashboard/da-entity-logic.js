@@ -614,14 +614,10 @@ function renderCompanyOverviewV2() {
   function secLabel(t) {
     return '<div style="font-size:.68rem;letter-spacing:.06em;text-transform:uppercase;color:#a79e8d;font-weight:600;margin:16px 2px 10px">' + t + '</div>';
   }
-  function kpiCard(label, value, sub, alert) {
-    var bd = alert ? ';border-color:var(--line)' : '';
-    var vc = alert ? MUTED : GREEN;
-    var lc = MUTED;
-    return '<div class="stat-card" style="background:var(--card);border:1px solid #e6e1d8;border-radius:12px;padding:14px' + bd + '">' +
-      '<div style="font-size:11px;letter-spacing:.04em;text-transform:uppercase;color:' + lc + ';margin-bottom:6px">' + label + '</div>' +
-      '<div style="font-size:24px;font-weight:500;line-height:1.1;color:' + vc + '">' + value + '</div>' +
-      '<div style="font-size:12px;color:' + MUTED + ';margin-top:4px">' + sub + '</div></div>';
+  function kpiCard(label, value, sub, dotColor, action) {
+    var dot = dotColor ? '<span class="kdot" style="background:' + dotColor + '"></span> ' : '';
+    var act = action ? '<button class="act">' + action + ' <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>' : '';
+    return '<div class="kpi"><div class="kl">' + dot + label + '</div><div class="kv">' + value + '</div><div class="ks">' + sub + '</div>' + act + '</div>';
   }
   function dotLeg(color, label, val, pct) {
     var nums = '';
@@ -647,11 +643,11 @@ function renderCompanyOverviewV2() {
     var withPersonsPct = totalC > 0 ? Math.round(withPersons / totalC * 1000) / 10 : 0;
 
     h += secLabel('State \u00b7 where things stand');
-    h += '<div class="stat-row" style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px">';
-    h += kpiCard('Companies', fmtNum(totalC), 'of ' + fmtNum(dbT) + ' total', false);
-    h += kpiCard('Dormant tail', fmtNum(dormantTail), dormantPct + '% with no recent activity', true);
-    h += kpiCard('New this year', fmtNum(newThisYear), 'registered this year', false);
-    h += kpiCard('With contact person', withPersonsPct + '%', fmtNum(withPersons) + ' companies', false);
+    h += '<div class="kpis">';
+    h += kpiCard('Companies', fmtNum(totalC), 'of ' + fmtNum(dbT) + ' total', '', '');
+    h += kpiCard('Dormant tail', fmtNum(dormantTail), dormantPct + '% with no recent activity', 'var(--cn)', 'Create selection');
+    h += kpiCard('New this year', fmtNum(newThisYear), 'registered this year', '', '');
+    h += kpiCard('With contact person', withPersonsPct + '%', fmtNum(withPersons) + ' companies', 'var(--good)', '');
     h += '</div>';
   }
 
@@ -784,17 +780,17 @@ function renderCompanyOverviewV2() {
   if (ah && ah.dbTotal) {
     var iDorm = ah.dbTotal - ah.total;
     var iDormPct = ah.dbTotal > 0 ? Math.round(iDorm / ah.dbTotal * 100) : 0;
-    h += secLabel('Insights');
-    h += '<div class="entity-card" style="background:var(--card);border:1px solid #e6e1d8;border-radius:12px;padding:16px">';
+    h += secLabel('Insights \u00b7 recommended actions');
+    h += '<div style="position:relative">';
     if (iDormPct >= 40) {
-      h += '<div style="border-left:3px solid var(--cn);background:transparent;padding:9px 12px;border-radius:0 6px 6px 0;margin-bottom:9px;font-size:12px;line-height:1.5;color:#3c423f"><b style="color:#1c2b29">' + fmtNum(iDorm) + ' companies (' + iDormPct + '%) are a dormant tail.</b> They have no recent activity and are the clearest candidates for cleanup or archiving.</div>';
+      h += '<div class="insight primary"><span class="ico"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h18M6 12h12M10 17h4"/></svg></span><span class="tx"><span class="tag">Recommended</span> <b>' + fmtNum(iDorm) + ' companies (' + iDormPct + '%) are a dormant tail.</b> No recent activity \u2014 the clearest candidates for cleanup or archiving.</span><span class="acts"><button class="btn-s primary">Create selection</button><button class="btn-s ghost">Export list</button></span></div>';
     }
     if (fn && fn.segments) {
       for (var fi = 0; fi < fn.segments.length; fi++) {
         var sg = fn.segments[fi];
         var nm = (sg.name || '').toLowerCase();
         if (nm.indexOf('empty') >= 0 && sg.count > 0) {
-          h += '<div style="border-left:3px solid var(--mod);background:transparent;padding:9px 12px;border-radius:0 6px 6px 0;font-size:12px;line-height:1.5;color:#3c423f"><b style="color:#1c2b29">' + fmtNum(sg.count) + ' empty shells.</b> Active companies with no contact person at all. Worth checking whether they are still needed or can be cleaned up.</div>';
+          h += '<div class="insight"><span class="ico" style="background:var(--mod-bg);color:var(--mod-ink);border-color:var(--mod-line)"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4M12 17h.01M10.3 4l-7 12a2 2 0 0 0 1.7 3h14a2 2 0 0 0 1.7-3l-7-12a2 2 0 0 0-3.4 0z"/></svg></span><span class="tx"><span class="tag warn">Worth checking</span> <b>' + fmtNum(sg.count) + ' empty shells.</b> Active companies with no contact person at all. Worth checking whether they are still needed or can be cleaned up.</span><span class="acts"><button class="btn-s ghost">Review ' + fmtNum(sg.count) + '</button></span></div>';
           break;
         }
       }
