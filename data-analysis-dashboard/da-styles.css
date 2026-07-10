@@ -927,3 +927,34 @@ html[data-surface="warm"] {
 .dp-intake-open{display:inline-flex;align-items:center;gap:4px;font-size:12.5px;font-weight:500;color:var(--so-green);white-space:nowrap}
 .dp-intake-open svg{width:11px;height:11px;opacity:.7;transition:transform .15s}
 .dp-intake-bar:hover .dp-intake-open svg,.aa-intake-bar:hover .dp-intake-open svg{transform:translate(1px,-1px)}
+
+/* ================================================================
+   Float-mono shell (app-wide restyle, slice 1).
+   Beige-blended sidebar, floating white main panel, tinted cards.
+   Kept as a delimited override block on top of the token foundation.
+   ================================================================ */
+
+/* --- Sidebar: blend into the beige shell, dark nav, white active pill --- */
+.sidebar{ background:var(--shell); }
+.sidebar-brand{ border-bottom:1px solid var(--line); }
+.sidebar-brand h1{ color:var(--ink); }
+.sidebar-brand p{ color:var(--faint); opacity:1; }
+.nav-item{ color:var(--side-text); border-left:3px solid transparent; }
+.nav-item:hover{ background:var(--side-2); color:var(--ink); }
+.nav-item.active{ background:var(--side-active); color:var(--green-deep); border-left-color:transparent; font-weight:600; box-shadow:0 1px 2px rgba(0,0,0,.05); }
+.nav-icon img{ filter:brightness(0); opacity:.5; }
+.nav-item:hover .nav-icon img{ filter:brightness(0); opacity:.72; }
+.nav-item.active .nav-icon img{ filter:brightness(0); opacity:.9; }
+.nav-badge{ background:var(--chip-fill); color:var(--muted); }
+.nav-item.active .nav-badge{ background:var(--green-deep); color:#fff; }
+
+/* --- Main: floating white panel within the beige shell --- */
+.main{ background:var(--page); margin:10px 12px 12px 8px; border-radius:18px; border:1px solid var(--card-border); }
+.page-header{ background:var(--page); border-bottom:1px solid var(--line); }
+.content-area{ background:var(--page); }
+.sub-tab:hover{ background:var(--zebra); color:var(--ink); }
+
+/* --- Content cards: tinted, on the white panel --- */
+.entity-card, .detail-section, .stat-card{ background:var(--card); border-color:var(--card-border); box-shadow:none; }
+.entity-header{ background:var(--card); border-bottom-color:var(--line); }
+.entity-header .record-badge{ background:var(--chip-fill); color:var(--muted); }
