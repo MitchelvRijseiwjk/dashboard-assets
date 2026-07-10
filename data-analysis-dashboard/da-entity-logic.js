@@ -833,7 +833,8 @@ function renderSaleOverviewV2() {
   var decided = sold + lost;
   var winRate = decided > 0 ? Math.round(sold / decided * 1000) / 10 : 0;
   var stageD = findDist('stage');
-  var noStage = dval(stageD, '(no value)');
+  var sb = ov.stageBuckets || null;
+  var noStage = sb ? (sb.noValue || 0) : dval(stageD, '(no value)');
   var noStagePct = total > 0 ? Math.round(noStage / total * 100) : 0;
   var typeD = findDist('type');
 
@@ -876,8 +877,8 @@ function renderSaleOverviewV2() {
   h += '</div>';
 
   // ---- The real gap: pipeline (stage) data quality ----
-  if (stageD && stageD.items) {
-    var low = dval(stageD, 'low chance'), mid = dval(stageD, 'middle chance'), high = dval(stageD, 'high chance');
+  if (sb || (stageD && stageD.items)) {
+    var low = sb ? (sb.low || 0) : dval(stageD, 'low chance'), mid = sb ? (sb.mid || 0) : dval(stageD, 'middle chance'), high = sb ? (sb.high || 0) : dval(stageD, 'high chance');
     var spNo = pct(noStage, total), spLow = pct(low, total), spMid = pct(mid, total), spHigh = pct(high, total);
     // Build the assessment from the actual distribution so it holds for any tenant.
     var stFilled = low + mid + high;
