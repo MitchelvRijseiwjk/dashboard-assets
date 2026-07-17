@@ -1139,7 +1139,11 @@ html[data-surface="warm"] {
    required because the host applies an inline filter that turned it white
    for the old dark sidebar. */
 .sidebar-brand{ padding:20px 16px 14px; border-bottom:none; }
-.sidebar-brand img{ filter:none !important; opacity:1 !important; max-width:100%; height:auto; display:block; }
+/* The host inlines a WHITE base64 SVG lockup here, which is invisible on beige.
+   Swap it for the charcoal Health Check logo. The relative URL resolves against
+   this stylesheet, so it always matches the deployed CDN tag. */
+.sidebar-brand img{ content:url(logo_health_check_charcoal.svg) !important; filter:none !important;
+  opacity:1 !important; width:170px !important; height:auto !important; max-width:100%; display:block; }
 .sidebar-brand h1{ color:var(--green); font-size:19px; font-weight:800; letter-spacing:-.01em; line-height:1; }
 .sidebar-brand p{ color:var(--side-faint); font-size:10.5px; letter-spacing:.12em; text-transform:uppercase; font-weight:600; margin-top:3px; opacity:1; }
 
