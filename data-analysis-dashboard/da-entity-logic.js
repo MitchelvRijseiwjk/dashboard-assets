@@ -602,20 +602,31 @@ function hcKpi(label, value, sub, dot, action) {
 function hcSecLabel(t) { return '<div class="seclabel">' + t + '</div>'; }
 function hcInsight(kind, bold, rest, buttons) {
   // kind: 'primary' (act on this) | 'warn' (worth checking) | 'neutral' (context) | 'good' (all clear)
-  // App-wide reconciled form per the handover README, which supersedes the Company
-  // Overview prototype here: one thin muted left accent carries priority, plus an
-  // uppercase lead tag. No filled icon tile.
+  var ICONS = {
+    primary: '<path d="M3 7h18M6 12h12M10 17h4"/>',
+    warn: '<path d="M12 9v4M12 17h.01M10.3 4l-7 12a2 2 0 0 0 1.7 3h14a2 2 0 0 0 1.7-3l-7-12a2 2 0 0 0-3.4 0z"/>',
+    neutral: '<circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/>',
+    good: '<path d="M20 6L9 17l-5-5"/>'
+  };
+  var SKIN = {
+    primary: '',
+    warn: 'background:var(--mod-bg);color:var(--mod-ink);border-color:var(--mod-line)',
+    neutral: 'background:var(--chip-fill);color:var(--chip-ink);border-color:var(--chip-line)',
+    good: 'background:var(--good-bg);color:var(--good-ink);border-color:var(--good-line)'
+  };
   var TAGS = {
     primary: '<span class="tag">Recommended</span> ',
     warn: '<span class="tag warn">Worth checking</span> ',
-    neutral: '<span class="tag neutral">Context</span> ',
-    good: '<span class="tag good">All clear</span> '
+    neutral: '',
+    good: ''
   };
-  if (!TAGS[kind]) kind = 'neutral';
+  if (!ICONS[kind]) kind = 'neutral';
+  var sk = SKIN[kind] ? ' style="' + SKIN[kind] + '"' : '';
+  var ico = '<span class="ico"' + sk + '><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">' + ICONS[kind] + '</svg></span>';
   var btns = ''; buttons = buttons || [];
   for (var i = 0; i < buttons.length; i++) btns += '<button class="btn-s ' + (buttons[i].p ? 'primary' : 'ghost') + '">' + buttons[i].l + '</button>';
   var body = TAGS[kind] + (bold ? '<b>' + bold + '</b> ' : '') + (rest || '');
-  return '<div class="insight ins-' + kind + '"><span class="tx">' + body + '</span>' + (btns ? '<span class="acts">' + btns + '</span>' : '') + '</div>';
+  return '<div class="insight' + (kind === 'primary' ? ' primary' : '') + '">' + ico + '<span class="tx">' + body + '</span>' + (btns ? '<span class="acts">' + btns + '</span>' : '') + '</div>';
 }
 
 function renderCompanyOverviewV2() {

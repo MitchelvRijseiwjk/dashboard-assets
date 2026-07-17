@@ -1165,20 +1165,6 @@ html[data-surface="warm"] {
 .nav-badge{ background:var(--chip-fill); color:var(--chip-ink); border:1px solid var(--chip-line); }
 .nav-item.active .nav-badge{ background:#3d4a44; color:#fff; border-color:transparent; }
 
-/* ================================================================
-   Insight cards, app-wide reconciled form.
-   The handover README supersedes the Company Overview prototype here:
-   one thin 3px muted left accent as the priority signal plus an
-   uppercase lead tag, and no heavy filled icon tile.
-   ================================================================ */
-.insight{ border-left:3px solid var(--cn); border-radius:0 12px 12px 0; padding:15px 18px; gap:12px; }
-.insight .ico{ display:none; }
-.insight.ins-primary{ background:var(--card); border-color:var(--line-soft); border-left-color:var(--bad); }
-.insight.ins-warn{ border-left-color:var(--mod); }
-.insight.ins-neutral{ border-left-color:var(--cn); }
-.insight.ins-good{ border-left-color:var(--good); }
-.tag.neutral{ color:var(--chip-ink); background:transparent; border-color:var(--chip-line); }
-.tag.good{ color:var(--good-ink); background:var(--good-bg); border-color:var(--good-line); }
 
 /* ================================================================
    Cross-page fixes from the handover checklist.
