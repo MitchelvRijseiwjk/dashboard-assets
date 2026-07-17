@@ -601,14 +601,32 @@ function hcKpi(label, value, sub, dot, action) {
 }
 function hcSecLabel(t) { return '<div class="seclabel">' + t + '</div>'; }
 function hcInsight(kind, bold, rest, buttons) {
-  var primary = kind === 'primary';
-  var ico = primary
-    ? '<span class="ico"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h18M6 12h12M10 17h4"/></svg></span>'
-    : '<span class="ico" style="background:var(--mod-bg);color:var(--mod-ink);border-color:var(--mod-line)"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4M12 17h.01M10.3 4l-7 12a2 2 0 0 0 1.7 3h14a2 2 0 0 0 1.7-3l-7-12a2 2 0 0 0-3.4 0z"/></svg></span>';
-  var tag = primary ? '<span class="tag">Recommended</span>' : '<span class="tag warn">Worth checking</span>';
+  // kind: 'primary' (act on this) | 'warn' (worth checking) | 'neutral' (context) | 'good' (all clear)
+  var ICONS = {
+    primary: '<path d="M3 7h18M6 12h12M10 17h4"/>',
+    warn: '<path d="M12 9v4M12 17h.01M10.3 4l-7 12a2 2 0 0 0 1.7 3h14a2 2 0 0 0 1.7-3l-7-12a2 2 0 0 0-3.4 0z"/>',
+    neutral: '<circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/>',
+    good: '<path d="M20 6L9 17l-5-5"/>'
+  };
+  var SKIN = {
+    primary: '',
+    warn: 'background:var(--mod-bg);color:var(--mod-ink);border-color:var(--mod-line)',
+    neutral: 'background:var(--chip-fill);color:var(--chip-ink);border-color:var(--chip-line)',
+    good: 'background:var(--good-bg);color:var(--good-ink);border-color:var(--good-line)'
+  };
+  var TAGS = {
+    primary: '<span class="tag">Recommended</span> ',
+    warn: '<span class="tag warn">Worth checking</span> ',
+    neutral: '',
+    good: ''
+  };
+  if (!ICONS[kind]) kind = 'neutral';
+  var sk = SKIN[kind] ? ' style="' + SKIN[kind] + '"' : '';
+  var ico = '<span class="ico"' + sk + '><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">' + ICONS[kind] + '</svg></span>';
   var btns = ''; buttons = buttons || [];
   for (var i = 0; i < buttons.length; i++) btns += '<button class="btn-s ' + (buttons[i].p ? 'primary' : 'ghost') + '">' + buttons[i].l + '</button>';
-  return '<div class="insight' + (primary ? ' primary' : '') + '">' + ico + '<span class="tx">' + tag + ' <b>' + bold + '</b> ' + rest + '</span><span class="acts">' + btns + '</span></div>';
+  var body = TAGS[kind] + (bold ? '<b>' + bold + '</b> ' : '') + (rest || '');
+  return '<div class="insight' + (kind === 'primary' ? ' primary' : '') + '">' + ico + '<span class="tx">' + body + '</span>' + (btns ? '<span class="acts">' + btns + '</span>' : '') + '</div>';
 }
 
 function renderCompanyOverviewV2() {
@@ -795,14 +813,14 @@ function renderCompanyOverviewV2() {
     h += secLabel('Insights \u00b7 recommended actions');
     h += '<div style="position:relative">';
     if (iDormPct >= 40) {
-      h += '<div class="insight primary"><span class="ico"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h18M6 12h12M10 17h4"/></svg></span><span class="tx"><span class="tag">Recommended</span> <b>' + fmtNum(iDorm) + ' companies (' + iDormPct + '%) are a dormant tail.</b> No recent activity \u2014 the clearest candidates for cleanup or archiving.</span><span class="acts"><button class="btn-s primary">Create selection</button><button class="btn-s ghost">Export list</button></span></div>';
+      h += hcInsight('primary', fmtNum(iDorm) + ' companies (' + iDormPct + '%) are a dormant tail.', 'No recent activity, so these are the clearest candidates for cleanup or archiving.', [{ l: 'Create selection', p: true }, { l: 'Export list' }]);
     }
     if (fn && fn.segments) {
       for (var fi = 0; fi < fn.segments.length; fi++) {
         var sg = fn.segments[fi];
         var nm = (sg.name || '').toLowerCase();
         if (nm.indexOf('empty') >= 0 && sg.count > 0) {
-          h += '<div class="insight"><span class="ico" style="background:var(--mod-bg);color:var(--mod-ink);border-color:var(--mod-line)"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4M12 17h.01M10.3 4l-7 12a2 2 0 0 0 1.7 3h14a2 2 0 0 0 1.7-3l-7-12a2 2 0 0 0-3.4 0z"/></svg></span><span class="tx"><span class="tag warn">Worth checking</span> <b>' + fmtNum(sg.count) + ' empty shells.</b> Active companies with no contact person at all. Worth checking whether they are still needed or can be cleaned up.</span><span class="acts"><button class="btn-s ghost">Review ' + fmtNum(sg.count) + '</button></span></div>';
+          h += hcInsight('warn', fmtNum(sg.count) + ' empty shells.', 'Active companies with no contact person at all. Worth checking whether they are still needed or can be cleaned up.', [{ l: 'Review ' + fmtNum(sg.count) }]);
           break;
         }
       }
@@ -919,21 +937,21 @@ function renderSaleOverviewV2() {
   h += secLabel('Insights');
   var insH = '';
   if (decided > 0 && winRate < 35) {
-    insH += '<div style="border-left:3px solid ' + BAD + ';background:#fdeeed;padding:9px 12px;border-radius:0 6px 6px 0;margin-bottom:9px;font-size:12px;line-height:1.5;color:#3c423f"><b style="color:#1c2b29">Win rate is ' + winRate + '%, with ' + pct(lost, total) + '% of sales lost.</b> A useful first question is what the ' + fmtNum(lost) + ' lost deals had in common.</div>';
+    insH += hcInsight('primary', 'Win rate is ' + winRate + '%, with ' + pct(lost, total) + '% of sales lost.', 'A useful first question is what the ' + fmtNum(lost) + ' lost deals had in common.');
   }
   if (noStagePct >= 40) {
-    insH += '<div style="border-left:3px solid ' + WARN + ';background:#fdf4ec;padding:9px 12px;border-radius:0 6px 6px 0;margin-bottom:9px;font-size:12px;line-height:1.5;color:#3c423f"><b style="color:#1c2b29">' + noStagePct + '% of sales have no stage set.</b> The pipeline cannot be forecast reliably until stage is filled in.</div>';
+    insH += hcInsight('warn', noStagePct + '% of sales have no stage set.', 'The pipeline cannot be forecast reliably until stage is filled in.');
   }
   var noQuote = (o.withQuote === 0), noStake = (o.withStakeholders === 0);
   if (noQuote || noStake) {
     var qsTitle = (noQuote && noStake) ? 'Quotes and stakeholders are unused' : (noQuote ? 'Quotes are unused' : 'Stakeholders are unused');
     var qsDetail = (noQuote && noStake) ? 'Neither is filled in on any sale, so both features are currently left untouched.' : 'It is not filled in on any sale, so the feature is currently left untouched.';
-    insH += '<div style="border-left:3px solid #8a8f8b;background:#f4f3f0;padding:9px 12px;border-radius:0 6px 6px 0;margin-bottom:9px;font-size:12px;line-height:1.5;color:#3c423f"><b style="color:#1c2b29">' + qsTitle + '.</b> ' + qsDetail + '</div>';
+    insH += hcInsight('neutral', qsTitle + '.', qsDetail);
   }
   if (insH === '') {
-    insH = '<div style="border-left:3px solid ' + GOOD + ';background:#eef5ec;padding:9px 12px;border-radius:0 6px 6px 0;font-size:12px;line-height:1.5;color:#3c423f">No major data issues stand out for sales in this period.</div>';
+    insH = hcInsight('good', '', 'No major data issues stand out for sales in this period.');
   }
-  h += '<div class="entity-card" style="background:var(--card);border:1px solid #e6e1d8;border-radius:12px;padding:16px">' + insH + '</div>';
+  h += insH;
 
   el.innerHTML = h;
 }
@@ -980,19 +998,19 @@ function renderContactOverviewV2() {
   var insC = '';
   var posPct = P('withPosition'), titlePct = P('withTitle'), phonePct = P('withPhone'), emailPct = P('withEmail');
   if (posPct < 60 || titlePct < 60) {
-    insC += '<div style="border-left:3px solid ' + WARN + ';background:#fdf4ec;padding:9px 12px;border-radius:0 6px 6px 0;margin-bottom:9px;font-size:12px;line-height:1.5;color:#3c423f"><b style="color:#1c2b29">Role data is incomplete.</b> Position is filled for ' + posPct + '% and job title for ' + titlePct + '% of contacts. That limits any targeting or segmentation by role.</div>';
+    insC += hcInsight('warn', 'Role data is incomplete.', 'Position is filled for ' + posPct + '% and job title for ' + titlePct + '% of contacts. That limits any targeting or segmentation by role.');
   }
   if (emailPct < 85) {
-    insC += '<div style="border-left:3px solid ' + WARN + ';background:#fdf4ec;padding:9px 12px;border-radius:0 6px 6px 0;margin-bottom:9px;font-size:12px;line-height:1.5;color:#3c423f"><b style="color:#1c2b29">' + (100 - Math.round(emailPct)) + '% of contacts have no email address.</b> Email is the main outreach channel for most teams, so those gaps limit who can be reached.</div>';
+    insC += hcInsight('warn', (100 - Math.round(emailPct)) + '% of contacts have no email address.', 'Email is the main outreach channel for most teams, so those gaps limit who can be reached.');
   }
   if (phonePct < 75) {
     var emNote = emailPct >= 85 ? ' Email coverage is strong at ' + emailPct + '%, so most contacts are still reachable, just not by phone.' : '';
-    insC += '<div style="border-left:3px solid #8a8f8b;background:#f4f3f0;padding:9px 12px;border-radius:0 6px 6px 0;margin-bottom:9px;font-size:12px;line-height:1.5;color:#3c423f"><b style="color:#1c2b29">' + (100 - Math.round(phonePct)) + '% of contacts have no phone number.</b>' + emNote + '</div>';
+    insC += hcInsight('neutral', (100 - Math.round(phonePct)) + '% of contacts have no phone number.', emNote);
   }
   if (insC === '') {
-    insC = '<div style="border-left:3px solid var(--sl-good,#2e7d32);background:#eef5ec;padding:9px 12px;border-radius:0 6px 6px 0;font-size:12px;line-height:1.5;color:#3c423f">Contact detail coverage looks healthy across the main fields.</div>';
+    insC = hcInsight('good', '', 'Contact detail coverage looks healthy across the main fields.');
   }
-  h += '<div class="entity-card" style="background:var(--card);border:1px solid #e6e1d8;border-radius:12px;padding:16px">' + insC + '</div>';
+  h += insC;
   el.innerHTML = h;
 }
 
@@ -1027,20 +1045,20 @@ function renderProjectOverviewV2() {
   if (total > 0 && total <= 10) {
     var od = overdue > 0 ? (', ' + (overdue >= total ? 'all' : fmtNum(overdue)) + ' of them overdue') : '';
     var mem = withMembers === 0 ? ', and none have members assigned' : '';
-    insP += '<div style="border-left:3px solid ' + WARN + ';background:#fdf4ec;padding:9px 12px;border-radius:0 6px 6px 0;margin-bottom:9px;font-size:12px;line-height:1.5;color:#3c423f"><b style="color:#1c2b29">Projects are barely used.</b> There ' + (total === 1 ? 'is' : 'are') + ' only ' + fmtNum(total) + ' project' + (total === 1 ? '' : 's') + ' in this CRM' + od + mem + '. If projects matter to the business this is an adoption gap rather than a data quality one.</div>';
+    insP += hcInsight('warn', 'Projects are barely used.', 'There ' + (total === 1 ? 'is' : 'are') + ' only ' + fmtNum(total) + ' project' + (total === 1 ? '' : 's') + ' in this CRM' + od + mem + '. If projects matter to the business this is an adoption gap rather than a data quality one.');
   } else if (total > 10) {
     var odPct = Math.round(overdue / total * 100);
     if (odPct >= 40) {
-      insP += '<div style="border-left:3px solid ' + WARN + ';background:#fdf4ec;padding:9px 12px;border-radius:0 6px 6px 0;margin-bottom:9px;font-size:12px;line-height:1.5;color:#3c423f"><b style="color:#1c2b29">' + odPct + '% of projects are overdue.</b> Their end date has passed while the project is still open, so either the dates or the statuses need maintaining.</div>';
+      insP += hcInsight('warn', odPct + '% of projects are overdue.', 'Their end date has passed while the project is still open, so either the dates or the statuses need maintaining.');
     }
     if (withMembers === 0) {
-      insP += '<div style="border-left:3px solid ' + WARN + ';background:#fdf4ec;padding:9px 12px;border-radius:0 6px 6px 0;margin-bottom:9px;font-size:12px;line-height:1.5;color:#3c423f"><b style="color:#1c2b29">No projects have members assigned.</b> Without members it is hard to see who is responsible for each project.</div>';
+      insP += hcInsight('warn', 'No projects have members assigned.', 'Without members it is hard to see who is responsible for each project.');
     }
   }
   if (insP === '') {
-    insP = '<div style="border-left:3px solid var(--sl-good,#2e7d32);background:#eef5ec;padding:9px 12px;border-radius:0 6px 6px 0;font-size:12px;line-height:1.5;color:#3c423f">No major issues stand out for projects.</div>';
+    insP = hcInsight('good', '', 'No major issues stand out for projects.');
   }
-  h += '<div class="entity-card" style="background:var(--card);border:1px solid #e6e1d8;border-radius:12px;padding:16px">' + insP + '</div>';
+  h += insP;
   el.innerHTML = h;
 }
 
@@ -1128,7 +1146,7 @@ function renderRequestsOverviewV2() {
   h += secLabel('Insights');
   var insR = '';
   if (total > 0 && unaPct >= 30) {
-    insR += '<div style="border-left:3px solid ' + WARN + ';background:#fdf4ec;padding:9px 12px;border-radius:0 6px 6px 0;margin-bottom:9px;font-size:12px;line-height:1.5;color:#3c423f"><b style="color:#1c2b29">' + unaPct + '% of tickets have no owner.</b> ' + fmtNum(unassigned) + ' tickets are not assigned to anyone, which weakens any reporting on workload or responsibility per agent.</div>';
+    insR += hcInsight('warn', unaPct + '% of tickets have no owner.', fmtNum(unassigned) + ' tickets are not assigned to anyone, which weakens any reporting on workload or responsibility per agent.');
   }
   // Priority concentration: if one value dominates, the field gives no triage signal.
   if (prioD && prioD.items) {
@@ -1139,17 +1157,17 @@ function renderRequestsOverviewV2() {
       var pdom = pi[0]; for (var r = 1; r < pi.length; r++) if (pi[r].count > pdom.count) pdom = pi[r];
       var pdomShare = pct(pdom.count, ptot);
       if (pdomShare >= 85) {
-        insR += '<div style="border-left:3px solid #8a8f8b;background:#f4f3f0;padding:9px 12px;border-radius:0 6px 6px 0;margin-bottom:9px;font-size:12px;line-height:1.5;color:#3c423f"><b style="color:#1c2b29">Priority is set to ' + pdom.name + ' for ' + pdomShare + '% of tickets.</b> With almost everything on one value, priority gives little signal for triage or filtering.</div>';
+        insR += hcInsight('neutral', 'Priority is set to ' + pdom.name + ' for ' + pdomShare + '% of tickets.', 'With almost everything on one value, priority gives little signal for triage or filtering.');
       }
     }
   }
   if (total > 0 && engPct < 30) {
-    insR += '<div style="border-left:3px solid #8a8f8b;background:#f4f3f0;padding:9px 12px;border-radius:0 6px 6px 0;margin-bottom:9px;font-size:12px;line-height:1.5;color:#3c423f"><b style="color:#1c2b29">' + engPct + '% of tickets have a reply logged.</b> If most contact runs by phone or outside the ticket that can be expected, otherwise it suggests replies are not being captured in the CRM.</div>';
+    insR += hcInsight('neutral', engPct + '% of tickets have a reply logged.', 'If most contact runs by phone or outside the ticket that can be expected, otherwise it suggests replies are not being captured in the CRM.');
   }
   if (insR === '') {
-    insR = '<div style="border-left:3px solid ' + GOOD + ';background:#eef5ec;padding:9px 12px;border-radius:0 6px 6px 0;font-size:12px;line-height:1.5;color:#3c423f">No major issues stand out for tickets in this period.</div>';
+    insR = hcInsight('good', '', 'No major issues stand out for tickets in this period.');
   }
-  h += '<div class="entity-card" style="background:var(--card);border:1px solid #e6e1d8;border-radius:12px;padding:16px">' + insR + '</div>';
+  h += insR;
 
   el.innerHTML = h;
 }
