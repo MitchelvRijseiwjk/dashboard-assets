@@ -1188,3 +1188,20 @@ html[data-surface="warm"] {
 .data-table{ font-size:13.5px; }
 .data-table thead th{ font-size:11px; font-weight:700; color:var(--faint); letter-spacing:.07em; text-transform:uppercase; }
 .data-table tbody td{ font-size:13.5px; color:var(--ink-soft); }
+
+/* ================================================================
+   Group rows, card radius and captions, per the prototype.
+   The group band belongs on the row itself (.grouprow td), not on
+   the hover. It read beige because the cell background from the
+   sheeted treatment painted over the row background.
+   ================================================================ */
+.data-table{ --group-band:#eef2f0; }
+.data-table tbody tr.assoc-group-header td{ background:var(--group-band); font-weight:800; color:var(--ink); border-top:1px solid var(--line); border-bottom:1px solid var(--line); }
+.data-table tbody tr.assoc-group-header:hover td{ background:var(--group-band); }
+.assoc-group-header .record-badge{ color:var(--c2); background:transparent; border:1px solid var(--chip-line-teal); border-radius:999px; padding:1px 9px; font-size:12px; font-weight:700; }
+
+/* Prototype .card radius is 16px; the live cards sat on 8px (--radius) or 12px */
+.entity-card, .detail-section, .stat-card, .scores-banner{ border-radius:16px; }
+
+/* Table captions ("Lower is better ...") were 11.5px; prototype body text is 13px */
+.tbl-cap{ font-size:13px; color:var(--muted); }
