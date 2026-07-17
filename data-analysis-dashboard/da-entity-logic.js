@@ -690,24 +690,25 @@ function renderCompanyOverviewV2() {
     var dormPctC = 100 - actPct;
     h += secLabel('Database composition');
     h += '<div class="entity-card" style="background:var(--card);border:1px solid #dcd5c8;border-radius:12px;padding:16px">';
-    h += '<div style="display:flex;height:30px;border-radius:6px;overflow:hidden;margin-bottom:10px">';
-    h += '<div style="width:' + actPct.toFixed(1) + '%;background:' + GREEN + ';display:flex;align-items:center;justify-content:center;color:#fff;font-size:11px;font-weight:600">' + (actPct >= 6 ? actPct.toFixed(0) + '%' : '') + '</div>';
-    h += '<div style="width:' + dormPctC.toFixed(1) + '%;background:#d8cfc2;display:flex;align-items:center;padding-left:12px;font-size:12px;color:#7a6f5c;font-weight:500">Dormant tail \u00b7 ' + fmtNum(dorm) + ' companies with no recent activity</div>';
+    h += '<div class="compbar" style="margin-bottom:10px">';
+    h += '<span style="width:' + actPct.toFixed(1) + '%;background:var(--c1)">' + (actPct >= 6 ? actPct.toFixed(0) + '%' : '') + '</span>';
+    h += '<span style="width:' + dormPctC.toFixed(1) + '%;background:var(--cn);color:#6b6657;font-weight:500">Dormant tail \u00b7 ' + fmtNum(dorm) + ' companies with no recent activity</span>';
     h += '</div>';
     h += '<div style="display:flex;gap:20px;flex-wrap:wrap;margin-bottom:6px">';
-    h += dotLeg(GREEN, 'Active companies', fmtNum(tC), actPct.toFixed(1) + '%');
-    h += dotLeg('#d8cfc2', 'Dormant tail' + sbInfoIcon('Companies with no registered activity in the selected period. The active companies are the rest. Dormant records are never removed, so they accumulate over time.'), fmtNum(dorm), dormPctC.toFixed(1) + '%');
+    h += dotLeg('var(--c1)', 'Active companies', fmtNum(tC), actPct.toFixed(1) + '%');
+    h += dotLeg('var(--cn)', 'Dormant tail' + sbInfoIcon('Companies with no registered activity in the selected period. The active companies are the rest. Dormant records are never removed, so they accumulate over time.'), fmtNum(dorm), dormPctC.toFixed(1) + '%');
     h += '</div>';
     if (fn && fn.segments && fn.segments.length > 0) {
       var segs = fn.segments;
       var segTot = fn.total || tC;
-      var engCol = function(nm){ nm=(nm||'').toLowerCase(); if(nm.indexOf('fully')>=0)return '#2f8f5b'; if(nm.indexOf('dormant')>=0)return '#c8c2b4'; if(nm.indexOf('empty')>=0)return '#b9832f'; return '#51a399'; };
+      // Prototype order for the engagement bar: c1 -> c3 -> c5 -> cn. Teal ramp, not semantic.
+      var engCol = function(nm){ nm=(nm||'').toLowerCase(); if(nm.indexOf('fully')>=0)return 'var(--c1)'; if(nm.indexOf('dormant')>=0)return 'var(--c5)'; if(nm.indexOf('empty')>=0)return 'var(--cn)'; return 'var(--c3)'; };
       h += '<div style="font-size:12px;color:' + MUTED + ';border-top:1px solid #eee5d8;padding-top:12px;margin-top:10px;margin-bottom:10px">How engaged the active companies are</div>';
-      h += '<div style="display:flex;height:26px;border-radius:6px;overflow:hidden;margin-bottom:12px">';
+      h += '<div class="engbar" style="margin-bottom:12px">';
       for (var sa = 0; sa < segs.length; sa++) {
         var sp = segTot > 0 ? (segs[sa].count / segTot * 100) : 0;
-        var segIn = sp >= 9 ? '<span style="color:#fff;font-size:10px;font-weight:600;text-shadow:0 1px 1px rgba(0,0,0,.3)">' + sp.toFixed(0) + '%</span>' : '';
-        h += '<div style="width:' + sp.toFixed(1) + '%;background:' + engCol(segs[sa].name) + ';display:flex;align-items:center;justify-content:center">' + segIn + '</div>';
+        var segIn = sp >= 9 ? sp.toFixed(0) + '%' : '';
+        h += '<span style="width:' + sp.toFixed(1) + '%;background:' + engCol(segs[sa].name) + '">' + segIn + '</span>';
       }
       h += '</div>';
       h += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:9px 24px">';
@@ -733,27 +734,24 @@ function renderCompanyOverviewV2() {
     // for every year and carries no signal. In that case show the age distribution instead.
     var saturated = (minRet >= 90);
     var n = trend.length;
-    var vbW = 600, vbH = saturated ? 232 : 248, x0 = 46, plotW = vbW - x0 - 14, plotH = 175, baseY = 200, slot = plotW / n;
     var sumC = 0, sumA = 0;
-    var svg = '<svg viewBox="0 0 ' + vbW + ' ' + vbH + '" width="100%" height="' + (saturated ? 218 : 232) + '" role="img" aria-label="Companies by registration year">';
-    svg += '<line x1="' + x0 + '" y1="' + (baseY - plotH) + '" x2="' + (x0 + plotW) + '" y2="' + (baseY - plotH) + '" stroke="var(--line)"/>';
-    svg += '<line x1="' + x0 + '" y1="' + baseY + '" x2="' + (x0 + plotW) + '" y2="' + baseY + '" stroke="var(--line)"/>';
-    svg += '<text x="' + (x0 - 6) + '" y="' + (baseY - plotH + 4) + '" text-anchor="end" font-size="10" fill="var(--faint)">' + maxC + '</text>';
-    svg += '<text x="' + (x0 - 6) + '" y="' + baseY + '" text-anchor="end" font-size="10" fill="var(--faint)">0</text>';
+    // Prototype chart: a CSS flex row, so the columns always spread evenly across the
+    // card. The previous inline SVG had a fixed viewBox and preserved its aspect ratio,
+    // so on a wide card it stayed a narrow band with the bars clustered together.
+    var cols = '', xax = '', rets = '';
     for (var bi = 0; bi < n; bi++) {
       var t = trend[bi]; sumC += t.count; sumA += t.active;
-      var bh = t.count > 0 ? Math.round(t.count / maxC * plotH) : 0;
-      var bx = x0 + bi * slot + slot * 0.16, bwid = slot * 0.68, by = baseY - bh;
-      var fill = (bi === n - 1) ? 'var(--c4)' : 'var(--c1)';
-      svg += '<rect x="' + bx.toFixed(1) + '" y="' + by + '" width="' + bwid.toFixed(1) + '" height="' + bh + '" rx="2" fill="' + fill + '"/>';
-      if (bh > 14) svg += '<text x="' + (bx + bwid / 2).toFixed(1) + '" y="' + (by - 4) + '" text-anchor="middle" font-size="10.5" font-weight="500" fill="var(--ink-soft)">' + t.count + '</text>';
-      svg += '<text x="' + (bx + bwid / 2).toFixed(1) + '" y="' + (baseY + 16) + '" text-anchor="middle" font-size="10" fill="var(--muted)">' + t.year + '</text>';
+      var bh = t.count > 0 ? Math.max(2, Math.round(t.count / maxC * 190)) : 0;
+      cols += '<div class="col' + (bi === n - 1 ? ' partial' : '') + '"><span class="cval">' + t.count + '</span><div class="cbar" style="height:' + bh + 'px"></div></div>';
+      xax += '<span>' + t.year + '</span>';
       if (!saturated) {
         var ret = t.count > 0 ? Math.round(t.active / t.count * 100) : 0;
-        svg += '<text x="' + (bx + bwid / 2).toFixed(1) + '" y="' + (baseY + 29) + '" text-anchor="middle" font-size="9" fill="var(--faint)">' + ret + '%</text>';
+        rets += '<span style="color:var(--faint);font-size:11px">' + ret + '%</span>';
       }
     }
-    svg += '</svg>';
+    var svg = '<div class="chart" role="img" aria-label="Companies by registration year">' + cols + '</div>';
+    svg += '<div class="xaxis">' + xax + '</div>';
+    if (rets) svg += '<div class="xaxis" style="padding-top:0">' + rets + '</div>';
     h += secLabel('Trajectory \u00b7 over time');
     h += '<div class="entity-card" style="background:var(--card);border:1px solid #e6e1d8;border-radius:12px;padding:18px">';
     if (saturated) {
@@ -788,13 +786,13 @@ function renderCompanyOverviewV2() {
       h += secLabel('Context');
       h += '<div class="entity-card" style="background:var(--card);border:1px solid #e6e1d8;border-radius:12px;padding:16px">';
       h += '<div style="display:flex;align-items:center;margin-bottom:10px"><div style="font-size:13px;font-weight:500;color:' + GREEN + '">Category mix</div><span style="margin-left:auto;font-size:11px;color:#a09a8e">for context, not something to act on</span></div>';
-      h += '<div style="display:flex;height:26px;border-radius:5px;overflow:hidden;margin-bottom:8px">';
+      h += '<div class="catbar" style="margin-bottom:8px">';
       for (var pi = 0; pi < topN.length; pi++) {
         var pp = catTot > 0 ? (topN[pi].count / catTot * 100) : 0;
-        var catIn = pp >= 10 ? '<span style="color:#fff;font-size:9.5px;font-weight:600;text-shadow:0 1px 1px rgba(0,0,0,.3)">' + pp.toFixed(0) + '%</span>' : '';
-        h += '<div style="width:' + pp.toFixed(1) + '%;background:' + palette[pi] + ';display:flex;align-items:center;justify-content:center">' + catIn + '</div>';
+        var catIn = pp >= 10 ? pp.toFixed(0) + '%' : '';
+        h += '<span style="width:' + pp.toFixed(1) + '%;background:' + palette[pi] + '">' + catIn + '</span>';
       }
-      if (otherC > 0) { var op = catTot > 0 ? (otherC / catTot * 100) : 0; h += '<div style="width:' + op.toFixed(1) + '%;background:var(--cn)"></div>'; }
+      if (otherC > 0) { var op = catTot > 0 ? (otherC / catTot * 100) : 0; h += '<span style="width:' + op.toFixed(1) + '%;background:var(--cn)"></span>'; }
       h += '</div>';
       h += '<div style="display:flex;gap:14px;flex-wrap:wrap;font-size:11px;color:' + MUTED + '">';
       for (var li = 0; li < topN.length; li++) {
