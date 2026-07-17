@@ -1139,7 +1139,7 @@ html[data-surface="warm"] {
    required because the host applies an inline filter that turned it white
    for the old dark sidebar. */
 .sidebar-brand{ padding:20px 16px 14px; border-bottom:none; }
-.sidebar-brand img{ filter:grayscale(1) !important; opacity:1 !important; max-width:100%; height:auto; }
+.sidebar-brand img{ filter:none !important; opacity:1 !important; max-width:100%; height:auto; display:block; }
 .sidebar-brand h1{ color:var(--green); font-size:19px; font-weight:800; letter-spacing:-.01em; line-height:1; }
 .sidebar-brand p{ color:var(--side-faint); font-size:10.5px; letter-spacing:.12em; text-transform:uppercase; font-weight:600; margin-top:3px; opacity:1; }
 
