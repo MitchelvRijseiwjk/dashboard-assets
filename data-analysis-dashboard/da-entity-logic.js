@@ -602,31 +602,20 @@ function hcKpi(label, value, sub, dot, action) {
 function hcSecLabel(t) { return '<div class="seclabel">' + t + '</div>'; }
 function hcInsight(kind, bold, rest, buttons) {
   // kind: 'primary' (act on this) | 'warn' (worth checking) | 'neutral' (context) | 'good' (all clear)
-  var ICONS = {
-    primary: '<path d="M3 7h18M6 12h12M10 17h4"/>',
-    warn: '<path d="M12 9v4M12 17h.01M10.3 4l-7 12a2 2 0 0 0 1.7 3h14a2 2 0 0 0 1.7-3l-7-12a2 2 0 0 0-3.4 0z"/>',
-    neutral: '<circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/>',
-    good: '<path d="M20 6L9 17l-5-5"/>'
-  };
-  var SKIN = {
-    primary: '',
-    warn: 'background:var(--mod-bg);color:var(--mod-ink);border-color:var(--mod-line)',
-    neutral: 'background:var(--chip-fill);color:var(--chip-ink);border-color:var(--chip-line)',
-    good: 'background:var(--good-bg);color:var(--good-ink);border-color:var(--good-line)'
-  };
+  // App-wide reconciled form per the handover README, which supersedes the Company
+  // Overview prototype here: one thin muted left accent carries priority, plus an
+  // uppercase lead tag. No filled icon tile.
   var TAGS = {
     primary: '<span class="tag">Recommended</span> ',
     warn: '<span class="tag warn">Worth checking</span> ',
-    neutral: '',
-    good: ''
+    neutral: '<span class="tag neutral">Context</span> ',
+    good: '<span class="tag good">All clear</span> '
   };
-  if (!ICONS[kind]) kind = 'neutral';
-  var sk = SKIN[kind] ? ' style="' + SKIN[kind] + '"' : '';
-  var ico = '<span class="ico"' + sk + '><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">' + ICONS[kind] + '</svg></span>';
+  if (!TAGS[kind]) kind = 'neutral';
   var btns = ''; buttons = buttons || [];
   for (var i = 0; i < buttons.length; i++) btns += '<button class="btn-s ' + (buttons[i].p ? 'primary' : 'ghost') + '">' + buttons[i].l + '</button>';
   var body = TAGS[kind] + (bold ? '<b>' + bold + '</b> ' : '') + (rest || '');
-  return '<div class="insight' + (kind === 'primary' ? ' primary' : '') + '">' + ico + '<span class="tx">' + body + '</span>' + (btns ? '<span class="acts">' + btns + '</span>' : '') + '</div>';
+  return '<div class="insight ins-' + kind + '"><span class="tx">' + body + '</span>' + (btns ? '<span class="acts">' + btns + '</span>' : '') + '</div>';
 }
 
 function renderCompanyOverviewV2() {
@@ -2732,10 +2721,19 @@ function startMomentum(key) {
   });
 }
 
-var MM_GREEN = '#2e7d32';
-var MM_BLUE = '#1565c0';
-var MM_ORANGE = '#f57c00';
-var MM_RED = '#c62828';
+// Level ramp (handover): an ordered scale of its own. No blue, no alarm red.
+// Inactive is neutral, because dormancy is an opportunity and not an error.
+var MM_GREEN = '#2f8f5b';   // Power    dot
+var MM_BLUE = '#2f817a';    // Regular  dot (--c2)
+var MM_ORANGE = '#b9832f';  // Low      dot (--mod)
+var MM_RED = '#c8c2b4';     // Inactive dot (--cn)
+var MM_LEVELS = {
+  Power:    { bg: '#d3e8d8', fg: '#226a43', dot: MM_GREEN },
+  Regular:  { bg: '#d6e7e3', fg: '#1f6a63', dot: MM_BLUE },
+  Low:      { bg: '#e8d5b0', fg: '#785012', dot: MM_ORANGE },
+  Inactive: { bg: '#e4ded3', fg: '#625d51', dot: MM_RED }
+};
+function mmLevelStyle(level) { return MM_LEVELS[level] || MM_LEVELS.Inactive; }
 
 function mmLevelColor(level) {
   if (level === 'Power') return MM_GREEN;
@@ -2990,6 +2988,7 @@ function renderUserAdoption(users, totalUsers, grandTotal, filterMonths, filterL
   for (var i = 0; i < users.length; i++) {
     users[i].level = mmUserLevel(users[i].total, filterMonths);
     users[i].levelColor = mmLevelColor(users[i].level);
+    users[i].levelStyle = mmLevelStyle(users[i].level);
     totalAct += users[i].total;
   }
   for (var i = 0; i < users.length; i++) {
@@ -3036,9 +3035,9 @@ function renderUserAdoption(users, totalUsers, grandTotal, filterMonths, filterL
     for (var i = 0; i < top10.length; i++) {
       var u = top10[i]; if (u.total === 0) break;
       var pct = totalAct > 0 ? Math.round((u.total / totalAct) * 100) : 0;
-      h += '<tr><td><span class="mm-rank" style="background:' + u.levelColor + '">' + (i + 1) + '</span></td>';
+      h += '<tr><td><span class="mm-rank" style="background:' + u.levelStyle.bg + ';color:' + u.levelStyle.fg + '">' + (i + 1) + '</span></td>';
       h += '<td><strong>' + u.name + '</strong></td>';
-      h += '<td><span class="mm-badge" style="background:' + u.levelColor + '">' + u.level + '</span></td>';
+      h += '<td><span class="mm-badge" style="background:' + u.levelStyle.bg + ';color:' + u.levelStyle.fg + '">' + u.level + '</span></td>';
       h += '<td style="color:#888">' + (u.group || '\u2014') + '</td>';
       h += '<td class="col-right">' + fmtNum(u.activities) + '</td><td class="col-right">' + fmtNum(u.documents) + '</td>';
       h += '<td class="col-right"><strong>' + fmtNum(u.total) + '</strong></td>';
@@ -3069,7 +3068,7 @@ function renderUserAdoption(users, totalUsers, grandTotal, filterMonths, filterL
         h += '<tr' + (isI ? ' style="opacity:.5"' : '') + '>';
         h += '<td></td>';
         h += '<td style="padding-left:12px">' + (isI ? u.name : '<strong>' + u.name + '</strong>') + '</td>';
-        h += '<td><span class="mm-badge" style="background:' + u.levelColor + '">' + u.level + '</span></td>';
+        h += '<td><span class="mm-badge" style="background:' + u.levelStyle.bg + ';color:' + u.levelStyle.fg + '">' + u.level + '</span></td>';
         h += '<td style="color:#888">' + (u.group || '\u2014') + '</td>';
         h += '<td class="col-right">' + fmtNum(u.activities) + '</td><td class="col-right">' + fmtNum(u.documents) + '</td>';
         h += '<td class="col-right"><strong>' + fmtNum(u.total) + '</strong></td>';

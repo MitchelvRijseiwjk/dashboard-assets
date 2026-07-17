@@ -1584,7 +1584,7 @@
   }
 
   var _PRIO_MAP = { excluded: { lbl: 'Off', cls: 's-prio-off' }, normal: { lbl: 'Normal', cls: 's-prio-norm' }, required: { lbl: 'Required', cls: 's-prio-req' } };
-  var _PRIO_OPTS = [ { v: 'excluded', l: 'Off', c: '#B4B2A9' }, { v: 'normal', l: 'Normal', c: '#7E9BC4' }, { v: 'required', l: 'Required', c: '#06423E' } ];
+  var _PRIO_OPTS = [ { v: 'excluded', l: 'Off', c: '#c8c2b4' }, { v: 'normal', l: 'Normal', c: '#8a857a' }, { v: 'required', l: 'Required', c: '#3d4a44' } ];
 
   // Importance pill: a colour-coded dropdown trigger (read-only when intake-locked).
   function _prioPill(imp, locked) {
@@ -1678,7 +1678,7 @@
   }
 
   var _HML_MAP = { high:{lbl:'High',cls:'s-prio-hi'}, medium:{lbl:'Medium',cls:'s-prio-md'}, low:{lbl:'Low',cls:'s-prio-lo'} };
-  var _HML_OPTS = [ {v:'high',l:'High',c:'#06423E'}, {v:'medium',l:'Medium',c:'#7E9BC4'}, {v:'low',l:'Low',c:'#B4B2A9'} ];
+  var _HML_OPTS = [ {v:'high',l:'High',c:'#3d4a44'}, {v:'medium',l:'Medium',c:'#8a857a'}, {v:'low',l:'Low',c:'#c8c2b4'} ];
 
   // Weight selector as a colour-coded pill dropdown, dropped into the existing
   // toggle slot so the surrounding row layout stays intact.
