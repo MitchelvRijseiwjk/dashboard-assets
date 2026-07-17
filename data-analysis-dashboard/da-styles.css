@@ -1174,3 +1174,17 @@ html[data-surface="warm"] {
 .s-prio-req, .s-prio-hi{ background:#3d4a44; color:#fff; border-color:transparent; }
 .s-prio-norm, .s-prio-md{ background:var(--chip-fill); color:var(--chip-ink); border-color:var(--chip-line); }
 .s-prio-off, .s-prio-lo{ background:transparent; color:var(--faint); border-color:var(--chip-line); }
+
+/* ================================================================
+   Typography aligned to the prototype.
+   Card titles were 13-15px at weight 500 in brand green; the
+   prototype specifies 16px / 700 / --ink for card heads and
+   17px for chart cards. Table heads, cells and count chips follow
+   the prototype .tbl and .cardhead2 .count specs.
+   ================================================================ */
+.entity-header h4{ font-size:16px; font-weight:700; color:var(--ink); }
+.entity-info h3{ font-size:16px; font-weight:700; color:var(--ink); }
+.record-badge{ font-size:12.5px; font-weight:700; color:var(--chip-ink); background:var(--chip-fill); border:1px solid var(--chip-line); border-radius:999px; padding:4px 11px; }
+.data-table{ font-size:13.5px; }
+.data-table thead th{ font-size:11px; font-weight:700; color:var(--faint); letter-spacing:.07em; text-transform:uppercase; }
+.data-table tbody td{ font-size:13.5px; color:var(--ink-soft); }

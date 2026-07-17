@@ -728,7 +728,7 @@ function renderCompanyOverviewV2() {
       for (var sb = 0; sb < segs.length; sb++) {
         var sbp = segTot > 0 ? Math.round(segs[sb].count / segTot * 1000) / 10 : 0;
         h += '<div style="display:flex;gap:7px"><span style="width:10px;height:10px;border-radius:3px;flex:none;background:' + engCol(segs[sb].name) + ';margin-top:3px"></span><div style="min-width:0"><div style="font-size:12px;color:#1c2b29"><b style="font-weight:600">' + segs[sb].name + '</b> <span style="color:#6b706c;font-weight:500;margin-left:2px">' + fmtNum(segs[sb].count) + ' \u00b7 ' + sbp + '%</span></div>';
-        if (segs[sb].description) h += '<div style="font-size:11px;color:#8a8f8b;line-height:1.35;margin-top:1px">' + segs[sb].description + '</div>';
+        if (segs[sb].description) h += '<div style="font-size:13px;color:var(--muted);line-height:1.35;margin-top:1px">' + segs[sb].description + '</div>';
         h += '</div></div>';
       }
       h += '</div>';
@@ -768,13 +768,13 @@ function renderCompanyOverviewV2() {
     h += secLabel('Trajectory \u00b7 over time');
     h += '<div class="entity-card" style="background:var(--card);border:1px solid #e6e1d8;border-radius:12px;padding:18px">';
     if (saturated) {
-      h += '<div style="font-size:14px;font-weight:500;color:' + GREEN + ';margin-bottom:3px">Active companies by registration year</div>';
+      h += '<div style="font-size:17px;font-weight:700;color:var(--ink);margin-bottom:3px">Active companies by registration year</div>';
       h += '<div style="font-size:12px;color:' + MUTED + ';margin-bottom:12px">Each bar counts the currently active companies by the year they were first registered. ' + fmtNum(trendBefore) + ' were registered before this range.</div>';
       h += svg;
       h += '<div style="font-size:12px;color:#5b6b5f;background:#eef3ee;border-radius:6px;padding:10px 12px;margin-top:12px;line-height:1.5">Only currently active companies are counted here, grouped by registration year. Companies that are no longer active are left out, so this reflects the registration years of the part of the base still in use.</div>';
     } else {
       var overallRet = sumC > 0 ? Math.round(sumA / sumC * 100) : 0;
-      h += '<div style="display:flex;align-items:baseline;margin-bottom:3px"><div style="font-size:14px;font-weight:500;color:' + GREEN + '">New companies per year</div><div style="margin-left:auto"><span style="font-size:17px;font-weight:500;color:' + GREEN + '">' + overallRet + '%</span><span style="font-size:12px;color:' + MUTED + '"> still active</span></div></div>';
+      h += '<div style="display:flex;align-items:baseline;margin-bottom:3px"><div style="font-size:17px;font-weight:700;color:var(--ink)">New companies per year</div><div style="margin-left:auto"><span style="font-size:17px;font-weight:800;color:var(--ink)">' + overallRet + '%</span><span style="font-size:12px;color:' + MUTED + '"> still active</span></div></div>';
       h += '<div style="font-size:12px;color:' + MUTED + ';margin-bottom:12px">Bars show how many companies were added each year. The percentage under each bar is how many of that year\u0027s companies are still active today.</div>';
       h += svg;
       h += '<div style="font-size:12px;color:#5b6b5f;background:#eef3ee;border-radius:6px;padding:10px 12px;margin-top:12px;line-height:1.5">A low percentage on the most recent years means newly added companies stop being used quickly. The older years stay high partly because inactive companies are never removed from the database.</div>';
@@ -798,7 +798,7 @@ function renderCompanyOverviewV2() {
       for (var ok = 6; ok < items.length; ok++) otherC += items[ok].count;
       h += secLabel('Context');
       h += '<div class="entity-card" style="background:var(--card);border:1px solid #e6e1d8;border-radius:12px;padding:16px">';
-      h += '<div style="display:flex;align-items:center;margin-bottom:10px"><div style="font-size:13px;font-weight:500;color:' + GREEN + '">Category mix</div><span style="margin-left:auto;font-size:11px;color:#a09a8e">for context, not something to act on</span></div>';
+      h += '<div style="display:flex;align-items:center;margin-bottom:10px"><div style="font-size:16px;font-weight:700;color:var(--ink)">Category mix</div><span style="margin-left:auto;font-size:11px;color:#a09a8e">for context, not something to act on</span></div>';
       h += '<div class="catbar" style="margin-bottom:8px">';
       for (var pi = 0; pi < topN.length; pi++) {
         var pp = catTot > 0 ? (topN[pi].count / catTot * 100) : 0;
@@ -898,14 +898,14 @@ function renderSaleOverviewV2() {
     cum += sp;
   }
   h += '<div class="entity-card" style="background:var(--card);border:1px solid #e6e1d8;border-radius:12px;padding:16px">';
-  h += '<div style="font-size:13px;font-weight:500;color:' + GREEN + ';margin-bottom:10px">Status split</div>';
+  h += '<div style="font-size:16px;font-weight:700;color:var(--ink);margin-bottom:10px">Status split</div>';
   h += '<div style="display:flex;gap:12px;align-items:center"><svg viewBox="0 0 180 180" width="118" height="118" role="img" aria-label="Sale status split"><circle cx="90" cy="90" r="70" fill="none" stroke="var(--track)" stroke-width="26"/>' + circles + '<text x="90" y="86" text-anchor="middle" font-size="17" font-weight="500" fill="var(--ink)">' + fmtNum(total) + '</text><text x="90" y="103" text-anchor="middle" font-size="10" fill="var(--muted)">sales</text></svg>';
   h += '<div style="flex:1;min-width:0">' + dotLeg(BAD, 'Lost', fmtNum(lost), pct(lost, total) + '%') + dotLeg(OKC, 'Open', fmtNum(open), pct(open, total) + '%') + dotLeg(GOOD, 'Sold', fmtNum(sold), pct(sold, total) + '%') + dotLeg('var(--cn)', 'Stalled' + sbInfoIcon('A sale put on hold, neither won nor lost yet.'), fmtNum(stalled), pct(stalled, total) + '%') + '</div></div></div>';
   if (typeD && typeD.items && typeD.items.length > 0) {
     var titems = typeD.items.slice().sort(function (a, b) { return b.count - a.count; });
     var ttot = 0; for (var ti = 0; ti < titems.length; ti++) ttot += titems[ti].count;
     var tpal = ['var(--c1)', 'var(--c3)', 'var(--c5)', 'var(--cn)'];
-    h += '<div class="entity-card" style="background:var(--card);border:1px solid #e6e1d8;border-radius:12px;padding:16px"><div style="font-size:13px;font-weight:500;color:' + GREEN + '">Sale type</div><div style="font-size:11px;color:#8a8f8b;margin:2px 0 11px">From the Sale Type field on each sale, chosen by the user. It is not derived from the data.</div>';
+    h += '<div class="entity-card" style="background:var(--card);border:1px solid #e6e1d8;border-radius:12px;padding:16px"><div style="font-size:16px;font-weight:700;color:var(--ink)">Sale type</div><div style="font-size:13px;color:var(--muted);margin:2px 0 11px">From the Sale Type field on each sale, chosen by the user. It is not derived from the data.</div>';
     for (var tj = 0; tj < titems.length && tj < 4; tj++) {
       var tp = pct(titems[tj].count, ttot);
       h += '<div style="margin-bottom:9px"><div style="display:flex;font-size:12px;margin-bottom:3px"><span>' + titems[tj].name + '</span><b style="margin-left:auto;color:#6b706c">' + tp + '%</b></div><div style="height:9px;background:#eef0ec;border-radius:5px"><div style="width:' + Math.max(tp, 1).toFixed(0) + '%;height:9px;background:' + tpal[Math.min(tj, 3)] + ';border-radius:5px"></div></div></div>';
@@ -936,7 +936,7 @@ function renderSaleOverviewV2() {
       stageMsg = 'Stage is filled in for most sales and spread across the buckets, which gives a usable basis for pipeline forecasting.';
     }
     h += secLabel(stagePoor ? 'The real gap \u00b7 pipeline data' : 'Pipeline \u00b7 stage tracking');
-    h += '<div class="entity-card" style="background:var(--card);border:1px solid #e6e1d8;border-radius:12px;padding:16px"><div style="font-size:13px;font-weight:500;color:' + GREEN + ';margin-bottom:2px">Stage / probability tracking' + sbInfoIcon('The probability field on each sale (Low, Middle or High chance). It is what pipeline forecasting relies on.') + '</div><div style="font-size:12px;color:' + MUTED + ';margin-bottom:12px;line-height:1.5">' + stageMsg + '</div>';
+    h += '<div class="entity-card" style="background:var(--card);border:1px solid #e6e1d8;border-radius:12px;padding:16px"><div style="font-size:16px;font-weight:700;color:var(--ink);margin-bottom:2px">Stage / probability tracking' + sbInfoIcon('The probability field on each sale (Low, Middle or High chance). It is what pipeline forecasting relies on.') + '</div><div style="font-size:12px;color:' + MUTED + ';margin-bottom:12px;line-height:1.5">' + stageMsg + '</div>';
     h += '<div class="engbar" style="height:30px;margin-bottom:12px">';
     h += '<span style="width:' + spNo + '%;background:var(--cn);color:#6b6657;font-weight:500">' + (spNo >= 12 ? spNo.toFixed(0) + '% no stage set' : '') + '</span>';
     h += '<span style="width:' + spLow + '%;background:' + OKC + '">' + (spLow >= 14 ? spLow.toFixed(0) + '% low chance' : (spLow >= 7 ? spLow.toFixed(0) + '%' : '')) + '</span>';
@@ -1039,7 +1039,7 @@ function renderProjectOverviewV2() {
   var secLabel = hcSecLabel;
   var kpiCard = hcKpi;
   function findDist(k) { for (var i = 0; i < dists.length; i++) { if ((dists[i].title || '').toLowerCase().indexOf(k) >= 0) return dists[i]; } return null; }
-  function miniList(title, d) { var s = '<div class="entity-card" style="background:var(--card);border:1px solid #e6e1d8;border-radius:12px;padding:16px"><div style="font-size:13px;font-weight:500;color:' + GREEN + ';margin-bottom:10px">' + title + '</div>'; var any = false; if (d && d.items) { for (var i = 0; i < d.items.length; i++) { if (d.items[i].count > 0) { any = true; s += '<div style="display:flex;font-size:12px;margin:5px 0;color:#3c423f"><span>' + d.items[i].name + '</span><b style="margin-left:auto;color:#1c2b29">' + fmtNum(d.items[i].count) + '</b></div>'; } } } if (!any) s += '<div style="font-size:12px;color:' + MUTED + '">No values set.</div>'; return s + '</div>'; }
+  function miniList(title, d) { var s = '<div class="entity-card" style="background:var(--card);border:1px solid #e6e1d8;border-radius:12px;padding:16px"><div style="font-size:16px;font-weight:700;color:var(--ink);margin-bottom:10px">' + title + '</div>'; var any = false; if (d && d.items) { for (var i = 0; i < d.items.length; i++) { if (d.items[i].count > 0) { any = true; s += '<div style="display:flex;font-size:12px;margin:5px 0;color:#3c423f"><span>' + d.items[i].name + '</span><b style="margin-left:auto;color:#1c2b29">' + fmtNum(d.items[i].count) + '</b></div>'; } } } if (!any) s += '<div style="font-size:12px;color:' + MUTED + '">No values set.</div>'; return s + '</div>'; }
 
   var total = o.total || 0, overdue = o.overdue || 0, withMembers = o.withMembers || 0;
   var h = '';
@@ -1106,8 +1106,8 @@ function renderRequestsOverviewV2() {
     var tot = 0; for (var j = 0; j < items.length; j++) tot += items[j].v;
     var head = items.slice(0, topN);
     var restV = 0; for (var k = topN; k < items.length; k++) restV += items[k].v;
-    var s = '<div class="entity-card" style="background:var(--card);border:1px solid #e6e1d8;border-radius:12px;padding:16px"><div style="font-size:13px;font-weight:500;color:' + GREEN + '">' + title + (tip ? sbInfoIcon(tip) : '') + '</div>';
-    s += note ? '<div style="font-size:11px;color:#8a8f8b;margin:2px 0 11px">' + note + '</div>' : '<div style="height:9px"></div>';
+    var s = '<div class="entity-card" style="background:var(--card);border:1px solid #e6e1d8;border-radius:12px;padding:16px"><div style="font-size:16px;font-weight:700;color:var(--ink)">' + title + (tip ? sbInfoIcon(tip) : '') + '</div>';
+    s += note ? '<div style="font-size:13px;color:var(--muted);margin:2px 0 11px">' + note + '</div>' : '<div style="height:9px"></div>';
     for (var m = 0; m < head.length; m++) {
       var p = pct(head[m].v, tot);
       var col = palette[Math.min(m, palette.length - 1)];
