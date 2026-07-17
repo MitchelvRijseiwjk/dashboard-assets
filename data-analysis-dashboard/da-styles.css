@@ -1205,3 +1205,29 @@ html[data-surface="warm"] {
 
 /* Table captions ("Lower is better ...") were 11.5px; prototype body text is 13px */
 .tbl-cap{ font-size:13px; color:var(--muted); }
+
+/* ================================================================
+   Type scale, from "Type scale - Zwevend mono.html".
+   The ported prototype components already carry the scale exactly
+   (.kpi, .donut, .seclabel, .tag, .tbl, .complegend, .typechip).
+   This block maps the live-only classes onto the same ladder:
+   20 title / 16 card title / 14.5 nav+tab / 14 body+filter /
+   13.5 table+legend / 13 kpi-sub / 12.5 count / 12 chip /
+   11.5 section+kpi label / 11 column head / 10.5 tag.
+   ================================================================ */
+
+/* Page title: 20 / 800 / ls -.01em / --ink (was 20 / 600 / brand green) */
+.page-title-area h2{ font-size:20px; font-weight:800; letter-spacing:-.01em; color:var(--ink); }
+.page-title-area p{ font-size:13.5px; color:var(--muted); }
+
+/* Tabs: 14.5 / 600, rest --muted, active --ink with the green underline */
+.sub-tab{ font-size:14.5px; font-weight:600; color:var(--muted); }
+.sub-tab.active{ font-size:14.5px; font-weight:600; color:var(--ink); border-bottom-color:var(--green-deep); }
+
+/* Filter bar: 14 / --muted, and P5 puts it in the card family rather than
+   its own sand colour. Was 12.8px amber text on an amber tint. */
+.filter-notice{ font-size:14px; color:var(--muted); background:var(--card); border:1px solid var(--card-border); border-radius:12px; padding:12px 16px; }
+
+/* Table captions read as body text under the card title (was 11.5px) */
+.tbl-cap{ font-size:13.5px; color:var(--muted); }
+.tbl-cap b{ color:var(--ink); font-weight:700; }

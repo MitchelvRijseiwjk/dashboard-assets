@@ -15,10 +15,12 @@ Je gaat een afgeronde design-refactor doorvoeren in de **echte codebase** van de
 
 **Doel-shell = Zwevend mono** (getinte kaarten `#f2efe9` op een wit zwevend paneel, blended shell). De app migreert dus van witte kaarten + donkergroene sidebar naar mono.
 
+**Font = DM Sans** (bevestigd, boven Hanken Grotesk en Lato). Gebruik dit als enig font; het prototype heeft een preview-switcher tussen de drie die **niet** mee naar productie gaat.
+
 **Hardste guardrails (niet schenden):**
 - **P1 — twee gescheiden data-rampen.** Semantisch (good/mod/bad) alleen voor gezondheid/score; categorisch (teal `c1–c6` + neutraal `cn`) alleen voor verdelingen. Weight/Importance en User-levels krijgen hun **eigen** ramp (neutrale nadruk resp. level-ramp) — **nooit** groen/blauw lenen. "Dormant" overal neutraal.
 - **Controls** (segmented/radio/slider/dropdown) mogen merk-groen gebruiken voor UI-state; P1 geldt alleen voor datavisualisatie.
-- **Review-scaffolding niet shippen:** de annotatie-overlay ("Toon verbeteringen" + pins) en de stijl-schakelaar linksonder uit het prototype zijn review-tools — laat ze weg.
+- **Review-scaffolding niet shippen:** de annotatie-overlay ("Toon verbeteringen" + pins), de stijl-schakelaar én de font-switcher linksonder uit het prototype zijn review-tools — laat ze weg (font = DM Sans vast).
 - Behoud de **WCAG AA**-contrastverhoudingen uit de README.
 
 **Werkwijze:**

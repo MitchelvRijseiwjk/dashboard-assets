@@ -6,7 +6,7 @@
 <title>Component reference — Zwevend mono</title>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700;9..40,800&display=swap" rel="stylesheet" />
 <style>
   :root{
     /* ===== Zwevend mono — effectieve tokens (basis + float-mono override, samengevoegd) ===== */
@@ -37,7 +37,7 @@
     --lvl-dorm-bg:#e4ded3;  --lvl-dorm-ink:#625d51; --lvl-dorm-dot:var(--cn);
   }
   *{box-sizing:border-box;}
-  body{margin:0; background:#ffffff; color:var(--ink); font-family:'Hanken Grotesk',system-ui,sans-serif; -webkit-font-smoothing:antialiased;}
+  body{margin:0; background:#ffffff; color:var(--ink); font-family:'DM Sans',system-ui,sans-serif; -webkit-font-smoothing:antialiased;}
   .sheet{max-width:1280px; margin:0 auto; padding:40px 34px 90px;}
   .doc-h h1{font-size:25px; font-weight:800; letter-spacing:-.015em; margin:0 0 8px;}
   .doc-h p{margin:0; color:var(--muted); font-size:14.5px; line-height:1.6; max-width:880px;}
@@ -230,6 +230,41 @@
     </div>
   </div>
 
+  <!-- TYPOGRAPHY -->
+  <div class="sec">
+    <h2>Fundament · typografie</h2>
+    <p class="lead">Font overal <b>DM&nbsp;Sans</b> (400/500/600/700/800). Cijfer-elementen (KPI, donut, %, tabelgetallen) gebruiken <code>font-variant-numeric: tabular-nums</code>. Elk element hieronder staat op zijn <b>exacte</b> grootte; de volledige, per-element geannoteerde versie is <code>Type scale - Zwevend mono.html</code> (+ <code>.png</code>).</p>
+    <div class="grid g2">
+      <div class="card">
+        <div class="cap">De trap (px)</div>
+        <div style="display:flex; flex-direction:column; gap:11px">
+          <div style="display:flex; align-items:baseline; gap:14px"><span style="font-size:33px; font-weight:800; color:var(--ink); letter-spacing:-.01em; font-variant-numeric:tabular-nums">33</span><span style="font-size:12.5px; color:var(--muted)">KPI-waarde · 800</span></div>
+          <div style="display:flex; align-items:baseline; gap:14px"><span style="font-size:30px; font-weight:800; color:var(--ink)">30</span><span style="font-size:12.5px; color:var(--muted)">donut-score · 800</span></div>
+          <div style="display:flex; align-items:baseline; gap:14px"><span style="font-size:20px; font-weight:800; color:var(--ink); letter-spacing:-.01em">20</span><span style="font-size:12.5px; color:var(--muted)">paginatitel · 800</span></div>
+          <div style="display:flex; align-items:baseline; gap:14px"><span style="font-size:16px; font-weight:700; color:var(--ink)">16</span><span style="font-size:12.5px; color:var(--muted)">kaarttitel · 700</span></div>
+          <div style="display:flex; align-items:baseline; gap:14px"><span style="font-size:14.5px; font-weight:600; color:var(--ink)">14.5</span><span style="font-size:12.5px; color:var(--muted)">nav-item + tab · 500/600</span></div>
+          <div style="display:flex; align-items:baseline; gap:14px"><span style="font-size:14px; font-weight:400; color:var(--ink-soft)">14</span><span style="font-size:12.5px; color:var(--muted)">body / insight · 400</span></div>
+          <div style="display:flex; align-items:baseline; gap:14px"><span style="font-size:13.5px; font-weight:400; color:var(--ink-soft)">13.5</span><span style="font-size:12.5px; color:var(--muted)">tabel-cel / legenda · 400</span></div>
+          <div style="display:flex; align-items:baseline; gap:14px"><span style="font-size:11px; font-weight:700; color:var(--faint); letter-spacing:.07em; text-transform:uppercase">11</span><span style="font-size:12.5px; color:var(--muted)">kolomkop / importance · 700 UPPER</span></div>
+          <div style="display:flex; align-items:baseline; gap:14px"><span style="font-size:10.5px; font-weight:800; color:var(--c1); letter-spacing:.06em; text-transform:uppercase">10.5</span><span style="font-size:12.5px; color:var(--muted)">nav-sectie / tag · 800 UPPER</span></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="cap">Gewichten & regels</div>
+        <div style="font-size:13.5px; color:var(--ink-soft); line-height:1.7">
+          <div><b style="color:var(--ink)">800</b> — display + KPI-cijfers</div>
+          <div><b style="color:var(--ink)">700</b> — titels, labels, nadruk-tekst</div>
+          <div><b style="color:var(--ink)">600</b> — tabs, subkoppen</div>
+          <div><b style="color:var(--ink)">500</b> — nav-item in rust</div>
+          <div><b style="color:var(--ink)">400</b> — body, tabel-cellen</div>
+          <div style="margin-top:12px; padding-top:12px; border-top:1px solid var(--line)">Uppercase micro-labels (10.5–11.5px): letter-spacing <b style="color:var(--ink)">.06–.13em</b>.</div>
+          <div style="margin-top:8px">Alle cijfers: <code>tabular-nums</code>. Display + titel: ls <b style="color:var(--ink)">−.01em</b>.</div>
+        </div>
+        <div class="rule">Full detail per element (spacing + kleurtoken): <code>Type scale - Zwevend mono.html</code>.</div>
+      </div>
+    </div>
+  </div>
+
   <!-- CHIPS -->
   <div class="sec">
     <h2>Chips, badges & score-pill</h2>
@@ -343,7 +378,7 @@
   <div class="sec">
     <h2>Tabellen</h2>
     <p class="lead">Alle datatabellen krijgen de <b>sheeted</b>-behandeling: getinte kaart + getinte kop, witte datarijen tot de rand, geen zebra. Weight/Importance als neutrale nadruk-chips; completeness-minibars semantisch.</p>
-    <div class="grid g2">
+    <div class="grid" style="grid-template-columns:1fr">
       <div class="card sheeted">
         <div class="sh-head"><h3>Standard field completeness</h3><span class="count">3.083 companies</span></div>
         <table class="tbl">

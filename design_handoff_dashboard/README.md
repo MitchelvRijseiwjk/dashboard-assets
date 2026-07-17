@@ -16,8 +16,9 @@ De bestanden in dit pakket zijn **design-referenties, gemaakt in HTML** — een 
 Definitieve kleuren (exacte hex), typografie, spacing en interacties. Reproduceer pixel-nauwkeurig; het prototype `Company Overview - Neutral shell.html` is de leidende bron van waarheid voor alles wat hieronder niet exact vermeld staat.
 
 ### Review-scaffolding — NIET naar productie
-Twee elementen in het prototype zijn puur voor design-review en moeten worden **weggelaten** (of bewust als echte feature heringericht):
+Drie elementen in het prototype zijn puur voor design-review en moeten worden **weggelaten** (of bewust als echte feature heringericht):
 - **Annotatie-overlay** — de zwarte knop rechtsonder *"Toon verbeteringen"* + de oranje genummerde pins (`.annot-toggle`, `.pin`, `body.show-annot`, `.ann-target`). Puur toelichting; verwijderen.
+- **Font-switcher** linksonder (`.fontpick`, *"Lato / Hanken / DM Sans"*). Keuze-instrument; de **beslissing is DM Sans** — zet dat vast als het enige font en verwijder de switcher.
 - **Stijl-schakelaar** linksonder (`.surfacepick`, *"Plat & warm / Zwevend mono"*). Dit is een **keuze-instrument** om twee thema's te vergelijken. Kies voor productie het **standaardthema (Zwevend mono)**; exposeer thema-keuze alleen als je er bewust een echte instelling van maakt (zie *Surface-varianten*).
 
 ---
@@ -83,8 +84,10 @@ Lege rails/tracks (`--track` voor lege donut-boog, progress- en minibars), `--li
 |---|---|---|
 | `--green` | `#15564b` | merk-groen (logo/woordmerk) |
 | `--green-deep` | `#0c4a3f` | actieve tab-onderrand, primaire knoppen, actieve nav-tekst |
-| `--side-text` | `#303a35` | nav-item tekst |
+| `--side-text` | `#303a35` | nav-item tekst (rust **én** hover **én** actief — verandert niet per state) |
 | `--side-faint` | `#837e72` | nav-sectiekoppen, credit |
+| `--side-active` | `#e7e1d4` | achtergrond actief nav-item (subtiele warme tint op het beige menu) |
+| `--side-2` | `#e7e1d4` | achtergrond hover nav-item — **gelijk aan `--side-active`** |
 
 **Neutrale chip-taal (basis)**
 `--chip-fill #f1efe8` · `--chip-line #ddd8cc` · `--chip-ink #625d51` · `--chip-line-teal #cfe0da`
@@ -105,7 +108,7 @@ Getinte kaarten op een wit zwevend paneel; eigenzinnig, "designed".
 | `--group-band` / `--zebra` | `#e6ece8` / `#ede9e0` |
 | `--chip-fill` / `--chip-line` / `--chip-line-teal` | `#ece6db` / `#d7d0c2` / `#bcd2cc` |
 | `--good-bg` / `--mod-bg` / `--bad-bg` | `#d3e8d8` / `#e8d5b0` / `#eccfc6` |
-| `--side-active` / `--side-2` | `#ffffff` / `rgba(0,0,0,.04)` (basis) |
+| `--side-active` / `--side-2` | `#e7e1d4` / `#e7e1d4` (gelijk) |
 
 Alle overige tokens (tekst, semantische solids + `-ink` + `-line`, categorische ramp) = basiswaarden.
 
@@ -168,7 +171,16 @@ body:not(.show-annot) .card.sheeted { overflow:hidden; }      /* laatste rij loo
 
 **Layout-shell** — `.app { display:grid; grid-template-columns:250px 1fr; height:100% }`. Sidebar (`.side`) is transparant en versmelt met `--shell`. Hoofdpaneel `.main` scrollt zelf; `.topsticky` (kop + tabs) plakt bovenaan en krijgt een schaduw bij scroll (`.stuck`).
 
-**Sidebar** — merkblok met gradient-mark (`linear-gradient(160deg,#1f7a6b,#0c4a3f)`), nav-secties ("Entities/Other/Tools") in `--side-faint` uppercase. `.nav-item` radius 10px; hover `--side-2`; actief `.nav-item.active { background:var(--side-active); color:var(--green-deep); font-weight:700 }`.
+**Sidebar** — merkblok met gradient-mark (`linear-gradient(160deg,#1f7a6b,#0c4a3f)`), nav-secties ("Entities/Other/Tools") in `--side-faint` uppercase.
+
+**Nav-items — kleurgedrag (Zwevend mono):**
+- **Rust:** achtergrond transparant (menu blend't met `--shell #f2efe9`); tekst + icoon `--side-text #303a35` (charcoal), gewicht 500.
+- **Hover:** achtergrond `--side-2 #e7e1d4`; tekst/icoon ongewijzigd (`--side-text`).
+- **Actief:** achtergrond `--side-active #e7e1d4` (**zelfde kleur als hover**); tekst/icoon `--side-text` (charcoal, **niet** groen); gewicht **700**. Het onderscheid rust↔actief komt dus van de tint + bold, niet van een kleurwissel; hover en actief delen de achtergrond en verschillen alleen in gewicht.
+- Icoon volgt `currentColor` (dus automatisch charcoal). Radius 10px, padding 9px 12px.
+- **Thema B (Plat & warm):** menu is licht, dus daar `--side-active #dfeae4` (zachte groene pill) en `--side-2 rgba(21,86,75,.07)`; verder identiek gedrag.
+
+`.nav-item { color:var(--side-text); font-weight:500 } .nav-item:hover { background:var(--side-2) } .nav-item.active { background:var(--side-active); color:var(--side-text); font-weight:700 }`
 
 **Tabs** — `.tab` 14.5px/600, `--muted`; actief `--ink` met 2.5px onderrand `--green-deep`.
 
@@ -201,7 +213,8 @@ body:not(.show-annot) .card.sheeted { overflow:hidden; }      /* laatste rij loo
 ---
 
 ## Typografie & iconen
-- **Font**: Hanken Grotesk (Google Fonts), gewichten 400/500/600/700/800. Cijfers vaak `font-variant-numeric: tabular-nums`.
+- **Font**: DM Sans (Google Fonts), gewichten 400/500/600/700/800. Cijfers vaak `font-variant-numeric: tabular-nums`. (Gekozen boven Hanken Grotesk en Lato om leesbaarheid in dichte tabellen/KPI-cijfers; het prototype bevat een preview-switcher tussen de drie — review-only.)
+- **Type scale**: zie **`Type scale - Zwevend mono.html`** (+ `.png`) — elk element gerenderd op zijn exacte px/gewicht/spacing/kleur. Trap (px): 33 KPI · 30 donut · 20 titel · 19 merk · 16 kaarttitel · 15.5 hero-label · 15 nav-top/% · 14.5 nav+tab · 14 body/filter · 13.5 tabel/legenda/subkop · 13 KPI-sub · 12.5 count/legenda · 12 chip/staaflabel · 11.5 sectie+KPI-label · 11 kolomkop/importance · 10.5 nav-sectie/tag. Gewichten: 800 display+KPI · 700 titels/labels/nadruk · 600 tabs/subkop · 500 nav-rust · 400 body/tabel.
 - **Schaal (px)**: h1 20/800 · kaarttitel 16–17/700 · KPI-waarde 33/800 · donut-waarde 30/800 · body/tabel 13.5–14 · labels/eyebrows 10.5–11.5 uppercase, letter-spacing .07–.13em.
 - **Iconen**: inline SVG in Feather/Lucide-stijl, `stroke-width` 1.8–1.9, ronde caps/joins, `currentColor`.
 

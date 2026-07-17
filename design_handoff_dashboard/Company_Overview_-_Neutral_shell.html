@@ -6,7 +6,7 @@
 <title>Company · Overview — redesign</title>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800&family=Lato:wght@400;700;900&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700;9..40,800&display=swap" rel="stylesheet" />
 <style>
   :root {
     /* surfaces — intake palette: warm-grey canvas + near-white cards */
@@ -35,8 +35,8 @@
     /* SuperOffice brand surfaces */
     --green: #15564b;
     --shell: #ece9e2;          /* shell + menu share the canvas tone */
-    --side-2: rgba(0,0,0,.04);  /* hover (adapts to any bg) */
-    --side-active: #ffffff;    /* active: white pill */
+    --side-2: #e7e1d4;          /* hover: same tint as active */
+    --side-active: #e7e1d4;    /* active: subtle warm tint (reads on the beige menu, not white) */
     --side-text: #303a35;
     --side-faint: #837e72;
 
@@ -58,7 +58,10 @@
   }
   * { box-sizing: border-box; }
   html, body { margin: 0; height: 100%; }
-  body { background: var(--page); color: var(--ink); font-family: 'Hanken Grotesk', system-ui, sans-serif; }
+  html { --font: 'DM Sans', system-ui, sans-serif; }
+  html[data-font="hanken"] { --font: 'Hanken Grotesk', system-ui, sans-serif; }
+  html[data-font="lato"] { --font: 'Lato', system-ui, sans-serif; }
+  body { background: var(--page); color: var(--ink); font-family: var(--font); }
   .app { display: grid; grid-template-columns: 250px 1fr; height: 100%; background: var(--shell); }
 
   /* ---------------- sidebar (blends into the shell, like Wispr) ---------------- */
@@ -74,7 +77,7 @@
   .nav-sec { color: var(--side-faint); font-size: 10.5px; letter-spacing: .13em; text-transform: uppercase; font-weight: 700; padding: 16px 12px 7px; }
   .nav-item { display: flex; align-items: center; gap: 11px; padding: 9px 12px; border-radius: 10px; color: var(--side-text); font-weight: 500; font-size: 14.5px; cursor: pointer; }
   .nav-item:hover { background: var(--side-2); }
-  .nav-item.active { background: var(--side-active); color: var(--green-deep); font-weight: 700; }
+  .nav-item.active { background: var(--side-active); color: var(--side-text); font-weight: 700; }
   .nav-item svg { color: currentColor; opacity: .9; flex: none; }
   .side .spacer { flex: 1; }
   .side .credit { color: var(--side-faint); font-size: 12px; text-align: center; padding: 14px; opacity: .8; }
@@ -248,6 +251,10 @@
   .surfacepick .sp-label { font-size: 12px; font-weight: 700; color: var(--muted); margin-right: 5px; }
   .surfacepick button { border: none; background: transparent; border-radius: 999px; padding: 7px 13px; font-size: 12.5px; font-weight: 600; color: var(--ink-soft); cursor: pointer; font-family: inherit; }
   .surfacepick button.on { background: var(--green-deep); color: #fff; }
+  .fontpick { position: fixed; left: 18px; bottom: 62px; z-index: 60; display: flex; align-items: center; gap: 4px; background: rgba(255,255,255,.92); backdrop-filter: blur(8px); border: 1px solid rgba(0,0,0,.08); border-radius: 999px; padding: 5px 7px; box-shadow: 0 4px 14px rgba(40,45,40,.1); }
+  .fontpick .sp-label { font-size: 12px; font-weight: 700; color: var(--muted); margin-right: 5px; }
+  .fontpick button { border: none; background: transparent; border-radius: 999px; padding: 7px 13px; font-size: 13px; font-weight: 600; color: var(--ink-soft); cursor: pointer; }
+  .fontpick button.on { background: var(--green-deep); color: #fff; }
   .topsticky.stuck { box-shadow: 0 6px 16px rgba(40,50,40,.06); }
   .tabpanel[hidden] { display: none; }
 
@@ -644,6 +651,12 @@
   </main>
 </div>
 
+<div class="fontpick">
+  <span class="sp-label">Font</span>
+  <button data-f="lato" style="font-family:'Lato',sans-serif">Lato</button>
+  <button data-f="hanken" style="font-family:'Hanken Grotesk',sans-serif">Hanken</button>
+  <button data-f="dm" style="font-family:'DM Sans',sans-serif">DM&nbsp;Sans</button>
+</div>
 <div class="surfacepick">
   <span class="sp-label">Stijl</span>
   <button data-s="warm">Plat &amp; warm</button>
@@ -691,6 +704,17 @@
   let _saved = localStorage.getItem('so_surface');
   if (_saved === 'flat' || _saved === 'float-warm') _saved = 'warm';
   applySurface((_saved === 'warm' || _saved === 'float-mono') ? _saved : 'float-mono');
+
+  // font switcher (preview-only — review scaffolding, niet voor productie)
+  function applyFont(f) {
+    if (f === 'hanken' || f === 'lato') root.setAttribute('data-font', f); else root.removeAttribute('data-font');
+    document.querySelectorAll('.fontpick button').forEach(b => b.classList.toggle('on', b.dataset.f === f));
+  }
+  document.querySelectorAll('.fontpick button').forEach(b => b.addEventListener('click', () => {
+    localStorage.setItem('so_font', b.dataset.f); applyFont(b.dataset.f);
+  }));
+  const _f = localStorage.getItem('so_font');
+  applyFont((_f === 'hanken' || _f === 'dm' || _f === 'lato') ? _f : 'dm');
 </script>
 </body>
 </html>

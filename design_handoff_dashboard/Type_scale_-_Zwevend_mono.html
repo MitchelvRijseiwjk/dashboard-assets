@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Type scale — Zwevend mono</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700;9..40,800&display=swap" rel="stylesheet" />
+<style>
+  :root{
+    --ink:#173a32; --ink-soft:#2c4a42; --muted:#5a6760; --faint:#6f7972;
+    --card:#f2efe9; --card-border:#e8e4dc; --line:#e0dacd;
+    --green:#15564b; --green-deep:#0c4a3f; --c1:#0d5f59; --c2:#2f817a;
+    --chip-ink:#625d51; --side-text:#303a35; --side-faint:#837e72;
+    --good-ink:#226a43; --mod-ink:#785012;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0; background:#fff; color:var(--ink); font-family:'DM Sans',system-ui,sans-serif; -webkit-font-smoothing:antialiased;}
+  .sheet{max-width:1180px; margin:0 auto; padding:40px 34px 90px;}
+  h1{font-size:25px; font-weight:800; letter-spacing:-.015em; margin:0 0 8px;}
+  .intro{margin:0 0 4px; color:var(--muted); font-size:14.5px; line-height:1.6; max-width:820px;}
+  .intro code{background:#f2efe9; border-radius:4px; padding:1px 5px; font-size:13px;}
+  .sec{margin-top:40px;}
+  .sec h2{font-size:12px; font-weight:800; letter-spacing:.14em; text-transform:uppercase; color:var(--faint); margin:0 0 0; padding-bottom:11px; border-bottom:1px solid var(--line);}
+  .row{display:grid; grid-template-columns:1fr 250px; gap:24px; align-items:center; padding:17px 0; border-bottom:1px solid #efece5;}
+  .row .spec{font-size:12.5px; color:var(--muted); font-variant-numeric:tabular-nums; line-height:1.7;}
+  .row .spec b{color:var(--ink); font-weight:700;}
+  .row .spec .el{display:block; font-size:11px; color:var(--faint); font-weight:700; letter-spacing:.04em; text-transform:uppercase; margin-bottom:4px;}
+  .swatch{display:inline-block; width:11px; height:11px; border-radius:3px; vertical-align:-1px; margin-right:5px;}
+
+  /* exact element styles copied from the prototype */
+  .e-h1{font-size:20px; font-weight:800; letter-spacing:-.01em; color:var(--ink);}
+  .e-kpi{font-size:33px; font-weight:800; color:var(--ink); letter-spacing:-.01em; font-variant-numeric:tabular-nums;}
+  .e-donut{font-size:30px; font-weight:800; color:var(--ink);}
+  .e-donut sup{font-size:14px; font-weight:700; color:var(--muted);}
+  .e-subrowlab{font-size:15.5px; font-weight:700; color:var(--ink);}
+  .e-pct{font-size:15px; font-weight:800; color:var(--ink); font-variant-numeric:tabular-nums;}
+  .e-navtop{font-size:15px; font-weight:700; color:var(--green-deep);}
+  .e-cardtitle{font-size:16px; font-weight:700; color:var(--ink);}
+  .e-brand{font-size:19px; font-weight:800; color:var(--green); letter-spacing:-.01em;}
+  .e-brand span{color:#3f8174;}
+  .e-navitem{font-size:14.5px; font-weight:500; color:var(--side-text);}
+  .e-navitem-active{font-size:14.5px; font-weight:700; color:var(--side-text);}
+  .e-tab{font-size:14.5px; font-weight:600; color:var(--muted);}
+  .e-tab-active{font-size:14.5px; font-weight:600; color:var(--ink);}
+  .e-body{font-size:14px; color:var(--ink-soft);}
+  .e-filter{font-size:14px; color:var(--muted);}
+  .e-complegend{font-size:13.5px; color:var(--ink);}
+  .e-subhead{font-size:13.5px; font-weight:600; color:var(--muted);}
+  .e-tbl{font-size:13.5px; color:var(--ink-soft);}
+  .e-ks{font-size:13px; color:var(--muted);}
+  .e-count{font-size:12.5px; font-weight:700; color:var(--chip-ink);}
+  .e-legend{font-size:12.5px; color:var(--muted);}
+  .e-compbar{font-size:12px; font-weight:700; color:#fff; background:var(--c2); padding:3px 10px; border-radius:5px;}
+  .e-typechip{font-size:12px; color:var(--muted);}
+  .e-seclabel{font-size:11.5px; font-weight:700; letter-spacing:.12em; text-transform:uppercase; color:var(--faint);}
+  .e-kpilabel{font-size:11.5px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--faint);}
+  .e-th{font-size:11px; font-weight:700; letter-spacing:.07em; text-transform:uppercase; color:var(--faint);}
+  .e-imp{font-size:11px; font-weight:700; color:var(--chip-ink);}
+  .e-navsec{font-size:10.5px; font-weight:700; letter-spacing:.13em; text-transform:uppercase; color:var(--side-faint);}
+  .e-tag{font-size:10.5px; font-weight:800; letter-spacing:.06em; text-transform:uppercase; color:var(--c1);}
+</style>
+</head>
+<body>
+<div class="sheet">
+  <h1>Type scale — Zwevend mono</h1>
+  <p class="intro">Elk tekst-element in de Health Check, gerenderd op zijn <b>exacte</b> grootte, gewicht, letter-spacing en kleur. Font overal <b>DM&nbsp;Sans</b>. Cijfer-elementen (KPI, donut, %, tabel-getallen) gebruiken <code>font-variant-numeric: tabular-nums</code>. Rechts staat de spec om 1-op-1 in CSS over te nemen. Waarden zonder eenheid zijn px.</p>
+
+  <div class="sec"><h2>Koppen & cijfers (display)</h2>
+    <div class="row"><div class="e-kpi">39.839</div><div class="spec"><span class="el">KPI-waarde · <code>.kpi .kv</code></span><b>33px</b> / 800 · ls −.01em<br>tabular-nums · kleur <span class="swatch" style="background:var(--ink)"></span>--ink</div></div>
+    <div class="row"><div class="e-donut">81<sup>%</sup></div><div class="spec"><span class="el">Donut-score · <code>.donut .val</code></span><b>30px</b> / 800 · <code>sup</code> 14px/700<br>kleur <span class="swatch" style="background:var(--ink)"></span>--ink · sup --muted</div></div>
+    <div class="row"><div class="e-h1">Company · Overview</div><div class="spec"><span class="el">Paginatitel · <code>.head h1</code></span><b>20px</b> / 800 · ls −.01em<br>kleur <span class="swatch" style="background:var(--ink)"></span>--ink</div></div>
+    <div class="row"><div class="e-brand">Super<span>Office</span></div><div class="spec"><span class="el">Merk-woordmerk · <code>.brand b</code></span><b>19px</b> / 800 · ls −.01em<br>(logo-tekst; charcoal-variant aanbevolen)</div></div>
+  </div>
+
+  <div class="sec"><h2>Titels & nadruk-tekst</h2>
+    <div class="row"><div class="e-cardtitle">Standard field completeness</div><div class="spec"><span class="el">Kaarttitel · <code>.cardhead2 h3</code> / <code>.donut-wrap .ttl</code> 14/700</span><b>16px</b> / 700 · kleur <span class="swatch" style="background:var(--ink)"></span>--ink</div></div>
+    <div class="row"><div class="e-subrowlab">Data completeness</div><div class="spec"><span class="el">Hero sub-rij label · <code>.subrow .lab b</code></span><b>15.5px</b> / 700 · --ink</div></div>
+    <div class="row"><div class="e-navtop">Company</div><div class="spec"><span class="el">Nav-top (entiteit) · <code>.nav-top</code></span><b>15px</b> / 700 · <span class="swatch" style="background:var(--green-deep)"></span>--green-deep</div></div>
+    <div class="row"><div class="e-pct">81%</div><div class="spec"><span class="el">Hero %-waarde · <code>.subrow .pct</code></span><b>15px</b> / 800 · tabular-nums · --ink</div></div>
+  </div>
+
+  <div class="sec"><h2>Navigatie & tabs</h2>
+    <div class="row"><div class="e-navitem-active">Company&nbsp;&nbsp;·&nbsp;&nbsp;<span class="e-navitem">Contact</span></div><div class="spec"><span class="el">Nav-item · <code>.nav-item</code></span><b>14.5px</b> · rust/hover <b>500</b>, actief <b>700</b><br>kleur altijd <span class="swatch" style="background:var(--side-text)"></span>--side-text (charcoal)</div></div>
+    <div class="row"><div class="e-tab-active">Overview&nbsp;&nbsp;&nbsp;<span class="e-tab">Data Quality</span></div><div class="spec"><span class="el">Tab · <code>.tab</code></span><b>14.5px</b> / 600 · rust <span class="swatch" style="background:var(--muted)"></span>--muted, actief <span class="swatch" style="background:var(--ink)"></span>--ink</div></div>
+    <div class="row"><div class="e-navsec">Entities</div><div class="spec"><span class="el">Nav-sectiekop · <code>.nav-sec</code></span><b>10.5px</b> / 700 · ls .13em · UPPER<br>kleur <span class="swatch" style="background:var(--side-faint)"></span>--side-faint</div></div>
+  </div>
+
+  <div class="sec"><h2>Body, tabellen & meta</h2>
+    <div class="row"><div class="e-body">188 companies are unreachable through the CRM.</div><div class="spec"><span class="el">Body / insight · <code>.insight .tx</code> / <code>.hero-foot .summary</code></span><b>14px</b> / 400 (bold 700) · <span class="swatch" style="background:var(--ink-soft)"></span>--ink-soft</div></div>
+    <div class="row"><div class="e-filter">Period&nbsp;&nbsp;Last 12 months</div><div class="spec"><span class="el">Filter-balk · <code>.filter</code></span><b>14px</b> · <span class="swatch" style="background:var(--muted)"></span>--muted</div></div>
+    <div class="row"><div class="e-tbl">Creditworthiness&nbsp;&nbsp;&nbsp;2.152</div><div class="spec"><span class="el">Tabel-cel · <code>.tbl td</code></span><b>13.5px</b> / 400 · <span class="swatch" style="background:var(--ink-soft)"></span>--ink-soft<br>getallen tabular-nums</div></div>
+    <div class="row"><div class="e-complegend">Active customers <b style="color:var(--faint); font-weight:400">· 12.803</b></div><div class="spec"><span class="el">Compositie-legenda · <code>.complegend .ci</code></span><b>13.5px</b> · label --ink, aantal --faint</div></div>
+    <div class="row"><div class="e-subhead">Engagement distribution</div><div class="spec"><span class="el">Subkop boven grafiek · <code>.subhead</code></span><b>13.5px</b> / 600 · <span class="swatch" style="background:var(--muted)"></span>--muted</div></div>
+    <div class="row"><div class="e-ks">of 39.839 total records</div><div class="spec"><span class="el">KPI-subtekst · <code>.kpi .ks</code></span><b>13px</b> · <span class="swatch" style="background:var(--muted)"></span>--muted</div></div>
+    <div class="row"><div class="e-legend">Sold · Open · Lost</div><div class="spec"><span class="el">Donut-legenda · <code>.legend</code></span><b>12.5px</b> · <span class="swatch" style="background:var(--muted)"></span>--muted</div></div>
+  </div>
+
+  <div class="sec"><h2>Chips, labels & micro-tekst</h2>
+    <div class="row"><div><span class="e-count">39.839 records</span></div><div class="spec"><span class="el">Count-pill · <code>.cardhead2 .count</code></span><b>12.5px</b> / 700 · <span class="swatch" style="background:var(--chip-ink)"></span>--chip-ink</div></div>
+    <div class="row"><div><span class="e-typechip">Dropdown</span></div><div class="spec"><span class="el">Type-chip · <code>.typechip</code></span><b>12px</b> / 400 · <span class="swatch" style="background:var(--muted)"></span>--muted</div></div>
+    <div class="row"><div><span class="e-compbar">35%</span></div><div class="spec"><span class="el">Label in staaf · <code>.compbar span</code></span><b>12px</b> / 700 · wit</div></div>
+    <div class="row"><div class="e-seclabel">Data quality signals</div><div class="spec"><span class="el">Sectielabel · <code>.seclabel</code></span><b>11.5px</b> / 700 · ls .12em · UPPER<br><span class="swatch" style="background:var(--faint)"></span>--faint</div></div>
+    <div class="row"><div class="e-kpilabel">Dormant tail</div><div class="spec"><span class="el">KPI-label · <code>.kpi .kl</code></span><b>11.5px</b> / 700 · ls .1em · UPPER · --faint</div></div>
+    <div class="row"><div class="e-th">Field label</div><div class="spec"><span class="el">Tabel-kolomkop · <code>.tbl th</code></span><b>11px</b> / 700 · ls .07em · UPPER · --faint</div></div>
+    <div class="row"><div><span class="e-imp">Required</span></div><div class="spec"><span class="el">Importance/Weight-chip · <code>.imp</code></span><b>11px</b> / 700 · (nadruk-ramp)</div></div>
+    <div class="row"><div><span class="e-tag">Recommended</span></div><div class="spec"><span class="el">Tag · <code>.tag</code></span><b>10.5px</b> / 800 · ls .06em · UPPER · <span class="swatch" style="background:var(--c1)"></span>--c1</div></div>
+  </div>
+
+  <div class="sec"><h2>Samengevat — de schaal</h2>
+    <p class="intro" style="margin-top:16px">Effectieve trap (px): <b>33</b> KPI · <b>30</b> donut · <b>20</b> titel · <b>19</b> merk · <b>16</b> kaarttitel · <b>15.5</b> hero-label · <b>15</b> nav-top/% · <b>14.5</b> nav/tab · <b>14</b> body/filter · <b>13.5</b> tabel/legenda/subkop · <b>13</b> KPI-sub · <b>12.5</b> count/legenda · <b>12</b> chip/staaflabel · <b>11.5</b> sectie/KPI-label · <b>11</b> kolomkop/importance · <b>10.5</b> nav-sectie/tag.<br><br>Gewichten: 800 display & KPI · 700 titels/labels/nadruk · 600 tabs/subkop · 500 nav-rust · 400 body/tabel. Uppercase micro-labels (10.5–11.5px) dragen letter-spacing .06–.13em.</p>
+  </div>
+</div>
+</body>
+</html>
