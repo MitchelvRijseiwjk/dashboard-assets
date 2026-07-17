@@ -736,21 +736,21 @@ function renderCompanyOverviewV2() {
     var vbW = 600, vbH = saturated ? 232 : 248, x0 = 46, plotW = vbW - x0 - 14, plotH = 175, baseY = 200, slot = plotW / n;
     var sumC = 0, sumA = 0;
     var svg = '<svg viewBox="0 0 ' + vbW + ' ' + vbH + '" width="100%" height="' + (saturated ? 218 : 232) + '" role="img" aria-label="Companies by registration year">';
-    svg += '<line x1="' + x0 + '" y1="' + (baseY - plotH) + '" x2="' + (x0 + plotW) + '" y2="' + (baseY - plotH) + '" stroke="#efe9df"/>';
-    svg += '<line x1="' + x0 + '" y1="' + baseY + '" x2="' + (x0 + plotW) + '" y2="' + baseY + '" stroke="#e0dacf"/>';
-    svg += '<text x="' + (x0 - 6) + '" y="' + (baseY - plotH + 4) + '" text-anchor="end" font-size="10" fill="#a8a99f">' + maxC + '</text>';
-    svg += '<text x="' + (x0 - 6) + '" y="' + baseY + '" text-anchor="end" font-size="10" fill="#a8a99f">0</text>';
+    svg += '<line x1="' + x0 + '" y1="' + (baseY - plotH) + '" x2="' + (x0 + plotW) + '" y2="' + (baseY - plotH) + '" stroke="var(--line)"/>';
+    svg += '<line x1="' + x0 + '" y1="' + baseY + '" x2="' + (x0 + plotW) + '" y2="' + baseY + '" stroke="var(--line)"/>';
+    svg += '<text x="' + (x0 - 6) + '" y="' + (baseY - plotH + 4) + '" text-anchor="end" font-size="10" fill="var(--faint)">' + maxC + '</text>';
+    svg += '<text x="' + (x0 - 6) + '" y="' + baseY + '" text-anchor="end" font-size="10" fill="var(--faint)">0</text>';
     for (var bi = 0; bi < n; bi++) {
       var t = trend[bi]; sumC += t.count; sumA += t.active;
       var bh = t.count > 0 ? Math.round(t.count / maxC * plotH) : 0;
       var bx = x0 + bi * slot + slot * 0.16, bwid = slot * 0.68, by = baseY - bh;
-      var fill = (bi === n - 1) ? '#7fb3ad' : '#0f5c57';
+      var fill = (bi === n - 1) ? 'var(--c4)' : 'var(--c1)';
       svg += '<rect x="' + bx.toFixed(1) + '" y="' + by + '" width="' + bwid.toFixed(1) + '" height="' + bh + '" rx="2" fill="' + fill + '"/>';
-      if (bh > 14) svg += '<text x="' + (bx + bwid / 2).toFixed(1) + '" y="' + (by - 4) + '" text-anchor="middle" font-size="10.5" font-weight="500" fill="#06423e">' + t.count + '</text>';
-      svg += '<text x="' + (bx + bwid / 2).toFixed(1) + '" y="' + (baseY + 16) + '" text-anchor="middle" font-size="10" fill="#8a8f8b">' + t.year + '</text>';
+      if (bh > 14) svg += '<text x="' + (bx + bwid / 2).toFixed(1) + '" y="' + (by - 4) + '" text-anchor="middle" font-size="10.5" font-weight="500" fill="var(--ink-soft)">' + t.count + '</text>';
+      svg += '<text x="' + (bx + bwid / 2).toFixed(1) + '" y="' + (baseY + 16) + '" text-anchor="middle" font-size="10" fill="var(--muted)">' + t.year + '</text>';
       if (!saturated) {
         var ret = t.count > 0 ? Math.round(t.active / t.count * 100) : 0;
-        svg += '<text x="' + (bx + bwid / 2).toFixed(1) + '" y="' + (baseY + 29) + '" text-anchor="middle" font-size="9" fill="#b7b2a6">' + ret + '%</text>';
+        svg += '<text x="' + (bx + bwid / 2).toFixed(1) + '" y="' + (baseY + 29) + '" text-anchor="middle" font-size="9" fill="var(--faint)">' + ret + '%</text>';
       }
     }
     svg += '</svg>';
@@ -794,14 +794,14 @@ function renderCompanyOverviewV2() {
         var catIn = pp >= 10 ? '<span style="color:#fff;font-size:9.5px;font-weight:600;text-shadow:0 1px 1px rgba(0,0,0,.3)">' + pp.toFixed(0) + '%</span>' : '';
         h += '<div style="width:' + pp.toFixed(1) + '%;background:' + palette[pi] + ';display:flex;align-items:center;justify-content:center">' + catIn + '</div>';
       }
-      if (otherC > 0) { var op = catTot > 0 ? (otherC / catTot * 100) : 0; h += '<div style="width:' + op.toFixed(1) + '%;background:#c9c4ba"></div>'; }
+      if (otherC > 0) { var op = catTot > 0 ? (otherC / catTot * 100) : 0; h += '<div style="width:' + op.toFixed(1) + '%;background:var(--cn)"></div>'; }
       h += '</div>';
       h += '<div style="display:flex;gap:14px;flex-wrap:wrap;font-size:11px;color:' + MUTED + '">';
       for (var li = 0; li < topN.length; li++) {
         var lp = catTot > 0 ? Math.round(topN[li].count / catTot * 1000) / 10 : 0;
         h += '<span><span style="display:inline-block;width:9px;height:9px;border-radius:2px;vertical-align:-1px;margin-right:4px;background:' + palette[li] + '"></span>' + topN[li].name + ' ' + lp + '%</span>';
       }
-      if (otherC > 0) { var lop = catTot > 0 ? Math.round(otherC / catTot * 1000) / 10 : 0; h += '<span><span style="display:inline-block;width:9px;height:9px;border-radius:2px;vertical-align:-1px;margin-right:4px;background:#c9c4ba"></span>Other ' + lop + '%</span>'; }
+      if (otherC > 0) { var lop = catTot > 0 ? Math.round(otherC / catTot * 1000) / 10 : 0; h += '<span><span style="display:inline-block;width:9px;height:9px;border-radius:2px;vertical-align:-1px;margin-right:4px;background:var(--cn)"></span>Other ' + lop + '%</span>'; }
       h += '</div></div>';
     }
   }
@@ -879,7 +879,7 @@ function renderSaleOverviewV2() {
 
   // ---- Status split (donut) + Sale type ----
   h += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px">';
-  var segs = [{ n: 'Lost', v: lost, c: BAD }, { n: 'Open', v: open, c: OKC }, { n: 'Sold', v: sold, c: GOOD }, { n: 'Stalled', v: stalled, c: '#c9c4ba' }];
+  var segs = [{ n: 'Lost', v: lost, c: BAD }, { n: 'Open', v: open, c: OKC }, { n: 'Sold', v: sold, c: GOOD }, { n: 'Stalled', v: stalled, c: 'var(--cn)' }];
   var cum = 0, circles = '';
   for (var si = 0; si < segs.length; si++) {
     var sp = total > 0 ? (segs[si].v / total * 100) : 0;
@@ -888,12 +888,12 @@ function renderSaleOverviewV2() {
   }
   h += '<div class="entity-card" style="background:var(--card);border:1px solid #e6e1d8;border-radius:12px;padding:16px">';
   h += '<div style="font-size:13px;font-weight:500;color:' + GREEN + ';margin-bottom:10px">Status split</div>';
-  h += '<div style="display:flex;gap:12px;align-items:center"><svg viewBox="0 0 180 180" width="118" height="118" role="img" aria-label="Sale status split"><circle cx="90" cy="90" r="70" fill="none" stroke="#efe9df" stroke-width="26"/>' + circles + '<text x="90" y="86" text-anchor="middle" font-size="17" font-weight="500" fill="#06423e">' + fmtNum(total) + '</text><text x="90" y="103" text-anchor="middle" font-size="10" fill="#8a8f8b">sales</text></svg>';
-  h += '<div style="flex:1;min-width:0">' + dotLeg(BAD, 'Lost', fmtNum(lost), pct(lost, total) + '%') + dotLeg(OKC, 'Open', fmtNum(open), pct(open, total) + '%') + dotLeg(GOOD, 'Sold', fmtNum(sold), pct(sold, total) + '%') + dotLeg('#c9c4ba', 'Stalled' + sbInfoIcon('A sale put on hold, neither won nor lost yet.'), fmtNum(stalled), pct(stalled, total) + '%') + '</div></div></div>';
+  h += '<div style="display:flex;gap:12px;align-items:center"><svg viewBox="0 0 180 180" width="118" height="118" role="img" aria-label="Sale status split"><circle cx="90" cy="90" r="70" fill="none" stroke="var(--track)" stroke-width="26"/>' + circles + '<text x="90" y="86" text-anchor="middle" font-size="17" font-weight="500" fill="var(--ink)">' + fmtNum(total) + '</text><text x="90" y="103" text-anchor="middle" font-size="10" fill="var(--muted)">sales</text></svg>';
+  h += '<div style="flex:1;min-width:0">' + dotLeg(BAD, 'Lost', fmtNum(lost), pct(lost, total) + '%') + dotLeg(OKC, 'Open', fmtNum(open), pct(open, total) + '%') + dotLeg(GOOD, 'Sold', fmtNum(sold), pct(sold, total) + '%') + dotLeg('var(--cn)', 'Stalled' + sbInfoIcon('A sale put on hold, neither won nor lost yet.'), fmtNum(stalled), pct(stalled, total) + '%') + '</div></div></div>';
   if (typeD && typeD.items && typeD.items.length > 0) {
     var titems = typeD.items.slice().sort(function (a, b) { return b.count - a.count; });
     var ttot = 0; for (var ti = 0; ti < titems.length; ti++) ttot += titems[ti].count;
-    var tpal = ['#0f5c57', '#5dcaa5', '#b7dea9', '#c9c4ba'];
+    var tpal = ['var(--c1)', 'var(--c3)', 'var(--c5)', 'var(--cn)'];
     h += '<div class="entity-card" style="background:var(--card);border:1px solid #e6e1d8;border-radius:12px;padding:16px"><div style="font-size:13px;font-weight:500;color:' + GREEN + '">Sale type</div><div style="font-size:11px;color:#8a8f8b;margin:2px 0 11px">From the Sale Type field on each sale, chosen by the user. It is not derived from the data.</div>';
     for (var tj = 0; tj < titems.length && tj < 4; tj++) {
       var tp = pct(titems[tj].count, ttot);
@@ -1131,12 +1131,12 @@ function renderRequestsOverviewV2() {
   // ---- Status breakdown (named statuses, the configured truth) ----
   if (statusD) {
     h += secLabel('Status');
-    h += rankCard('Status breakdown', 'The ticket statuses configured in this installation.', statusD, ['#0f5c57', '#3a8f86', '#5dcaa5', '#9bd4b8', '#b7dea9', '#cfe3c0'], 6, '');
+    h += rankCard('Status breakdown', 'The ticket statuses configured in this installation.', statusD, ['var(--c1)', 'var(--c2)', 'var(--c3)', 'var(--c4)', 'var(--c5)', 'var(--c6)'], 6, '');
   }
 
   // ---- Field usage: priority + ticket type ----
-  var pc = prioD ? rankCard('Priority', '', prioD, ['#0f5c57', '#5dcaa5', '#b7dea9', '#c9c4ba', '#d8cfc2'], 5, 'The priority set on each ticket, chosen by the user.') : '';
-  var tc = typeD ? rankCard('Ticket type', '', typeD, ['#0f5c57', '#5dcaa5', '#b7dea9', '#c9c4ba', '#d8cfc2'], 5, 'The ticket type chosen on each ticket. It is not derived from the data.') : '';
+  var pc = prioD ? rankCard('Priority', '', prioD, ['var(--c1)', 'var(--c2)', 'var(--c3)', 'var(--c4)', 'var(--cn)'], 5, 'The priority set on each ticket, chosen by the user.') : '';
+  var tc = typeD ? rankCard('Ticket type', '', typeD, ['var(--c1)', 'var(--c2)', 'var(--c3)', 'var(--c4)', 'var(--cn)'], 5, 'The ticket type chosen on each ticket. It is not derived from the data.') : '';
   if (pc || tc) {
     h += secLabel('Field usage');
     h += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">' + pc + tc + '</div>';
