@@ -599,6 +599,20 @@ function hcKpi(label, value, sub, dot, action) {
   var a = (typeof action === 'string' && action) ? '<button class="act">' + action + ' <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>' : '';
   return '<div class="kpi"><div class="kl">' + d + label + '</div><div class="kv">' + value + '</div><div class="ks">' + sub + '</div>' + a + '</div>';
 }
+// Engagement and recency segments are a distribution, not a status, so they run the
+// teal ramp (prototype order c1 -> c3 -> c5 -> cn) and never borrow the semantic
+// colours. Ordered checks: the label "Active, No Pipeline" also contains "active".
+function hcEngColor(name) {
+  var nm = (name || '').toLowerCase();
+  if (nm.indexOf('fully') >= 0) return 'var(--c1)';
+  if (nm.indexOf('active (6m)') >= 0) return 'var(--c1)';
+  if (nm.indexOf('cooling') >= 0) return 'var(--c3)';
+  if (nm.indexOf('empty') >= 0) return 'var(--cn)';
+  if (nm.indexOf('no activity') >= 0) return 'var(--cn)';
+  if (nm.indexOf('dormant') >= 0) return 'var(--c5)';
+  return 'var(--c3)';
+}
+
 function hcSecLabel(t) { return '<div class="seclabel">' + t + '</div>'; }
 function hcInsight(kind, bold, rest, buttons) {
   // kind: 'primary' (act on this) | 'warn' (worth checking) | 'neutral' (context) | 'good' (all clear)
@@ -701,8 +715,7 @@ function renderCompanyOverviewV2() {
     if (fn && fn.segments && fn.segments.length > 0) {
       var segs = fn.segments;
       var segTot = fn.total || tC;
-      // Prototype order for the engagement bar: c1 -> c3 -> c5 -> cn. Teal ramp, not semantic.
-      var engCol = function(nm){ nm=(nm||'').toLowerCase(); if(nm.indexOf('fully')>=0)return 'var(--c1)'; if(nm.indexOf('dormant')>=0)return 'var(--c5)'; if(nm.indexOf('empty')>=0)return 'var(--cn)'; return 'var(--c3)'; };
+            var engCol = hcEngColor;
       h += '<div style="font-size:12px;color:' + MUTED + ';border-top:1px solid #eee5d8;padding-top:12px;margin-top:10px;margin-bottom:10px">How engaged the active companies are</div>';
       h += '<div class="engbar" style="margin-bottom:12px">';
       for (var sa = 0; sa < segs.length; sa++) {
@@ -924,11 +937,11 @@ function renderSaleOverviewV2() {
     }
     h += secLabel(stagePoor ? 'The real gap \u00b7 pipeline data' : 'Pipeline \u00b7 stage tracking');
     h += '<div class="entity-card" style="background:var(--card);border:1px solid #e6e1d8;border-radius:12px;padding:16px"><div style="font-size:13px;font-weight:500;color:' + GREEN + ';margin-bottom:2px">Stage / probability tracking' + sbInfoIcon('The probability field on each sale (Low, Middle or High chance). It is what pipeline forecasting relies on.') + '</div><div style="font-size:12px;color:' + MUTED + ';margin-bottom:12px;line-height:1.5">' + stageMsg + '</div>';
-    h += '<div style="display:flex;height:30px;border-radius:6px;overflow:hidden;margin-bottom:12px">';
-    h += '<div style="width:' + spNo + '%;background:#d8cfc2;display:flex;align-items:center;padding-left:10px;font-size:11px;color:#7a6f5c;font-weight:500">' + (spNo >= 12 ? spNo.toFixed(0) + '% no stage set' : '') + '</div>';
-    h += '<div style="width:' + spLow + '%;background:' + OKC + ';display:flex;align-items:center;justify-content:center;font-size:10px;color:#fff;font-weight:600;text-shadow:0 1px 1px rgba(0,0,0,.3)">' + (spLow >= 14 ? spLow.toFixed(0) + '% low chance' : (spLow >= 7 ? spLow.toFixed(0) + '%' : '')) + '</div>';
-    h += '<div style="width:' + spMid + '%;background:#5dcaa5"></div><div style="width:' + spHigh + '%;background:' + GOOD + '"></div></div>';
-    h += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:2px 24px">' + dotLeg('#d8cfc2', 'No value', fmtNum(noStage), spNo + '%') + dotLeg('#5dcaa5', 'Middle chance', fmtNum(mid), spMid + '%') + dotLeg(OKC, 'Low chance', fmtNum(low), spLow + '%') + dotLeg(GOOD, 'High chance', fmtNum(high), spHigh + '%') + '</div></div>';
+    h += '<div class="engbar" style="height:30px;margin-bottom:12px">';
+    h += '<span style="width:' + spNo + '%;background:var(--cn);color:#6b6657;font-weight:500">' + (spNo >= 12 ? spNo.toFixed(0) + '% no stage set' : '') + '</span>';
+    h += '<span style="width:' + spLow + '%;background:' + OKC + '">' + (spLow >= 14 ? spLow.toFixed(0) + '% low chance' : (spLow >= 7 ? spLow.toFixed(0) + '%' : '')) + '</span>';
+    h += '<span style="width:' + spMid + '%;background:var(--c3)"></span><span style="width:' + spHigh + '%;background:' + GOOD + '"></span></div>';
+    h += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:2px 24px">' + dotLeg('var(--cn)', 'No value', fmtNum(noStage), spNo + '%') + dotLeg('var(--c3)', 'Middle chance', fmtNum(mid), spMid + '%') + dotLeg(OKC, 'Low chance', fmtNum(low), spLow + '%') + dotLeg(GOOD, 'High chance', fmtNum(high), spHigh + '%') + '</div></div>';
   }
 
   // ---- INSIGHTS ----
@@ -1591,11 +1604,11 @@ function renderCrossEntityFunnel(d) {
     var seg = segs[si];
     var segPct = f.total > 0 ? Math.round(seg.count / f.total * 1000) / 10 : 0;
     h += '<tr>';
-    h += '<td><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:' + seg.color + ';margin-right:8px;vertical-align:middle"></span>';
+    h += '<td><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:' + hcEngColor(seg.name) + ';margin-right:8px;vertical-align:middle"></span>';
     h += '<span style="font-weight:500">' + seg.name + '</span></td>';
     h += '<td class="col-right">' + fmtNum(seg.count) + '</td>';
     h += '<td style="color:var(--so-text-muted);font-size:.82rem">' + seg.description + '</td>';
-    h += '<td class="col-right">' + barCell(segPct, seg.color) + '</td>';
+    h += '<td class="col-right">' + barCell(segPct, hcEngColor(seg.name)) + '</td>';
     h += '</tr>';
   }
   h += '</tbody></table></div>';
@@ -2169,17 +2182,18 @@ function renderCompanyDetails(d) {
     h += '<div class="detail-section">';
     h += '<div class="detail-section-head">' + secHead('Activity Recency') + '<span class="record-badge">' + fmtNum(total) + ' companies</span></div>';
     var ahParts = [
-      { val: ah.active6m, col: 'var(--sl-good)', label: 'Active (6m)' },
-      { val: ah.dormant12m, col: 'var(--sl-ok)', label: 'Cooling (6\u201312m)' },
-      { val: ah.dormantOlder, col: 'var(--sl-warn)', label: 'Dormant (>12m)' },
-      { val: ah.noActivity, col: 'var(--sl-bad)', label: 'No Activity' }
+      { val: ah.active6m, label: 'Active (6m)' },
+      { val: ah.dormant12m, label: 'Cooling (6\u201312m)' },
+      { val: ah.dormantOlder, label: 'Dormant (>12m)' },
+      { val: ah.noActivity, label: 'No Activity' }
     ];
-    h += '<div class="stacked-bar" style="height:28px;border-radius:6px">';
+    for (var ci = 0; ci < ahParts.length; ci++) ahParts[ci].col = hcEngColor(ahParts[ci].label);
+    h += '<div class="engbar" style="height:28px">';
     for (var i = 0; i < ahParts.length; i++) {
       var pct = ahParts[i].val / total * 100;
       if (pct > 0) {
-        var segLabel = pct >= 10 ? '<span style="font-size:.72rem;color:#fff;font-weight:600">' + fmtNum(ahParts[i].val) + ' (' + (Math.round(pct * 10) / 10) + P + ')</span>' : '';
-        h += '<div class="stacked-segment" style="width:' + pct + P + ';background:' + ahParts[i].col + ';display:flex;align-items:center;justify-content:center;overflow:hidden;border-radius:0">' + segLabel + '</div>';
+        var segLabel = pct >= 10 ? fmtNum(ahParts[i].val) + ' (' + (Math.round(pct * 10) / 10) + P + ')' : '';
+        h += '<span style="width:' + pct + P + ';background:' + ahParts[i].col + '">' + segLabel + '</span>';
       }
     }
     h += '</div>';
