@@ -935,18 +935,6 @@ html[data-surface="warm"] {
    ================================================================ */
 
 /* --- Sidebar: blend into the beige shell, dark nav, white active pill --- */
-.sidebar{ background:var(--shell); }
-.sidebar-brand{ border-bottom:1px solid var(--line); }
-.sidebar-brand h1{ color:var(--ink); }
-.sidebar-brand p{ color:var(--faint); opacity:1; }
-.nav-item{ color:var(--side-text); border-left:3px solid transparent; }
-.nav-item:hover{ background:var(--side-2); color:var(--ink); }
-.nav-item.active{ background:var(--side-active); color:var(--green-deep); border-left-color:transparent; font-weight:600; box-shadow:0 1px 2px rgba(0,0,0,.05); }
-.nav-icon img{ filter:brightness(0); opacity:.5; }
-.nav-item:hover .nav-icon img{ filter:brightness(0); opacity:.72; }
-.nav-item.active .nav-icon img{ filter:brightness(0); opacity:.9; }
-.nav-badge{ background:var(--chip-fill); color:var(--muted); }
-.nav-item.active .nav-badge{ background:var(--green-deep); color:#fff; }
 
 /* --- Main: floating white panel within the beige shell --- */
 .main{ background:var(--page); margin:10px 12px 12px 8px; border-radius:18px; border:1px solid var(--card-border); }
@@ -1136,3 +1124,39 @@ html[data-surface="warm"] {
   .memberrow td:first-child { padding-left: 46px; }
   .memberrow .sub2 { color: var(--faint); font-size: 12px; }
 
+
+/* ================================================================
+   Sidebar chrome, ported from the prototype (float-mono).
+   The live sidebar markup is printed by the host, so the prototype
+   .side / .brand / .nav-* rules are mapped onto the live class names.
+   Also repairs light-on-beige leftovers from the old dark-green
+   sidebar: section labels, badges and the icon hover states.
+   ================================================================ */
+.sidebar{ background:var(--shell); }
+.sidebar-nav{ padding:6px 14px 14px; }
+
+/* Brand: render the (dark green) logo lockup as charcoal. !important is
+   required because the host applies an inline filter that turned it white
+   for the old dark sidebar. */
+.sidebar-brand{ padding:20px 16px 14px; border-bottom:none; }
+.sidebar-brand img{ filter:grayscale(1) !important; opacity:1 !important; max-width:100%; height:auto; }
+.sidebar-brand h1{ color:var(--green); font-size:19px; font-weight:800; letter-spacing:-.01em; line-height:1; }
+.sidebar-brand p{ color:var(--side-faint); font-size:10.5px; letter-spacing:.12em; text-transform:uppercase; font-weight:600; margin-top:3px; opacity:1; }
+
+/* Section labels (ENTITIES / OTHER / TOOLS) */
+.sidebar-section-label{ color:var(--side-faint); font-size:10.5px; letter-spacing:.13em; text-transform:uppercase; font-weight:700; padding:16px 12px 7px; }
+
+/* Nav items: inset rounded pills, no left rail */
+.nav-item{ gap:11px; padding:9px 12px; margin:1px 0; border-radius:10px; border-left:0; color:var(--side-text); font-size:14.5px; font-weight:500; box-shadow:none; }
+.nav-item:hover{ background:var(--side-2); color:var(--side-text); }
+.nav-item.active{ background:var(--side-active); color:var(--green-deep); font-weight:700; box-shadow:none; }
+
+/* Icons: charcoal on beige. Dimming goes through filter opacity, never the
+   opacity property, so the outline/filled swap (.ico-o / .ico-f) keeps working. */
+.nav-icon img{ filter:brightness(0) opacity(.6) !important; }
+.nav-item:hover .nav-icon img{ filter:brightness(0) opacity(.82) !important; }
+.nav-item.active .nav-icon img{ filter:brightness(0) opacity(.95) !important; }
+
+/* Badges */
+.nav-badge{ background:var(--chip-fill); color:var(--chip-ink); border:1px solid var(--chip-line); }
+.nav-item.active .nav-badge{ background:var(--green-deep); color:#fff; border-color:transparent; }
