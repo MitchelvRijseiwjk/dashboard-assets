@@ -93,7 +93,7 @@ function validateCustomDates() {
     if (selects[i].value === 'custom') {
       var di = selects[i].parentNode.querySelector('.custom-date-input');
       if (!di || !di.value) {
-        di.style.borderColor = '#c62828';
+        di.style.borderColor = 'var(--bad)';
         di.focus();
         return false;
       }
@@ -853,8 +853,8 @@ function startAnalyzeAll() {
   dpInit();
   var _per = dpResolve('aa');
   if (dpMode('aa') === 'custom') {
-    if (!_per.from) { var _af = document.getElementById('aaDateFrom'); if (_af) { _af.style.borderColor = '#c62828'; _af.focus(); } return; }
-    if (!_per.to) { var _at = document.getElementById('aaDateTo'); if (_at) { _at.style.borderColor = '#c62828'; _at.focus(); } return; }
+    if (!_per.from) { var _af = document.getElementById('aaDateFrom'); if (_af) { _af.style.borderColor = 'var(--bad)'; _af.focus(); } return; }
+    if (!_per.to) { var _at = document.getElementById('aaDateTo'); if (_at) { _at.style.borderColor = 'var(--bad)'; _at.focus(); } return; }
   }
   activeScope = dpScope('aa');
   activeWindowTo = _per.to;
@@ -1392,8 +1392,8 @@ function launchDashboard() {
   var setupDate = document.getElementById('setupDateFilter');
   var _per = dpResolve('setup');
   if (dpMode('setup') === 'custom') {
-    if (!_per.from) { var _sf = document.getElementById('setupDateFrom'); if (_sf) { _sf.style.borderColor = '#c62828'; _sf.focus(); } return; }
-    if (!_per.to) { var _st = document.getElementById('setupDateTo'); if (_st) { _st.style.borderColor = '#c62828'; _st.focus(); } return; }
+    if (!_per.from) { var _sf = document.getElementById('setupDateFrom'); if (_sf) { _sf.style.borderColor = 'var(--bad)'; _sf.focus(); } return; }
+    if (!_per.to) { var _st = document.getElementById('setupDateTo'); if (_st) { _st.style.borderColor = 'var(--bad)'; _st.focus(); } return; }
   }
   activeScope = dpScope('setup');
   activeWindowTo = _per.to;
@@ -1589,8 +1589,8 @@ function attnBandWord(score) {
   var b = attnBand(score);
   return b === 'high' ? 'High' : (b === 'medium' ? 'Medium' : 'Low');
 }
-var ATTN_HIGH_SVG = '<svg width="18" height="18" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="#c62828"/><rect x="11" y="6.5" width="2" height="7" rx="1" fill="#fff"/><circle cx="12" cy="16.5" r="1.2" fill="#fff"/></svg>';
-var ATTN_MED_SVG = '<svg width="18" height="18" viewBox="0 0 24 24"><path d="M12 3 L22 20 L2 20 Z" fill="#ef6c00"/><rect x="11" y="9" width="2" height="6" rx="1" fill="#fff"/><circle cx="12" cy="17.5" r="1.1" fill="#fff"/></svg>';
+var ATTN_HIGH_SVG = '<svg width="18" height="18" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="var(--bad)"/><rect x="11" y="6.5" width="2" height="7" rx="1" fill="#fff"/><circle cx="12" cy="16.5" r="1.2" fill="#fff"/></svg>';
+var ATTN_MED_SVG = '<svg width="18" height="18" viewBox="0 0 24 24"><path d="M12 3 L22 20 L2 20 Z" fill="var(--mod)"/><rect x="11" y="9" width="2" height="6" rx="1" fill="#fff"/><circle cx="12" cy="17.5" r="1.1" fill="#fff"/></svg>';
 // Icon + hover tooltip for an attention cell. Empty string for rows that carry no weight.
 function attnIconHtml(score, reason) {
   var band = attnBand(score);
