@@ -940,7 +940,9 @@ html[data-surface="warm"] {
 .main{ background:var(--page); margin:10px 12px 12px 8px; border-radius:18px; border:1px solid var(--card-border); }
 .page-header{ background:var(--page); border-bottom:1px solid var(--line); }
 .content-area{ background:var(--page); }
-.sub-tab:hover{ background:var(--zebra); color:var(--ink); }
+/* Sub-tabs: no hover slab (the prototype has none). Only the text reacts;
+   the underline carries the active state. */
+.sub-tab:hover{ background:transparent; color:var(--ink); }
 
 /* --- Content cards: tinted, on the white panel --- */
 .entity-card, .detail-section, .stat-card{ background:var(--card); border-color:var(--card-border); box-shadow:none; }
