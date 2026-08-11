@@ -2931,10 +2931,10 @@ function renderMomentumChart(monthly) {
     var yActTop = baseline - actH;
     var yDocTop = yActTop - docH;
     if (docH >= 1) {
-      if (actH > 0) svg += '<rect x="' + bx.toFixed(1) + '" y="' + yActTop.toFixed(1) + '" width="' + barW.toFixed(1) + '" height="' + actH.toFixed(1) + '" style="fill:var(--c1)"/>';
-      svg += mmRoundedTopRect(bx, yDocTop, barW, docH, 3, 'var(--c4)');
+      if (actH > 0) svg += '<rect x="' + bx.toFixed(1) + '" y="' + yActTop.toFixed(1) + '" width="' + barW.toFixed(1) + '" height="' + actH.toFixed(1) + '" style="fill:var(--c4)"/>';
+      svg += mmRoundedTopRect(bx, yDocTop, barW, docH, 3, 'var(--c5)');
     } else if (actH > 0) {
-      svg += mmRoundedTopRect(bx, yActTop, barW, actH, 3, 'var(--c1)');
+      svg += mmRoundedTopRect(bx, yActTop, barW, actH, 3, 'var(--c4)');
     }
   }
 
@@ -2944,13 +2944,11 @@ function renderMomentumChart(monthly) {
     var yU = niceMaxUsr > 0 ? baseline - (monthly[i].activeUsers / niceMaxUsr) * plotH : baseline;
     usrPts.push(cx(i).toFixed(1) + ',' + yU.toFixed(1));
   }
-  svg += '<polyline points="' + usrPts.join(' ') + '" style="fill:none;stroke:var(--green-deep)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>';
-  for (var i = 0; i < n; i++) {
-    if (i === 0 || i === n - 1 || i % 4 === 0) {
-      var p = usrPts[i].split(',');
-      svg += '<circle cx="' + p[0] + '" cy="' + p[1] + '" r="3.5" style="fill:var(--green-deep);stroke:var(--card)" stroke-width="2"/>';
-    }
-  }
+  // No point markers. Every marker that crossed a bar punched a card-coloured ring
+  // into it and read as a hole. The line carries itself: it is the darkest element in
+  // the chart against deliberately light bars, which is the usual way to keep a line
+  // legible over a bar series.
+  svg += '<polyline points="' + usrPts.join(' ') + '" style="fill:none;stroke:var(--green-deep)" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>';
 
   // X labels — every ~2 months
   var xStep = Math.max(1, Math.floor(n / 12));
@@ -2970,8 +2968,8 @@ function renderMomentumChart(monthly) {
 
   // Legend + plain-language definitions, inside the chart block
   var legend = '<div class="mm-legend" style="padding-left:' + padL + 'px">';
-  legend += '<span class="mm-leg-item"><span class="mm-leg-sw" style="background:var(--c1)"></span> Activities</span>';
-  legend += '<span class="mm-leg-item"><span class="mm-leg-sw" style="background:var(--c4)"></span> Documents</span>';
+  legend += '<span class="mm-leg-item"><span class="mm-leg-sw" style="background:var(--c4)"></span> Activities</span>';
+  legend += '<span class="mm-leg-item"><span class="mm-leg-sw" style="background:var(--c5)"></span> Documents</span>';
   legend += '<span class="mm-leg-item"><span class="mm-leg-line" style="background:var(--green-deep)"></span> Active users (right axis)</span>';
   legend += '</div>';
   legend += '<div class="mm-chart-defs" style="padding-left:' + padL + 'px"><b>Active user</b> = a user with at least one logged activity or document that month. <b>Avg per user</b> divides that month\'s total activity by its active users. Outlook-synced and private activities are excluded.</div>';

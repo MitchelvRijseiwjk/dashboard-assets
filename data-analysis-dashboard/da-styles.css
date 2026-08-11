@@ -1044,7 +1044,10 @@ html[data-surface="warm"] {
   .hero-foot .note { margin-left: auto; color: var(--faint); font-size:var(--fs-chip); font-style: italic; }
 
   /* kpi cards */
-  .kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+  /* Bottom margin so a card that follows the tiles directly is not glued to them.
+     Collapses with the 26px top margin of a following .seclabel, so pages that put a
+     section label after the tiles keep exactly the spacing they had. */
+  .kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 18px; }
   .kpi { background: var(--card); border: 1px solid var(--line-soft); border-radius: 14px; padding: 18px 20px; box-shadow: 0 1px 2px rgba(40,50,40,.03), 0 10px 24px rgba(40,50,40,.04); }
   .kpi .kl { color: var(--faint); font-size:var(--fs-seclabel); letter-spacing: .1em; text-transform: uppercase; font-weight: 700; display: flex; align-items: center; gap: 7px; }
   .kpi .kv { font-size:var(--fs-kpi); font-weight: 800; color: var(--ink); margin: 9px 0 4px; font-variant-numeric: tabular-nums; letter-spacing: -.01em; }
