@@ -1333,6 +1333,7 @@ function aaRunFullEntity(key, cb, markStepDone) {
         if (d.trend) companyDetailData.trend = d.trend;
         if (d.trendMonthly) companyDetailData.trendMonthly = d.trendMonthly;
         if (d.trendBefore !== undefined) companyDetailData.trendBefore = d.trendBefore;
+        if (d.newRecords) companyDetailData.newRecords = d.newRecords;
       }
       if (typeof renderCompanyDetails === 'function') renderCompanyDetails(companyDetailData);
       // The Company Overview reads companyDetailData for the database composition and
@@ -1551,25 +1552,25 @@ function fillBar(p, h, c) {
 function barCell(pct, color) {
   return '<span class="bar-cell">' + fillBar(pct, null, color) + '<span class="pct-text">' + pct + P + '</span></span>';
 }
+// Three bands, because the semantic ramp has three roles (P1). The old fourth
+// threshold at 15 mapped onto the same red as the band below it, so it never
+// produced a visible distinction; only the legend claimed it did.
 function slColor(pct) {
-  if (pct >= 70) return 'var(--sl-good)';
-  if (pct >= 40) return 'var(--sl-ok)';
-  if (pct >= 15) return 'var(--sl-warn)';
-  return 'var(--sl-bad)';
+  if (pct >= 70) return 'var(--good)';
+  if (pct >= 40) return 'var(--mod)';
+  return 'var(--bad)';
 }
 function slColorInv(pct) {
-  if (pct < 10) return 'var(--sl-good)';
-  if (pct < 30) return 'var(--sl-ok)';
-  if (pct < 60) return 'var(--sl-warn)';
-  return 'var(--sl-bad)';
+  if (pct < 10) return 'var(--good)';
+  if (pct < 30) return 'var(--mod)';
+  return 'var(--bad)';
 }
 // Verdict word + inline tint colours for a score, thresholds aligned 1:1 with slColor (70/40/15).
 // Colours are returned inline so the pill renders correctly even if CSS and JS are briefly out of sync.
 function slBand(pct) {
-  if (pct >= 70) return { w: 'Good', bg: '#e7f3e8', fg: '#1e5e22', dot: 'var(--sl-good)' };
-  if (pct >= 40) return { w: 'Moderate', bg: '#fdf3df', fg: '#9a6800', dot: 'var(--sl-ok)' };
-  if (pct >= 15) return { w: 'Needs attention', bg: '#fceee2', fg: '#aa4a00', dot: 'var(--sl-warn)' };
-  return { w: 'Critical', bg: '#fbeaea', fg: '#a32d2d', dot: 'var(--sl-bad)' };
+  if (pct >= 70) return { w: 'Good', bg: 'var(--good-bg)', fg: 'var(--good-ink)', dot: 'var(--good)' };
+  if (pct >= 40) return { w: 'Moderate', bg: 'var(--mod-bg)', fg: 'var(--mod-ink)', dot: 'var(--mod)' };
+  return { w: 'Needs attention', bg: 'var(--bad-bg)', fg: 'var(--bad-ink)', dot: 'var(--bad)' };
 }
 // Inline info icon with a hover tooltip (no icon font dependency)
 var SB_INFO_SVG = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><line x1="12" y1="11" x2="12" y2="16"/><line x1="12" y1="7.5" x2="12.01" y2="7.5"/></svg>';
@@ -1632,10 +1633,9 @@ function slHealthWord(pct) {
 // Shared colour key shown once per scored page
 function slKeyHtml() {
   return '<div class="sb-key">'
-    + '<span class="sb-keychip"><span class="sb-kdot" style="background:var(--sl-bad)"></span>&lt;15</span>'
-    + '<span class="sb-keychip"><span class="sb-kdot" style="background:var(--sl-warn)"></span>15\u201339</span>'
-    + '<span class="sb-keychip"><span class="sb-kdot" style="background:var(--sl-ok)"></span>40\u201369</span>'
-    + '<span class="sb-keychip"><span class="sb-kdot" style="background:var(--sl-good)"></span>70+ Good</span>'
+    + '<span class="sb-keychip"><span class="sb-kdot" style="background:var(--bad)"></span>&lt;40 Needs attention</span>'
+    + '<span class="sb-keychip"><span class="sb-kdot" style="background:var(--mod)"></span>40\u201369 Moderate</span>'
+    + '<span class="sb-keychip"><span class="sb-kdot" style="background:var(--good)"></span>70+ Good</span>'
     + '<span class="sb-keynote">Absolute, measured against your own data</span>'
     + '</div>';
 }

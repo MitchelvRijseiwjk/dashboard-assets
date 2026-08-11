@@ -433,6 +433,7 @@ function startFullEntity(key) {
         if (d.trend) companyDetailData.trend = d.trend;
         if (d.trendMonthly) companyDetailData.trendMonthly = d.trendMonthly;
         if (d.trendBefore !== undefined) companyDetailData.trendBefore = d.trendBefore;
+        if (d.newRecords) companyDetailData.newRecords = d.newRecords;
       }
       // Re-render details with whatever data we have so far
       renderCompanyDetails(companyDetailData);
@@ -837,6 +838,16 @@ function renderCompanyOverviewV2() {
     h += '<div style="position:relative">';
     if (iDormPct >= 40) {
       h += hcInsight('primary', fmtNum(iDorm) + ' companies (' + iDormPct + '%) are a dormant tail.', 'No recent activity, so these are the clearest candidates for cleanup or archiving.', [{ l: 'Create selection', p: true }, { l: 'Export list' }]);
+    }
+    // Records created inside the chosen period that carry no activity at all fall
+    // outside the active scope by definition, so they never reach the scores. They
+    // are a real finding on their own, in the same family as the dormant tail.
+    var nr = cd.newRecords || null;
+    if (nr && nr.withoutActivity > 0) {
+      var nrPct = nr.createdInPeriod > 0 ? Math.round(nr.withoutActivity / nr.createdInPeriod * 100) : 0;
+      h += hcInsight('warn', fmtNum(nr.withoutActivity) + ' newly created companies have no activity yet.',
+        'Of the ' + fmtNum(nr.createdInPeriod) + ' companies added in this period, ' + nrPct + '% have no logged activity, so they sit outside the active scope and outside the scores. Worth checking whether they were imported and then left alone.',
+        [{ l: 'Create selection', p: true }, { l: 'Export list' }]);
     }
     if (fn && fn.segments) {
       for (var fi = 0; fi < fn.segments.length; fi++) {
@@ -1426,6 +1437,7 @@ function fetchCompanyDetails(cb) {
       if (d.trend) companyDetailData.trend = d.trend;
       if (d.trendMonthly) companyDetailData.trendMonthly = d.trendMonthly;
       if (d.trendBefore !== undefined) companyDetailData.trendBefore = d.trendBefore;
+        if (d.newRecords) companyDetailData.newRecords = d.newRecords;
     }
     checkDone();
   });
@@ -1854,7 +1866,7 @@ function renderScoreBanner(key) {
   h += '</div>';
   h += '<div style="grid-column:1 / -1; display:flex; align-items:center; gap:14px; margin-top:12px">';
   h += '<span style="color:var(--faint); font-size:var(--fs-chip); font-weight:700; letter-spacing:.06em; text-transform:uppercase">Score bands</span>';
-  h += '<div class="legend"><span class="lg"><i style="background:var(--bad)"></i> &lt;15</span><span class="lg"><i style="background:var(--mod)"></i> 15\u201339</span><span class="lg"><i style="background:#c9b03a"></i> 40\u201369</span><span class="lg"><i style="background:var(--good)"></i> 70+ Good</span></div>';
+  h += '<div class="legend"><span class="lg"><i style="background:var(--bad)"></i> &lt;40 Needs attention</span><span class="lg"><i style="background:var(--mod)"></i> 40\u201369 Moderate</span><span class="lg"><i style="background:var(--good)"></i> 70+ Good</span></div>';
   h += '</div>';
   h += '</div>';
   var fn = el.querySelector('.filter-notice');
