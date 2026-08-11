@@ -61,6 +61,13 @@
   /* score bands -> semantic (4-band collapsed to 3) */
   --sl-good:var(--good); --sl-ok:var(--mod); --sl-warn:var(--bad); --sl-bad:var(--bad);
 
+  /* --- Level ramp (engagement / user levels): its own ordered scale, no blue,
+         no alarm red, dormant neutral. Handover: App-brede uitrol. --- */
+  --lvl-power-bg:#d3e8d8;   --lvl-power-ink:#226a43;   --lvl-power-dot:var(--good);
+  --lvl-regular-bg:#d6e7e3; --lvl-regular-ink:#1f6a63; --lvl-regular-dot:var(--c2);
+  --lvl-low-bg:#e8d5b0;     --lvl-low-ink:#785012;     --lvl-low-dot:var(--mod);
+  --lvl-dormant-bg:#e4ded3; --lvl-dormant-ink:#625d51; --lvl-dormant-dot:var(--cn);
+
   /* --- Type scale (design_handoff_dashboard/Type scale - Zwevend mono) --- */
   --fs-kpi:33px; --fs-donut:30px; --fs-h1:20px; --fs-brand:19px; --fs-cardtitle:16px;
   --fs-herolabel:15.5px; --fs-navtop:15px; --fs-nav:14.5px; --fs-body:14px;
@@ -651,9 +658,9 @@ html[data-surface="warm"] {
        ===================================================== */
 
     /* Trend indicators */
-    .mm-trend-up{color:var(--sl-good)}
-    .mm-trend-down{color:var(--sl-bad)}
-    .mm-trend-flat{color:var(--so-text-muted)}
+    .mm-trend-up{color:var(--good-ink)}
+    .mm-trend-down{color:var(--bad-ink)}
+    .mm-trend-flat{color:var(--muted)}
 
     /* Chart tooltip */
     .mm-tooltip{position:absolute;background:var(--so-charcoal);color:#fff;padding:8px 12px;border-radius:6px;font-size:var(--fs-seclabel);pointer-events:none;opacity:0;transition:opacity .15s;z-index:10;white-space:nowrap}
@@ -661,21 +668,21 @@ html[data-surface="warm"] {
 
     /* User adoption group summary */
     .mm-user-groups{display:grid;grid-template-columns:repeat(4,1fr);gap:0}
-    .mm-user-group{padding:20px;text-align:center;border-right:1px solid var(--so-dune)}
+    .mm-user-group{padding:20px;text-align:center;border-right:1px solid var(--line)}
     .mm-user-group:last-child{border-right:none}
     .mm-ug-count{font-size:var(--fs-kpi);font-weight:700}
     .mm-ug-label{font-size:var(--fs-count);font-weight:600;margin-top:4px}
     .mm-ug-desc{font-size:var(--fs-th);color:var(--so-text-muted);margin-top:2px}
     .mm-ug-pct{font-size:var(--fs-th);color:var(--so-text-muted);margin-top:8px}
     .mm-ug-dot{display:inline-block;width:7px;height:7px;border-radius:50%;vertical-align:middle;margin-right:5px}
-    .mm-ug-share{height:5px;border-radius:3px;background:#eee;overflow:hidden;margin:9px auto 0;max-width:130px}
+    .mm-ug-share{height:5px;border-radius:3px;background:var(--track);overflow:hidden;margin:9px auto 0;max-width:130px}
     .mm-ug-share i{display:block;height:100%;border-radius:3px}
     .mm-legend{display:flex;gap:16px;margin-top:6px;flex-wrap:wrap}
-    .mm-leg-item{font-size:var(--fs-chip);color:#666;display:flex;align-items:center;gap:5px}
+    .mm-leg-item{font-size:var(--fs-count);color:var(--muted);display:flex;align-items:center;gap:5px}
     .mm-leg-sw{width:11px;height:11px;border-radius:2px;display:inline-block}
     .mm-leg-line{width:13px;height:3px;border-radius:2px;display:inline-block}
     .mm-chart-defs{font-size:var(--fs-th);color:var(--so-text-muted);line-height:1.5;margin-top:9px;max-width:680px}
-    .mm-chart-defs b{color:#5a5953;font-weight:600}
+    .mm-chart-defs b{color:var(--ink);font-weight:600}
 
     /* Rank circles + level badges */
     .mm-rank{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;font-size:var(--fs-th);font-weight:700;color:#fff}

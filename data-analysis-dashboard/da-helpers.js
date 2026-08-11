@@ -139,13 +139,16 @@ function dpSvg(name, sz) {
 }
 
 var DP_SCOPES = [
-  { id: 'active', icon: 'activity', title: 'Active base', desc: 'Created or active in period', rec: true },
+  // The active scope is a fixed 12-month activity window, not the chosen period, and it
+  // does not include newly created records without activity. ScopeCountFetch and the
+  // entity fetch scripts all key off the same fixed window, so the label says so.
+  { id: 'active', icon: 'activity', title: 'Active base', desc: 'Active in the last 12 months', rec: true },
   { id: 'created', icon: 'seedling', title: 'Newly created', desc: 'Only records added in period', rec: false },
   { id: 'all', icon: 'database', title: 'Full database', desc: 'Everything, period ignored', rec: false }
 ];
 
 var DP_COV = {
-  active: { label: 'Active base', rows: [['Company', 'created or active'], ['Contact', 'created or active'], ['Sale', 'open or active'], ['Project', 'active'], ['Requests', 'open or updated'], ['Activities', 'logged in period']] },
+  active: { label: 'Active base', rows: [['Company', 'active in last 12 months'], ['Contact', 'created or active'], ['Sale', 'open or active'], ['Project', 'active'], ['Requests', 'open or updated'], ['Activities', 'logged in period']] },
   created: { label: 'Newly created', rows: [['Company', 'created in period'], ['Contact', 'created in period'], ['Sale', 'created in period'], ['Project', 'created in period'], ['Requests', 'created in period'], ['Activities', 'logged in period']] },
   all: { label: 'Full database', rows: [['Company', 'entire database'], ['Contact', 'entire database'], ['Sale', 'entire database'], ['Project', 'entire database'], ['Requests', 'entire database'], ['Activities', 'logged in period']] }
 };

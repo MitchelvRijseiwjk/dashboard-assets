@@ -2759,15 +2759,15 @@ function startMomentum(key) {
 
 // Level ramp (handover): an ordered scale of its own. No blue, no alarm red.
 // Inactive is neutral, because dormancy is an opportunity and not an error.
-var MM_GREEN = '#2f8f5b';   // Power    dot
-var MM_BLUE = '#2f817a';    // Regular  dot (--c2)
-var MM_ORANGE = '#b9832f';  // Low      dot (--mod)
-var MM_RED = '#c8c2b4';     // Inactive dot (--cn)
+var MM_GREEN = 'var(--lvl-power-dot)';
+var MM_BLUE = 'var(--lvl-regular-dot)';
+var MM_ORANGE = 'var(--lvl-low-dot)';
+var MM_RED = 'var(--lvl-dormant-dot)';
 var MM_LEVELS = {
-  Power:    { bg: '#d3e8d8', fg: '#226a43', dot: MM_GREEN },
-  Regular:  { bg: '#d6e7e3', fg: '#1f6a63', dot: MM_BLUE },
-  Low:      { bg: '#e8d5b0', fg: '#785012', dot: MM_ORANGE },
-  Inactive: { bg: '#e4ded3', fg: '#625d51', dot: MM_RED }
+  Power:    { bg: 'var(--lvl-power-bg)',   fg: 'var(--lvl-power-ink)',   dot: MM_GREEN },
+  Regular:  { bg: 'var(--lvl-regular-bg)', fg: 'var(--lvl-regular-ink)', dot: MM_BLUE },
+  Low:      { bg: 'var(--lvl-low-bg)',     fg: 'var(--lvl-low-ink)',     dot: MM_ORANGE },
+  Inactive: { bg: 'var(--lvl-dormant-bg)', fg: 'var(--lvl-dormant-ink)', dot: MM_RED }
 };
 function mmLevelStyle(level) { return MM_LEVELS[level] || MM_LEVELS.Inactive; }
 
@@ -2817,23 +2817,22 @@ function renderMomentum(key, d) {
   var monthName = lastFullMonth ? lastFullMonth.label.split("'")[0].trim() : '';
   var h = '';
 
-  // KPI cards — reuse detail-section + stat-row + stat-card
-  h += '<div class="detail-section">';
-  h += '<div class="detail-section-head">' + secHead('CRM Momentum \u2014 Last 24 Months') + '</div>';
-  h += '<div class="stat-row">';
+  // KPI cards — the shared hcKpi tiles, so Momentum matches every other entity page
+  h += hcSecLabel('CRM Momentum \u00b7 last 24 months');
+  h += '<div class="kpis">';
   h += mmKpiCard(lastFullMonth ? fmtNum(lastFullMonth.activities) : '0', 'Activities ' + monthName,
     lastFullMonth && prevFullMonth ? mmTrend(lastFullMonth.activities, prevFullMonth.activities) : null);
   h += mmKpiCard(lastFullMonth ? fmtNum(lastFullMonth.documents) : '0', 'Documents ' + monthName,
     lastFullMonth && prevFullMonth ? mmTrend(lastFullMonth.documents, prevFullMonth.documents) : null);
   var auVal = lastFullMonth ? lastFullMonth.activeUsers : 0;
-  h += mmKpiCard(auVal + ' <span style="font-size:.7em;color:#888;font-weight:400">/ ' + totalUsers + '</span>',
+  h += mmKpiCard(auVal + ' <span style="font-size:var(--fs-h1);color:var(--faint);font-weight:400">/ ' + totalUsers + '</span>',
     'Active Users ' + monthName,
     lastFullMonth && prevFullMonth ? mmTrendAbs(lastFullMonth.activeUsers, prevFullMonth.activeUsers) : null);
   var avgAct = (auVal > 0 && lastFullMonth) ? Math.round((lastFullMonth.activities + lastFullMonth.documents) / auVal) : 0;
   var prevAvg = (prevFullMonth && prevFullMonth.activeUsers > 0) ? Math.round((prevFullMonth.activities + prevFullMonth.documents) / prevFullMonth.activeUsers) : 0;
   h += mmKpiCard(fmtNum(avgAct), 'Avg per User ' + monthName,
     lastFullMonth && prevFullMonth ? mmTrend(avgAct, prevAvg) : null);
-  h += '</div></div>';
+  h += '</div>';
 
   h += renderMomentumChart(monthly);
   h += renderUserAdoption(users, totalUsers, d.totalActivities + d.totalDocuments, filterMonths, filterLabel);
@@ -2842,13 +2841,11 @@ function renderMomentum(key, d) {
   mmInitChartTooltip(el, monthly);
 }
 
+// Delegates to the shared KPI tile so Momentum inherits the app-wide treatment.
+// The month-over-month delta rides along as the tile sub-line.
 function mmKpiCard(value, label, trend) {
-  var h = '<div class="stat-card">';
-  h += '<div class="stat-value" style="color:var(--so-charcoal)">' + value + '</div>';
-  h += '<div class="stat-label">' + label + '</div>';
-  if (trend) h += '<div style="font-size:var(--fs-seclabel);margin-top:6px;font-weight:600" class="' + trend.cls + '">' + trend.text + '</div>';
-  h += '</div>';
-  return h;
+  var sub = trend ? '<span class="' + trend.cls + '">' + trend.text + '</span>' : '';
+  return hcKpi(label, value, sub, '', '');
 }
 
 function mmTrend(curr, prev) {
@@ -2884,7 +2881,8 @@ function mmRoundedTopRect(x, y, w, h, r, fill) {
 
 function renderMomentumChart(monthly) {
   if (!monthly || monthly.length === 0) return '';
-  var MM_GREEN_LIGHT = '#a8d3c4';
+  // Volume over time is a distribution, not a health status, so the bars run the
+  // categorical teal ramp and the user line carries the single brand accent (P1).
   var maxTotal = 0, maxUsers = 0;
   for (var i = 0; i < monthly.length; i++) {
     var tot = (monthly[i].activities || 0) + (monthly[i].documents || 0);
@@ -2900,7 +2898,10 @@ function renderMomentumChart(monthly) {
   var magU = Math.pow(10, Math.floor(Math.log10(maxUsers || 1)));
   for (var oi = 0; oi < opts.length; oi++) { if (opts[oi] * magU >= maxUsers) { niceMaxUsr = opts[oi] * magU; break; } }
 
-  var cW = 960, cH = 270, padL = 48, padR = 40, padT = 16, padB = 40;
+  // Wider viewBox so the chart fills a wide card instead of scaling down to a
+  // narrow centred band. The height cap that caused that is gone; the chart now
+  // keeps its ratio and spreads across whatever width the card gives it.
+  var cW = 1240, cH = 300, padL = 52, padR = 46, padT = 18, padB = 44;
   var plotW = cW - padL - padR, plotH = cH - padT - padB;
   var n = monthly.length;
   var ySteps = 4;
@@ -2908,18 +2909,18 @@ function renderMomentumChart(monthly) {
   var yStepUsr = niceMaxUsr / ySteps;
   var baseline = padT + plotH;
   var colW = plotW / n;
-  var barW = Math.min(colW * 0.62, 26);
+  var barW = Math.min(colW * 0.62, 34);
 
   function cx(i) { return padL + colW * (i + 0.5); }
 
-  var svg = '<svg viewBox="0 0 ' + cW + ' ' + cH + '" style="width:100%;height:auto;display:block;max-height:280px">';
+  var svg = '<svg viewBox="0 0 ' + cW + ' ' + cH + '" style="width:100%;height:auto;display:block">';
 
   // Y grid lines + left (total volume) + right (active users) labels
   for (var gi = 0; gi <= ySteps; gi++) {
     var gy = baseline - (gi / ySteps) * plotH;
-    svg += '<line x1="' + padL + '" y1="' + gy.toFixed(1) + '" x2="' + (cW - padR) + '" y2="' + gy.toFixed(1) + '" stroke="#e0dfdc" stroke-width="1"/>';
-    svg += '<text x="' + (padL - 8) + '" y="' + (gy + 4).toFixed(1) + '" text-anchor="end" fill="#999" font-size="10" font-family="DM Sans,sans-serif">' + mmFmtK(Math.round(gi * yStepTot)) + '</text>';
-    svg += '<text x="' + (cW - padR + 8) + '" y="' + (gy + 4).toFixed(1) + '" text-anchor="start" fill="' + MM_BLUE + '" font-size="10" font-family="DM Sans,sans-serif" opacity=".6">' + Math.round(gi * yStepUsr) + '</text>';
+    svg += '<line x1="' + padL + '" y1="' + gy.toFixed(1) + '" x2="' + (cW - padR) + '" y2="' + gy.toFixed(1) + '" style="stroke:var(--line)" stroke-width="1"/>';
+    svg += '<text x="' + (padL - 8) + '" y="' + (gy + 4).toFixed(1) + '" text-anchor="end" style="fill:var(--faint)" font-size="11" font-family="DM Sans,sans-serif">' + mmFmtK(Math.round(gi * yStepTot)) + '</text>';
+    svg += '<text x="' + (cW - padR + 8) + '" y="' + (gy + 4).toFixed(1) + '" text-anchor="start" style="fill:var(--green-deep)" font-size="11" font-family="DM Sans,sans-serif" opacity=".55">' + Math.round(gi * yStepUsr) + '</text>';
   }
 
   // Stacked bars: activities (bottom, square) + documents (top, only outer corners rounded)
@@ -2930,10 +2931,10 @@ function renderMomentumChart(monthly) {
     var yActTop = baseline - actH;
     var yDocTop = yActTop - docH;
     if (docH >= 1) {
-      if (actH > 0) svg += '<rect x="' + bx.toFixed(1) + '" y="' + yActTop.toFixed(1) + '" width="' + barW.toFixed(1) + '" height="' + actH.toFixed(1) + '" fill="' + MM_GREEN + '"/>';
-      svg += mmRoundedTopRect(bx, yDocTop, barW, docH, 3, MM_GREEN_LIGHT);
+      if (actH > 0) svg += '<rect x="' + bx.toFixed(1) + '" y="' + yActTop.toFixed(1) + '" width="' + barW.toFixed(1) + '" height="' + actH.toFixed(1) + '" style="fill:var(--c1)"/>';
+      svg += mmRoundedTopRect(bx, yDocTop, barW, docH, 3, 'var(--c4)');
     } else if (actH > 0) {
-      svg += mmRoundedTopRect(bx, yActTop, barW, actH, 3, MM_GREEN);
+      svg += mmRoundedTopRect(bx, yActTop, barW, actH, 3, 'var(--c1)');
     }
   }
 
@@ -2943,21 +2944,21 @@ function renderMomentumChart(monthly) {
     var yU = niceMaxUsr > 0 ? baseline - (monthly[i].activeUsers / niceMaxUsr) * plotH : baseline;
     usrPts.push(cx(i).toFixed(1) + ',' + yU.toFixed(1));
   }
-  svg += '<polyline points="' + usrPts.join(' ') + '" fill="none" stroke="' + MM_BLUE + '" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>';
+  svg += '<polyline points="' + usrPts.join(' ') + '" style="fill:none;stroke:var(--green-deep)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>';
   for (var i = 0; i < n; i++) {
     if (i === 0 || i === n - 1 || i % 4 === 0) {
       var p = usrPts[i].split(',');
-      svg += '<circle cx="' + p[0] + '" cy="' + p[1] + '" r="3" fill="' + MM_BLUE + '" stroke="#fff" stroke-width="1.5"/>';
+      svg += '<circle cx="' + p[0] + '" cy="' + p[1] + '" r="3.5" style="fill:var(--green-deep);stroke:var(--card)" stroke-width="2"/>';
     }
   }
 
   // X labels — every ~2 months
   var xStep = Math.max(1, Math.floor(n / 12));
   for (var i = 0; i < n; i += xStep) {
-    svg += '<text x="' + cx(i).toFixed(1) + '" y="' + (baseline + 20) + '" text-anchor="middle" fill="#999" font-size="10" font-family="DM Sans,sans-serif">' + monthly[i].label + '</text>';
+    svg += '<text x="' + cx(i).toFixed(1) + '" y="' + (baseline + 20) + '" text-anchor="middle" style="fill:var(--faint)" font-size="11" font-family="DM Sans,sans-serif">' + monthly[i].label + '</text>';
   }
   if ((n - 1) % xStep !== 0) {
-    svg += '<text x="' + cx(n - 1).toFixed(1) + '" y="' + (baseline + 20) + '" text-anchor="middle" fill="#999" font-size="10" font-family="DM Sans,sans-serif">' + monthly[n - 1].label + '</text>';
+    svg += '<text x="' + cx(n - 1).toFixed(1) + '" y="' + (baseline + 20) + '" text-anchor="middle" style="fill:var(--faint)" font-size="11" font-family="DM Sans,sans-serif">' + monthly[n - 1].label + '</text>';
   }
 
   // Invisible hover columns for tooltip
@@ -2969,9 +2970,9 @@ function renderMomentumChart(monthly) {
 
   // Legend + plain-language definitions, inside the chart block
   var legend = '<div class="mm-legend" style="padding-left:' + padL + 'px">';
-  legend += '<span class="mm-leg-item"><span class="mm-leg-sw" style="background:' + MM_GREEN + '"></span> Activities</span>';
-  legend += '<span class="mm-leg-item"><span class="mm-leg-sw" style="background:' + MM_GREEN_LIGHT + '"></span> Documents</span>';
-  legend += '<span class="mm-leg-item"><span class="mm-leg-line" style="background:' + MM_BLUE + '"></span> Active users (right axis)</span>';
+  legend += '<span class="mm-leg-item"><span class="mm-leg-sw" style="background:var(--c1)"></span> Activities</span>';
+  legend += '<span class="mm-leg-item"><span class="mm-leg-sw" style="background:var(--c4)"></span> Documents</span>';
+  legend += '<span class="mm-leg-item"><span class="mm-leg-line" style="background:var(--green-deep)"></span> Active users (right axis)</span>';
   legend += '</div>';
   legend += '<div class="mm-chart-defs" style="padding-left:' + padL + 'px"><b>Active user</b> = a user with at least one logged activity or document that month. <b>Avg per user</b> divides that month\'s total activity by its active users. Outlook-synced and private activities are excluded.</div>';
 
@@ -3043,7 +3044,7 @@ function renderUserAdoption(users, totalUsers, grandTotal, filterMonths, filterL
   h += '<div class="entity-header"><div class="entity-info"><h3>User Adoption</h3>';
   h += '<span class="field-count">\u2014 based on date filter</span></div>';
   h += '<div style="display:flex;gap:8px;align-items:center">';
-  h += '<span class="record-badge" style="background:#e8f5e9;color:' + MM_GREEN + ';font-weight:600">' + filterLabel + '</span>';
+  h += '<span class="record-badge" style="background:var(--good-bg);border:1px solid var(--good-line);color:var(--good-ink);font-weight:600">' + filterLabel + '</span>';
   h += '<span class="record-badge">' + totalUsers + ' total users</span></div></div>';
 
   var powerT = 100, regT = 25;
@@ -3062,7 +3063,7 @@ function renderUserAdoption(users, totalUsers, grandTotal, filterMonths, filterL
 
   var top10 = users.slice(0, Math.min(10, users.length));
   if (top10.length > 0 && top10[0].total > 0) {
-    h += '<div style="padding:16px 16px 8px;border-top:1px solid var(--so-border);font-size:var(--fs-count);font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.04em">Top 10 Most Active Users</div>';
+    h += '<div style="padding:16px 16px 8px;border-top:1px solid var(--so-border);font-size:var(--fs-seclabel);font-weight:700;color:var(--faint);text-transform:uppercase;letter-spacing:var(--ls-seclabel)">Top 10 Most Active Users</div>';
     h += '<table class="data-table mm-user-table"><thead><tr>';
     h += '<th class="mm-col-rank">#</th><th class="mm-col-user">User</th><th class="mm-col-level">Level</th>';
     h += '<th class="mm-col-group">Group</th><th class="col-right mm-col-num">Activities</th><th class="col-right mm-col-num">Documents</th>';
@@ -3074,7 +3075,7 @@ function renderUserAdoption(users, totalUsers, grandTotal, filterMonths, filterL
       h += '<tr><td><span class="mm-rank" style="background:' + u.levelStyle.bg + ';color:' + u.levelStyle.fg + '">' + (i + 1) + '</span></td>';
       h += '<td><strong>' + u.name + '</strong></td>';
       h += '<td><span class="mm-badge" style="background:' + u.levelStyle.bg + ';color:' + u.levelStyle.fg + '">' + u.level + '</span></td>';
-      h += '<td style="color:#888">' + (u.group || '\u2014') + '</td>';
+      h += '<td style="color:var(--muted)">' + (u.group || '\u2014') + '</td>';
       h += '<td class="col-right">' + fmtNum(u.activities) + '</td><td class="col-right">' + fmtNum(u.documents) + '</td>';
       h += '<td class="col-right"><strong>' + fmtNum(u.total) + '</strong></td>';
       h += '<td class="col-right">' + mmBarCell(pct, u.levelColor) + '</td></tr>';
@@ -3084,7 +3085,7 @@ function renderUserAdoption(users, totalUsers, grandTotal, filterMonths, filterL
 
   var groups = mmGroupUsers(users);
   if (groups.length > 0) {
-    h += '<div style="padding:16px 16px 8px;border-top:1px solid var(--so-border);font-size:var(--fs-count);font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.04em">All Users by Group</div>';
+    h += '<div style="padding:16px 16px 8px;border-top:1px solid var(--so-border);font-size:var(--fs-seclabel);font-weight:700;color:var(--faint);text-transform:uppercase;letter-spacing:var(--ls-seclabel)">All Users by Group</div>';
     h += '<table class="data-table mm-user-table"><thead><tr>';
     h += '<th class="mm-col-rank"></th><th class="mm-col-user">User</th><th class="mm-col-level">Level</th><th class="mm-col-group">Group</th>';
     h += '<th class="col-right mm-col-num">Activities</th><th class="col-right mm-col-num">Documents</th>';
@@ -3096,7 +3097,7 @@ function renderUserAdoption(users, totalUsers, grandTotal, filterMonths, filterL
       var gInfo = grp.members.length + ' user' + (grp.members.length !== 1 ? 's' : '') + ' \u00B7 ' + fmtNum(grp.total) + ' activities';
       if (gPct > 0) gInfo += ' \u00B7 ' + gPct + P;
       h += '<tr class="assoc-group-header" onclick="togGroup(this)"><td colspan="8">' + svgBadgeChev + ' ' + grp.name;
-      h += ' <span style="color:#999;font-weight:400;font-size:var(--fs-chip);margin-left:4px">(' + gInfo + ')</span></td></tr>';
+      h += ' <span style="color:var(--faint);font-weight:400;font-size:var(--fs-chip);margin-left:4px">(' + gInfo + ')</span></td></tr>';
       for (var mi = 0; mi < grp.members.length; mi++) {
         var u = grp.members[mi];
         var pct = totalAct > 0 ? Math.round((u.total / totalAct) * 100) : 0;
@@ -3105,7 +3106,7 @@ function renderUserAdoption(users, totalUsers, grandTotal, filterMonths, filterL
         h += '<td></td>';
         h += '<td style="padding-left:12px">' + (isI ? u.name : '<strong>' + u.name + '</strong>') + '</td>';
         h += '<td><span class="mm-badge" style="background:' + u.levelStyle.bg + ';color:' + u.levelStyle.fg + '">' + u.level + '</span></td>';
-        h += '<td style="color:#888">' + (u.group || '\u2014') + '</td>';
+        h += '<td style="color:var(--muted)">' + (u.group || '\u2014') + '</td>';
         h += '<td class="col-right">' + fmtNum(u.activities) + '</td><td class="col-right">' + fmtNum(u.documents) + '</td>';
         h += '<td class="col-right"><strong>' + fmtNum(u.total) + '</strong></td>';
         h += '<td class="col-right">' + (isI ? '\u2014' : mmBarCell(pct, u.levelColor)) + '</td></tr>';
@@ -3135,7 +3136,7 @@ function mmGroupCardInactive(cnt, label, desc, totalUsers, color) {
     + '<div class="mm-ug-pct">' + uP + P + ' of users</div></div>';
 }
 function mmBarCell(pct, color) {
-  return '<div class="bar-cell"><div style="width:80px;height:8px;background:#eee;border-radius:4px;overflow:hidden"><div style="height:100%;width:' + pct + P + ';background:' + color + ';border-radius:4px 0 0 4px"></div></div><span class="pct-text" style="color:' + color + '">' + pct + P + '</span></div>';
+  return '<div class="bar-cell"><div style="width:80px;height:8px;background:var(--track);border-radius:4px;overflow:hidden"><div style="height:100%;width:' + pct + P + ';background:' + color + ';border-radius:4px 0 0 4px"></div></div><span class="pct-text" style="color:' + color + '">' + pct + P + '</span></div>';
 }
 function mmGroupUsers(users) {
   var gm = {}, go = [];
