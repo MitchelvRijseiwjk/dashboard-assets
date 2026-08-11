@@ -911,19 +911,60 @@ function renderSaleOverviewV2() {
   h += kpiCard('Stage not set', noStagePct + '%', fmtNum(noStage) + ' without a stage', noStagePct >= 40);
   h += '</div>';
 
-  // ---- Status split (donut) + Sale type ----
-  h += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px">';
-  var segs = [{ n: 'Lost', v: lost, c: BAD }, { n: 'Open', v: open, c: OKC }, { n: 'Sold', v: sold, c: GOOD }, { n: 'Stalled', v: stalled, c: 'var(--cn)' }];
-  var cum = 0, circles = '';
-  for (var si = 0; si < segs.length; si++) {
-    var sp = total > 0 ? (segs[si].v / total * 100) : 0;
-    circles += '<circle cx="90" cy="90" r="70" fill="none" stroke="' + segs[si].c + '" stroke-width="26" stroke-dasharray="' + sp.toFixed(1) + ' ' + (100 - sp).toFixed(1) + '" stroke-dashoffset="' + (25 - cum).toFixed(1) + '" pathLength="100"/>';
-    cum += sp;
+  // ---- Status split: two tiers (STATUS-SPLIT-B) ----
+  // Tier 1 splits every sale into running vs decided; tier 2 shows the outcome
+  // inside the decided ones so the win rate carries its own denominator. Open is a
+  // running state and not a verdict, so it takes the neutral --open teal instead of
+  // borrowing the semantic ramp. Labels under 6% are dropped rather than clipped.
+  function ssSeg(pctv, bg, label, lightFill) {
+    if (!(pctv > 0)) return '';
+    var cls = lightFill ? ' class="lt"' : '';
+    var txt = pctv >= 6 ? (label || '') : '';
+    return '<span' + cls + ' style="width:' + pctv.toFixed(1) + '%;background:' + bg + '">' + txt + '</span>';
   }
-  h += '<div class="entity-card" style="background:var(--card);border:1px solid #e6e1d8;border-radius:16px;padding:16px">';
-  h += '<div style="font-size:var(--fs-cardtitle);font-weight:700;color:var(--ink);margin-bottom:10px">Status split</div>';
-  h += '<div style="display:flex;gap:12px;align-items:center"><svg viewBox="0 0 180 180" width="118" height="118" role="img" aria-label="Sale status split"><circle cx="90" cy="90" r="70" fill="none" stroke="var(--track)" stroke-width="26"/>' + circles + '<text x="90" y="86" text-anchor="middle" font-size="17" font-weight="500" fill="var(--ink)">' + fmtNum(total) + '</text><text x="90" y="103" text-anchor="middle" font-size="10" fill="var(--muted)">sales</text></svg>';
-  h += '<div style="flex:1;min-width:0">' + dotLeg(BAD, 'Lost', fmtNum(lost), pct(lost, total) + '%') + dotLeg(OKC, 'Open', fmtNum(open), pct(open, total) + '%') + dotLeg(GOOD, 'Sold', fmtNum(sold), pct(sold, total) + '%') + dotLeg('var(--cn)', 'Stalled' + sbInfoIcon('A sale put on hold, neither won nor lost yet.'), fmtNum(stalled), pct(stalled, total) + '%') + '</div></div></div>';
+  function ssRow(name, count, pctv, dotCol, tip) {
+    var off = count > 0 ? '' : ' off';
+    var fill = count > 0 ? '<u style="width:' + Math.max(pctv, 1).toFixed(1) + '%;background:' + dotCol + '"></u>' : '';
+    return '<div class="row' + off + '"><i style="background:' + dotCol + '"></i>'
+      + '<span class="nm">' + name + (tip ? sbInfoIcon(tip) : '') + '</span>'
+      + '<span class="ct">' + fmtNum(count) + '</span>'
+      + '<span class="tr">' + fill + '</span>'
+      + '<span class="pc">' + pctv + '%</span></div>';
+  }
+
+  var openPct = pct(open, total), decidedPct = pct(decided, total);
+  h += '<div class="entity-card ssplit" style="background:var(--card);border:1px solid var(--card-border);border-radius:16px;padding:18px 20px;margin-top:14px">';
+  h += '<div class="chead"><h3>Status split</h3><span class="tot">' + fmtNum(total) + ' sales</span></div>';
+  h += '<p class="desc">First how much is still running, then how the decided sales ended, so the win rate sits in its own denominator.</p>';
+
+  h += '<div class="tier"><div class="tier-h"><b>All sales</b><span>' + fmtNum(total) + '</span>'
+    + '<span class="r">Still open: <b>' + fmtNum(open) + '</b> \u00b7 Decided: <b>' + fmtNum(decided) + '</b></span></div>';
+  h += '<div class="sbar">'
+    + ssSeg(openPct, 'var(--open)', openPct + '% still open \u00b7 ' + fmtNum(open), true)
+    + ssSeg(decidedPct, 'var(--cn)', decidedPct + '% decided \u00b7 ' + fmtNum(decided), true)
+    + '</div></div>';
+
+  h += '<div class="b2"><div>';
+  h += '<div class="tier-h"><b>Of the ' + fmtNum(decided) + ' decided</b><span>outcome</span></div>';
+  if (decided > 0) {
+    var soldPct = pct(sold, decided), lostPct = pct(lost, decided);
+    h += '<div class="mini">'
+      + ssSeg(soldPct, 'var(--good-deep)', fmtNum(sold) + ' Sold', false)
+      + ssSeg(lostPct, 'var(--bad)', fmtNum(lost) + ' Lost', false)
+      + '</div>';
+    h += '<div class="wrow">Win rate <b>' + winRate + '%</b><span style="color:var(--faint)">\u00b7 ' + fmtNum(sold) + ' won of ' + fmtNum(decided) + '</span></div>';
+  } else {
+    h += '<div class="none">No decided sales in this period yet.</div>';
+  }
+  h += '</div><div>';
+  h += '<div class="tier-h"><b>Worth checking</b><span>across all sales</span></div>';
+  h += '<div class="rows">';
+  h += ssRow('Without a stage', noStage, pct(noStage, total), 'var(--mod)', '');
+  h += ssRow('Stalled', stalled, pct(stalled, total), 'var(--cn)', 'A sale put on hold, neither won nor lost yet.');
+  h += '</div></div></div></div>';
+
+  // ---- Sale type ----
+  h += '<div style="margin-top:14px">';
   if (typeD && typeD.items && typeD.items.length > 0) {
     var titems = typeD.items.slice().sort(function (a, b) { return b.count - a.count; });
     var ttot = 0; for (var ti = 0; ti < titems.length; ti++) ttot += titems[ti].count;
@@ -931,7 +972,9 @@ function renderSaleOverviewV2() {
     h += '<div class="entity-card" style="background:var(--card);border:1px solid #e6e1d8;border-radius:16px;padding:16px"><div style="font-size:var(--fs-cardtitle);font-weight:700;color:var(--ink)">Sale type</div><div style="font-size:var(--fs-kpisub);color:var(--muted);margin:2px 0 11px">From the Sale Type field on each sale, chosen by the user. It is not derived from the data.</div>';
     for (var tj = 0; tj < titems.length && tj < 4; tj++) {
       var tp = pct(titems[tj].count, ttot);
-      h += '<div style="margin-bottom:9px"><div style="display:flex;font-size:var(--fs-chip);margin-bottom:3px"><span>' + titems[tj].name + '</span><b style="margin-left:auto;color:#6b706c">' + tp + '%</b></div><div style="height:9px;background:#eef0ec;border-radius:5px"><div style="width:' + (tp > 0 ? Math.max(tp, 1) : 0).toFixed(0) + '%;height:9px;background:' + tpal[Math.min(tj, 3)] + ';border-radius:5px"></div></div></div>';
+      // A value with no sales is kept in the list but greyed, never dropped.
+      var tOff = titems[tj].count > 0 ? '' : 'color:var(--faint);';
+      h += '<div style="margin-bottom:9px"><div style="display:flex;font-size:var(--fs-chip);margin-bottom:3px;' + tOff + '"><span>' + titems[tj].name + '</span><b style="margin-left:auto;' + (tOff ? 'color:var(--faint);font-weight:600' : 'color:var(--muted)') + '">' + tp + '%</b></div><div style="height:9px;background:var(--track);border-radius:5px"><div style="width:' + (tp > 0 ? Math.max(tp, 1) : 0).toFixed(0) + '%;height:9px;background:' + tpal[Math.min(tj, 3)] + ';border-radius:5px"></div></div></div>';
     }
     h += '</div>';
   }
@@ -1006,7 +1049,7 @@ function renderContactOverviewV2() {
   var kpiCard = hcKpi;
   var total = o.total || 0;
   function P(n) { return total > 0 ? Math.round((o[n] || 0) / total * 1000) / 10 : 0; }
-  function bar(label, n) { var p = total > 0 ? Math.round(n / total * 1000) / 10 : 0; return '<div style="margin-bottom:11px"><div style="display:flex;font-size:var(--fs-chip);margin-bottom:4px;color:#3c423f"><span>' + label + '</span><span style="margin-left:auto;color:#6b706c"><b style="color:#1c2b29">' + p + '%</b> &middot; ' + fmtNum(n) + '</span></div><div style="height:10px;background:#eef0ec;border-radius:5px"><div style="width:' + (p > 0 ? Math.max(p, 1) : 0).toFixed(0) + '%;height:10px;background:#0f5c57;border-radius:5px"></div></div></div>'; }
+  function bar(label, n) { var p = total > 0 ? Math.round(n / total * 1000) / 10 : 0; return '<div style="margin-bottom:11px"><div style="display:flex;font-size:var(--fs-chip);margin-bottom:4px;color:#3c423f"><span>' + label + '</span><span style="margin-left:auto;color:#6b706c"><b style="color:#1c2b29">' + p + '%</b> &middot; ' + fmtNum(n) + '</span></div><div style="height:10px;background:var(--track);border-radius:5px"><div style="width:' + (p > 0 ? Math.max(p, 1) : 0).toFixed(0) + '%;height:10px;background:#0f5c57;border-radius:5px"></div></div></div>'; }
 
   var h = '';
   h += dateFilterNotice();
@@ -1136,11 +1179,11 @@ function renderRequestsOverviewV2() {
     for (var m = 0; m < head.length; m++) {
       var p = pct(head[m].v, tot);
       var col = palette[Math.min(m, palette.length - 1)];
-      s += '<div style="margin-bottom:9px"><div style="display:flex;font-size:var(--fs-chip);margin-bottom:3px;gap:8px"><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + head[m].n + '</span><b style="margin-left:auto;color:#1c2b29;flex:none">' + fmtNum(head[m].v) + '</b><span style="color:#8a8f8b;flex:none;width:48px;text-align:right">' + p + '%</span></div><div style="height:9px;background:#eef0ec;border-radius:5px"><div style="width:' + (p > 0 ? Math.max(p, 0.6) : 0).toFixed(1) + '%;height:9px;background:' + col + ';border-radius:5px"></div></div></div>';
+      s += '<div style="margin-bottom:9px"><div style="display:flex;font-size:var(--fs-chip);margin-bottom:3px;gap:8px"><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + head[m].n + '</span><b style="margin-left:auto;color:#1c2b29;flex:none">' + fmtNum(head[m].v) + '</b><span style="color:#8a8f8b;flex:none;width:48px;text-align:right">' + p + '%</span></div><div style="height:9px;background:var(--track);border-radius:5px"><div style="width:' + (p > 0 ? Math.max(p, 0.6) : 0).toFixed(1) + '%;height:9px;background:' + col + ';border-radius:5px"></div></div></div>';
     }
     if (restV > 0) {
       var rp = pct(restV, tot);
-      s += '<div style="margin-bottom:2px"><div style="display:flex;font-size:var(--fs-chip);margin-bottom:3px;gap:8px;color:#8a8f8b"><span>Other (' + (items.length - topN) + ')</span><b style="margin-left:auto;color:#6b706c;flex:none">' + fmtNum(restV) + '</b><span style="flex:none;width:48px;text-align:right">' + rp + '%</span></div><div style="height:9px;background:#eef0ec;border-radius:5px"><div style="width:' + (rp > 0 ? Math.max(rp, 0.6) : 0).toFixed(1) + '%;height:9px;background:#cfc9bd;border-radius:5px"></div></div></div>';
+      s += '<div style="margin-bottom:2px"><div style="display:flex;font-size:var(--fs-chip);margin-bottom:3px;gap:8px;color:#8a8f8b"><span>Other (' + (items.length - topN) + ')</span><b style="margin-left:auto;color:#6b706c;flex:none">' + fmtNum(restV) + '</b><span style="flex:none;width:48px;text-align:right">' + rp + '%</span></div><div style="height:9px;background:var(--track);border-radius:5px"><div style="width:' + (rp > 0 ? Math.max(rp, 0.6) : 0).toFixed(1) + '%;height:9px;background:#cfc9bd;border-radius:5px"></div></div></div>';
     }
     return s + '</div>';
   }

@@ -61,6 +61,11 @@
   /* score bands -> semantic (4-band collapsed to 3) */
   --sl-good:var(--good); --sl-ok:var(--mod); --sl-warn:var(--bad); --sl-bad:var(--bad);
 
+  /* --- Status split (Sale): "open" is a running state, not a verdict, so it gets a
+         neutral teal of its own rather than borrowing the semantic ramp. --good-deep
+         is --good pushed down far enough for white label text to reach AA on it. --- */
+  --open:#6fb3ab; --good-deep:#24734a;
+
   /* --- Level ramp (engagement / user levels): its own ordered scale, no blue,
          no alarm red, dormant neutral. Handover: App-brede uitrol. --- */
   --lvl-power-bg:#d3e8d8;   --lvl-power-ink:#226a43;   --lvl-power-dot:var(--good);
@@ -1251,3 +1256,43 @@ html[data-surface="warm"] {
 /* Table captions read as body text under the card title (was 11.5px) */
 .tbl-cap{ font-size:var(--fs-table); color:var(--muted); }
 .tbl-cap b{ color:var(--ink); font-weight:700; }
+
+
+/* ================================================================
+   Status split, two tiers (STATUS-SPLIT-B.md).
+   Tier 1 splits all sales into running vs decided; tier 2 shows the
+   outcome within the decided ones, so the win rate carries its own
+   denominator. Namespaced under .ssplit because .row, .tier and
+   .rows are too generic to live at the top level of this codebase.
+   Label rule: dark ink on a light fill, white on a saturated fill.
+   ================================================================ */
+.ssplit .chead { display:flex; align-items:center; gap:10px; margin-bottom:2px; }
+.ssplit .chead h3 { margin:0; font-size:var(--fs-cardtitle); font-weight:700; color:var(--ink); }
+.ssplit .tot { margin-left:auto; font-size:var(--fs-count); color:var(--muted); background:var(--chip-fill); border:1px solid var(--chip-line); border-radius:999px; padding:4px 12px; font-weight:700; font-variant-numeric:tabular-nums; }
+.ssplit .desc { margin:0 0 4px; font-size:var(--fs-kpisub); color:var(--muted); line-height:1.5; }
+.ssplit .tier { margin-top:20px; }
+.ssplit .tier-h { display:flex; align-items:baseline; gap:9px; margin-bottom:9px; }
+.ssplit .tier-h b { font-size:var(--fs-seclabel); letter-spacing:var(--ls-seclabel); text-transform:uppercase; color:var(--faint); font-weight:700; }
+.ssplit .tier-h span { font-size:var(--fs-kpisub); color:var(--muted); }
+.ssplit .tier-h .r { margin-left:auto; font-size:var(--fs-kpisub); color:var(--muted); }
+.ssplit .tier-h .r b { font-size:var(--fs-kpisub); letter-spacing:0; text-transform:none; color:var(--ink); font-weight:800; }
+.ssplit .sbar { display:flex; height:34px; border-radius:9px; overflow:hidden; gap:2px; }
+.ssplit .sbar > span { display:grid; place-items:center; font-size:var(--fs-count); font-weight:800; color:#fff; min-width:3px; white-space:nowrap; }
+.ssplit .sbar > span.lt, .ssplit .mini > span.lt { color:var(--ink); }
+.ssplit .b2 { display:grid; grid-template-columns:1fr 1fr; gap:26px; margin-top:22px; padding-top:20px; border-top:1px solid var(--line); }
+.ssplit .mini { display:flex; height:26px; border-radius:8px; overflow:hidden; gap:2px; }
+.ssplit .mini > span { display:grid; place-items:center; font-size:var(--fs-chip); font-weight:800; color:#fff; min-width:3px; }
+.ssplit .wrow { display:flex; align-items:center; gap:10px; margin-top:11px; font-size:var(--fs-table); color:var(--muted); }
+.ssplit .wrow b { color:var(--ink); font-weight:800; font-variant-numeric:tabular-nums; }
+.ssplit .none { margin-top:11px; font-size:var(--fs-table); color:var(--muted); }
+.ssplit .rows { display:flex; flex-direction:column; gap:3px; }
+.ssplit .row { display:grid; grid-template-columns:15px 1fr 46px 1fr 52px; align-items:center; gap:12px; padding:7px 0; font-size:var(--fs-body); }
+.ssplit .row + .row { border-top:1px solid var(--line); }
+.ssplit .row i { width:11px; height:11px; border-radius:3px; }
+.ssplit .row .nm { font-weight:700; color:var(--ink); }
+.ssplit .row .ct { text-align:right; font-weight:800; font-variant-numeric:tabular-nums; color:var(--ink); }
+.ssplit .row .tr { height:9px; border-radius:999px; background:var(--track); overflow:hidden; }
+.ssplit .row .tr > u { display:block; height:100%; border-radius:999px; }
+.ssplit .row .pc { text-align:right; color:var(--muted); font-weight:600; font-variant-numeric:tabular-nums; }
+.ssplit .row.off .nm, .ssplit .row.off .ct, .ssplit .row.off .pc { color:var(--faint); font-weight:600; }
+@media (max-width: 900px) { .ssplit .b2 { grid-template-columns:1fr; gap:18px; } }
