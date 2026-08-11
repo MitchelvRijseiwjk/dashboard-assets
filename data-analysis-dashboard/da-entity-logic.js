@@ -613,6 +613,15 @@ function hcEngColor(name) {
   return 'var(--c3)';
 }
 
+// A stacked bar segment. Zero-value segments are dropped entirely, because the bar
+// carries a 2px gap and a 2px min-width so a genuinely tiny slice stays visible.
+// Rendering an empty category through that turns it into a phantom stripe.
+function hcBarSeg(pct, color, label, extraStyle) {
+  if (!(pct > 0)) return '';
+  var ex = (typeof extraStyle === 'string' && extraStyle) ? ';' + extraStyle : '';
+  return '<span style="width:' + Number(pct).toFixed(1) + '%;background:' + color + ex + '">' + (label || '') + '</span>';
+}
+
 function hcSecLabel(t) { return '<div class="seclabel">' + t + '</div>'; }
 function hcInsight(kind, bold, rest, buttons) {
   // kind: 'primary' (act on this) | 'warn' (worth checking) | 'neutral' (context) | 'good' (all clear)
@@ -705,8 +714,8 @@ function renderCompanyOverviewV2() {
     h += secLabel('Database composition');
     h += '<div class="entity-card" style="background:var(--card);border:1px solid #dcd5c8;border-radius:16px;padding:16px">';
     h += '<div class="compbar" style="margin-bottom:10px">';
-    h += '<span style="width:' + actPct.toFixed(1) + '%;background:var(--c1)">' + (actPct >= 6 ? actPct.toFixed(0) + '%' : '') + '</span>';
-    h += '<span style="width:' + dormPctC.toFixed(1) + '%;background:var(--cn);color:#6b6657;font-weight:500">Dormant tail \u00b7 ' + fmtNum(dorm) + ' companies with no recent activity</span>';
+    h += hcBarSeg(actPct, 'var(--c1)', actPct >= 6 ? actPct.toFixed(0) + '%' : '');
+    h += hcBarSeg(dormPctC, 'var(--cn)', 'Dormant tail \u00b7 ' + fmtNum(dorm) + ' companies with no recent activity', 'color:#6b6657;font-weight:500');
     h += '</div>';
     h += '<div style="display:flex;gap:20px;flex-wrap:wrap;margin-bottom:6px">';
     h += dotLeg('var(--c1)', 'Active companies', fmtNum(tC), actPct.toFixed(1) + '%');
@@ -721,7 +730,7 @@ function renderCompanyOverviewV2() {
       for (var sa = 0; sa < segs.length; sa++) {
         var sp = segTot > 0 ? (segs[sa].count / segTot * 100) : 0;
         var segIn = sp >= 9 ? sp.toFixed(0) + '%' : '';
-        h += '<span style="width:' + sp.toFixed(1) + '%;background:' + engCol(segs[sa].name) + '">' + segIn + '</span>';
+        h += hcBarSeg(sp, engCol(segs[sa].name), segIn);
       }
       h += '</div>';
       h += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:9px 24px">';
@@ -803,9 +812,9 @@ function renderCompanyOverviewV2() {
       for (var pi = 0; pi < topN.length; pi++) {
         var pp = catTot > 0 ? (topN[pi].count / catTot * 100) : 0;
         var catIn = pp >= 10 ? pp.toFixed(0) + '%' : '';
-        h += '<span style="width:' + pp.toFixed(1) + '%;background:' + palette[pi] + '">' + catIn + '</span>';
+        h += hcBarSeg(pp, palette[pi], catIn);
       }
-      if (otherC > 0) { var op = catTot > 0 ? (otherC / catTot * 100) : 0; h += '<span style="width:' + op.toFixed(1) + '%;background:var(--cn)"></span>'; }
+      if (otherC > 0) { var op = catTot > 0 ? (otherC / catTot * 100) : 0; h += hcBarSeg(op, 'var(--cn)', ''); }
       h += '</div>';
       h += '<div style="display:flex;gap:8px 18px;flex-wrap:wrap;font-size:var(--fs-kpisub);color:' + MUTED + '">';
       for (var li = 0; li < topN.length; li++) {
@@ -908,7 +917,7 @@ function renderSaleOverviewV2() {
     h += '<div class="entity-card" style="background:var(--card);border:1px solid #e6e1d8;border-radius:16px;padding:16px"><div style="font-size:var(--fs-cardtitle);font-weight:700;color:var(--ink)">Sale type</div><div style="font-size:var(--fs-kpisub);color:var(--muted);margin:2px 0 11px">From the Sale Type field on each sale, chosen by the user. It is not derived from the data.</div>';
     for (var tj = 0; tj < titems.length && tj < 4; tj++) {
       var tp = pct(titems[tj].count, ttot);
-      h += '<div style="margin-bottom:9px"><div style="display:flex;font-size:var(--fs-chip);margin-bottom:3px"><span>' + titems[tj].name + '</span><b style="margin-left:auto;color:#6b706c">' + tp + '%</b></div><div style="height:9px;background:#eef0ec;border-radius:5px"><div style="width:' + Math.max(tp, 1).toFixed(0) + '%;height:9px;background:' + tpal[Math.min(tj, 3)] + ';border-radius:5px"></div></div></div>';
+      h += '<div style="margin-bottom:9px"><div style="display:flex;font-size:var(--fs-chip);margin-bottom:3px"><span>' + titems[tj].name + '</span><b style="margin-left:auto;color:#6b706c">' + tp + '%</b></div><div style="height:9px;background:#eef0ec;border-radius:5px"><div style="width:' + (tp > 0 ? Math.max(tp, 1) : 0).toFixed(0) + '%;height:9px;background:' + tpal[Math.min(tj, 3)] + ';border-radius:5px"></div></div></div>';
     }
     h += '</div>';
   }
@@ -938,9 +947,11 @@ function renderSaleOverviewV2() {
     h += secLabel(stagePoor ? 'The real gap \u00b7 pipeline data' : 'Pipeline \u00b7 stage tracking');
     h += '<div class="entity-card" style="background:var(--card);border:1px solid #e6e1d8;border-radius:16px;padding:16px"><div style="font-size:var(--fs-cardtitle);font-weight:700;color:var(--ink);margin-bottom:2px">Stage / probability tracking' + sbInfoIcon('The probability field on each sale (Low, Middle or High chance). It is what pipeline forecasting relies on.') + '</div><div style="font-size:var(--fs-chip);color:' + MUTED + ';margin-bottom:12px;line-height:1.5">' + stageMsg + '</div>';
     h += '<div class="engbar" style="height:30px;margin-bottom:12px">';
-    h += '<span style="width:' + spNo + '%;background:var(--cn);color:#6b6657;font-weight:500">' + (spNo >= 12 ? spNo.toFixed(0) + '% no stage set' : '') + '</span>';
-    h += '<span style="width:' + spLow + '%;background:' + OKC + '">' + (spLow >= 14 ? spLow.toFixed(0) + '% low chance' : (spLow >= 7 ? spLow.toFixed(0) + '%' : '')) + '</span>';
-    h += '<span style="width:' + spMid + '%;background:var(--c3)"></span><span style="width:' + spHigh + '%;background:' + GOOD + '"></span></div>';
+    h += hcBarSeg(spNo, 'var(--cn)', spNo >= 12 ? Number(spNo).toFixed(0) + '% no stage set' : '', 'color:#6b6657;font-weight:500');
+    h += hcBarSeg(spLow, OKC, spLow >= 14 ? Number(spLow).toFixed(0) + '% low chance' : (spLow >= 7 ? Number(spLow).toFixed(0) + '%' : ''));
+    h += hcBarSeg(spMid, 'var(--c3)', '');
+    h += hcBarSeg(spHigh, GOOD, '');
+    h += '</div>';
     h += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:2px 24px">' + dotLeg('var(--cn)', 'No value', fmtNum(noStage), spNo + '%') + dotLeg('var(--c3)', 'Middle chance', fmtNum(mid), spMid + '%') + dotLeg(OKC, 'Low chance', fmtNum(low), spLow + '%') + dotLeg(GOOD, 'High chance', fmtNum(high), spHigh + '%') + '</div></div>';
   }
 
@@ -981,7 +992,7 @@ function renderContactOverviewV2() {
   var kpiCard = hcKpi;
   var total = o.total || 0;
   function P(n) { return total > 0 ? Math.round((o[n] || 0) / total * 1000) / 10 : 0; }
-  function bar(label, n) { var p = total > 0 ? Math.round(n / total * 1000) / 10 : 0; return '<div style="margin-bottom:11px"><div style="display:flex;font-size:var(--fs-chip);margin-bottom:4px;color:#3c423f"><span>' + label + '</span><span style="margin-left:auto;color:#6b706c"><b style="color:#1c2b29">' + p + '%</b> &middot; ' + fmtNum(n) + '</span></div><div style="height:10px;background:#eef0ec;border-radius:5px"><div style="width:' + Math.max(p, 1).toFixed(0) + '%;height:10px;background:#0f5c57;border-radius:5px"></div></div></div>'; }
+  function bar(label, n) { var p = total > 0 ? Math.round(n / total * 1000) / 10 : 0; return '<div style="margin-bottom:11px"><div style="display:flex;font-size:var(--fs-chip);margin-bottom:4px;color:#3c423f"><span>' + label + '</span><span style="margin-left:auto;color:#6b706c"><b style="color:#1c2b29">' + p + '%</b> &middot; ' + fmtNum(n) + '</span></div><div style="height:10px;background:#eef0ec;border-radius:5px"><div style="width:' + (p > 0 ? Math.max(p, 1) : 0).toFixed(0) + '%;height:10px;background:#0f5c57;border-radius:5px"></div></div></div>'; }
 
   var h = '';
   h += dateFilterNotice();
@@ -1111,11 +1122,11 @@ function renderRequestsOverviewV2() {
     for (var m = 0; m < head.length; m++) {
       var p = pct(head[m].v, tot);
       var col = palette[Math.min(m, palette.length - 1)];
-      s += '<div style="margin-bottom:9px"><div style="display:flex;font-size:var(--fs-chip);margin-bottom:3px;gap:8px"><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + head[m].n + '</span><b style="margin-left:auto;color:#1c2b29;flex:none">' + fmtNum(head[m].v) + '</b><span style="color:#8a8f8b;flex:none;width:48px;text-align:right">' + p + '%</span></div><div style="height:9px;background:#eef0ec;border-radius:5px"><div style="width:' + Math.max(p, 0.6).toFixed(1) + '%;height:9px;background:' + col + ';border-radius:5px"></div></div></div>';
+      s += '<div style="margin-bottom:9px"><div style="display:flex;font-size:var(--fs-chip);margin-bottom:3px;gap:8px"><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + head[m].n + '</span><b style="margin-left:auto;color:#1c2b29;flex:none">' + fmtNum(head[m].v) + '</b><span style="color:#8a8f8b;flex:none;width:48px;text-align:right">' + p + '%</span></div><div style="height:9px;background:#eef0ec;border-radius:5px"><div style="width:' + (p > 0 ? Math.max(p, 0.6) : 0).toFixed(1) + '%;height:9px;background:' + col + ';border-radius:5px"></div></div></div>';
     }
     if (restV > 0) {
       var rp = pct(restV, tot);
-      s += '<div style="margin-bottom:2px"><div style="display:flex;font-size:var(--fs-chip);margin-bottom:3px;gap:8px;color:#8a8f8b"><span>Other (' + (items.length - topN) + ')</span><b style="margin-left:auto;color:#6b706c;flex:none">' + fmtNum(restV) + '</b><span style="flex:none;width:48px;text-align:right">' + rp + '%</span></div><div style="height:9px;background:#eef0ec;border-radius:5px"><div style="width:' + Math.max(rp, 0.6).toFixed(1) + '%;height:9px;background:#cfc9bd;border-radius:5px"></div></div></div>';
+      s += '<div style="margin-bottom:2px"><div style="display:flex;font-size:var(--fs-chip);margin-bottom:3px;gap:8px;color:#8a8f8b"><span>Other (' + (items.length - topN) + ')</span><b style="margin-left:auto;color:#6b706c;flex:none">' + fmtNum(restV) + '</b><span style="flex:none;width:48px;text-align:right">' + rp + '%</span></div><div style="height:9px;background:#eef0ec;border-radius:5px"><div style="width:' + (rp > 0 ? Math.max(rp, 0.6) : 0).toFixed(1) + '%;height:9px;background:#cfc9bd;border-radius:5px"></div></div></div>';
     }
     return s + '</div>';
   }
@@ -2191,10 +2202,8 @@ function renderCompanyDetails(d) {
     h += '<div class="engbar" style="height:28px">';
     for (var i = 0; i < ahParts.length; i++) {
       var pct = ahParts[i].val / total * 100;
-      if (pct > 0) {
-        var segLabel = pct >= 10 ? fmtNum(ahParts[i].val) + ' (' + (Math.round(pct * 10) / 10) + P + ')' : '';
-        h += '<span style="width:' + pct + P + ';background:' + ahParts[i].col + '">' + segLabel + '</span>';
-      }
+      var segLabel = pct >= 10 ? fmtNum(ahParts[i].val) + ' (' + (Math.round(pct * 10) / 10) + P + ')' : '';
+      h += hcBarSeg(pct, ahParts[i].col, segLabel);
     }
     h += '</div>';
     h += '<div style="display:flex;gap:16px;margin-top:6px;flex-wrap:wrap">';
