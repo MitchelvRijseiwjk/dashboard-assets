@@ -61,10 +61,11 @@
   /* score bands -> semantic (4-band collapsed to 3) */
   --sl-good:var(--good); --sl-ok:var(--mod); --sl-warn:var(--bad); --sl-bad:var(--bad);
 
-  /* --- Status split (Sale): "open" is a running state, not a verdict, so it gets a
-         neutral teal of its own rather than borrowing the semantic ramp. --good-deep
-         is --good pushed down far enough for white label text to reach AA on it. --- */
-  --open:#6fb3ab; --good-deep:#24734a;
+  /* --- Status split (Sale): running versus decided is a distribution, not a verdict,
+         so --open points at the categorical ramp instead of carrying a bespoke tone.
+         --c4 also lifts the dark label from 5.2:1 to 6.1:1. --good-deep is --good
+         pushed down far enough for white label text to reach AA on it. --- */
+  --open:var(--c4); --good-deep:#24734a;
 
   /* --- Level ramp (engagement / user levels): its own ordered scale, no blue,
          no alarm red, dormant neutral. Handover: App-brede uitrol. --- */
