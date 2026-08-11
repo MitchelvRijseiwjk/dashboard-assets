@@ -151,8 +151,8 @@ var DP_COV = {
 };
 
 function dpControlHtml(P) {
-  var lbl = 'color:var(--so-charcoal);opacity:.75;font-size:14px;';
-  var inp = 'padding:9px 11px;font-size:14px;font-family:inherit;';
+  var lbl = 'color:var(--so-charcoal);opacity:.75;font-size:var(--fs-body);';
+  var inp = 'padding:9px 11px;font-size:var(--fs-body);font-family:inherit;';
   var h = '';
   h += '<div class="dp-wrap" style="display:flex;flex-direction:column">';
 
@@ -169,14 +169,14 @@ function dpControlHtml(P) {
   h += '<input type="number" id="' + P + 'RollN" value="12" min="1" max="120" style="width:72px;' + inp + '">';
   h += '<select id="' + P + 'RollUnit" style="width:132px;' + inp + '"><option value="month" selected>months</option><option value="year">years</option></select>';
   h += '<span style="color:var(--so-text-muted);display:inline-flex">' + dpSvg('arrow', 16) + '</span>';
-  h += '<span id="' + P + 'Preview" style="color:var(--so-green-light);font-size:15px;font-weight:700"></span>';
+  h += '<span id="' + P + 'Preview" style="color:var(--so-green-light);font-size:var(--fs-navtop);font-weight:700"></span>';
   h += '</div>';
   h += '<div class="dp-custom" data-dp-cust="' + P + '" style="display:none;align-items:center;gap:11px;flex-wrap:wrap;margin-top:14px">';
   h += '<span style="' + lbl + '">From</span>';
   h += '<input type="date" id="' + P + 'DateFrom" style="width:162px;' + inp + '">';
   h += '<span style="' + lbl + '">to</span>';
   h += '<input type="date" id="' + P + 'DateTo" style="width:162px;' + inp + '">';
-  h += '<span id="' + P + 'Span" style="color:var(--so-text-muted);font-size:13px"></span>';
+  h += '<span id="' + P + 'Span" style="color:var(--so-text-muted);font-size:var(--fs-kpisub)"></span>';
   h += '</div>';
   h += '</div>';
 
@@ -188,26 +188,26 @@ function dpControlHtml(P) {
   for (var i = 0; i < DP_SCOPES.length; i++) {
     var sc = DP_SCOPES[i];
     h += '<div class="dp-scope-btn" data-scope="' + sc.id + '" style="position:relative;background:var(--so-white);border:1px solid var(--so-border);padding:13px 15px 12px;cursor:pointer;min-height:70px">';
-    if (sc.rec) h += '<span style="position:absolute;top:-10px;left:14px;font-size:10px;font-weight:700;letter-spacing:.03em;color:var(--so-white);background:var(--so-green);border-radius:999px;padding:3px 10px">Recommended</span>';
+    if (sc.rec) h += '<span style="position:absolute;top:-10px;left:14px;font-size:var(--fs-tag);font-weight:700;letter-spacing:.03em;color:var(--so-white);background:var(--so-green);border-radius:999px;padding:3px 10px">Recommended</span>';
     h += '<span class="dp-card-chk" style="position:absolute;top:13px;right:13px;color:var(--so-green-light);display:none">' + dpSvg('check', 16) + '</span>';
-    h += '<div style="display:flex;align-items:center;gap:8px"><span style="color:var(--so-green-light);display:inline-flex">' + dpSvg(sc.icon, 18) + '</span><span style="font-size:15px;font-weight:700;color:var(--so-charcoal)">' + sc.title + '</span></div>';
-    h += '<div style="font-size:12.5px;color:var(--so-text-muted);margin-top:7px;line-height:1.45">' + sc.desc + '</div>';
+    h += '<div style="display:flex;align-items:center;gap:8px"><span style="color:var(--so-green-light);display:inline-flex">' + dpSvg(sc.icon, 18) + '</span><span style="font-size:var(--fs-navtop);font-weight:700;color:var(--so-charcoal)">' + sc.title + '</span></div>';
+    h += '<div style="font-size:var(--fs-count);color:var(--so-text-muted);margin-top:7px;line-height:1.45">' + sc.desc + '</div>';
     h += '</div>';
   }
   h += '</div>';
 
   h += dpCountBarHtml(P);
 
-  h += '<button type="button" class="dp-cov-toggle" data-dp-cov="' + P + '" style="display:inline-flex;align-items:center;gap:8px;margin-top:16px;background:none;border:none;color:var(--so-green-light);font-weight:700;font-size:14px;font-family:inherit;cursor:pointer;padding:4px 0">';
+  h += '<button type="button" class="dp-cov-toggle" data-dp-cov="' + P + '" style="display:inline-flex;align-items:center;gap:8px;margin-top:16px;background:none;border:none;color:var(--so-green-light);font-weight:700;font-size:var(--fs-body);font-family:inherit;cursor:pointer;padding:4px 0">';
   h += '<span class="dp-cov-cx" style="display:inline-flex;transition:transform .2s">' + dpSvg('chevron', 16) + '</span>What gets included';
   h += '</button>';
   h += '<div class="dp-cov-wrap" data-dp-cov-wrap="' + P + '" style="display:none">';
   h += '<div style="display:flex;align-items:center;gap:7px;margin:13px 0 13px">';
   h += '<span title="For each entity, this is which records the scores count under the chosen scope." style="color:var(--so-text-muted);cursor:help;display:inline-flex">' + dpSvg('info', 14) + '</span>';
-  h += '<span style="font-size:13px;color:var(--so-charcoal)">With <span id="' + P + 'CovScope" style="font-weight:700;color:var(--so-green-light)">Active base</span>, the scores cover</span>';
+  h += '<span style="font-size:var(--fs-kpisub);color:var(--so-charcoal)">With <span id="' + P + 'CovScope" style="font-weight:700;color:var(--so-green-light)">Active base</span>, the scores cover</span>';
   h += '</div>';
   h += '<div id="' + P + 'CovGrid" style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px"></div>';
-  h += '<div style="display:flex;align-items:center;gap:8px;margin-top:15px"><span style="color:var(--so-text-muted);display:inline-flex">' + dpSvg('clock', 15) + '</span><span style="font-size:12px;color:var(--so-text-muted)">Adoption and momentum always measure activity inside the period, whatever the scope.</span></div>';
+  h += '<div style="display:flex;align-items:center;gap:8px;margin-top:15px"><span style="color:var(--so-text-muted);display:inline-flex">' + dpSvg('clock', 15) + '</span><span style="font-size:var(--fs-chip);color:var(--so-text-muted)">Adoption and momentum always measure activity inside the period, whatever the scope.</span></div>';
   h += '</div>';
   h += '</div>';
 
@@ -259,7 +259,7 @@ function dpUpdateCov(P) {
   if (!g) return;
   var h = '';
   for (var i = 0; i < c.rows.length; i++) {
-    h += '<div style="display:flex;align-items:center;justify-content:space-between;background:var(--so-dune);border-radius:7px;padding:8px 11px"><span style="font-size:13px;color:var(--so-charcoal)">' + c.rows[i][0] + '</span><span style="font-size:12px;color:var(--so-charcoal);background:var(--so-dune-dark1);border-radius:6px;padding:3px 9px;white-space:nowrap">' + c.rows[i][1] + '</span></div>';
+    h += '<div style="display:flex;align-items:center;justify-content:space-between;background:var(--so-dune);border-radius:7px;padding:8px 11px"><span style="font-size:var(--fs-kpisub);color:var(--so-charcoal)">' + c.rows[i][0] + '</span><span style="font-size:var(--fs-chip);color:var(--so-charcoal);background:var(--so-dune-dark1);border-radius:6px;padding:3px 9px;white-space:nowrap">' + c.rows[i][1] + '</span></div>';
   }
   g.innerHTML = h;
 }
@@ -301,8 +301,8 @@ function dpCountBarHtml(P) {
   h += '<span style="color:var(--so-green);display:inline-flex">' + dpSvg('database', 18) + '</span>';
   h += '<div style="flex:1;min-width:0">';
   h += '<div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px;margin-bottom:7px">';
-  h += '<span style="font-size:13px;color:var(--so-charcoal)">Companies in this scan</span>';
-  h += '<span id="' + P + 'ScopeCountNum" style="font-size:13px;color:var(--so-text-muted)">Calculating\u2026</span>';
+  h += '<span style="font-size:var(--fs-kpisub);color:var(--so-charcoal)">Companies in this scan</span>';
+  h += '<span id="' + P + 'ScopeCountNum" style="font-size:var(--fs-kpisub);color:var(--so-text-muted)">Calculating\u2026</span>';
   h += '</div>';
   h += '<div style="height:6px;background:var(--so-dune-dark2);border-radius:999px;overflow:hidden">';
   h += '<div id="' + P + 'ScopeCountBar" style="height:100%;width:0;background:var(--so-green);border-radius:999px;transition:width .35s ease"></div>';
@@ -575,7 +575,7 @@ function dpCollapseEntities(cardId) {
   while (h3.firstChild) { left.appendChild(h3.firstChild); }
   var sum = document.createElement('span');
   sum.className = 'dp-ent-sum';
-  sum.style.cssText = 'font-size:.78rem;font-weight:500;color:var(--so-text-muted)';
+  sum.style.cssText = 'font-size:var(--fs-count);font-weight:500;color:var(--so-text-muted)';
   sum.textContent = dpEntitiesSummary(cardId);
   left.appendChild(sum);
 
@@ -725,7 +725,7 @@ function _fmtScanDate(iso) {
 function scanPillHtml() {
   var st = (typeof daSettings !== 'undefined' && daSettings.getScanState) ? daSettings.getScanState() : null;
   if (!st || !st.scannedAt) return '';
-  return '<span style="display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:500;padding:5px 12px;border-radius:999px;background:#E2EFDC;color:#2E5E2A;border:1px solid #CDE2C4;white-space:nowrap">'
+  return '<span style="display:inline-flex;align-items:center;gap:6px;font-size:var(--fs-chip);font-weight:500;padding:5px 12px;border-radius:999px;background:#E2EFDC;color:#2E5E2A;border:1px solid #CDE2C4;white-space:nowrap">'
     + '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8.5 12.5l2.5 2.5 4.5-5"/></svg>'
     + 'Last scan ' + _fmtScanDate(st.scannedAt) + '</span>';
 }

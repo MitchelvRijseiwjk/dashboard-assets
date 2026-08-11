@@ -1220,7 +1220,7 @@
       }
       h += '</div>';
     } else {
-      h += '<div style="padding:10px 0;font-size:.82rem;color:var(--so-text-muted);font-style:italic">No activity types found.</div>';
+      h += '<div style="padding:10px 0;font-size:var(--fs-kpisub);color:var(--so-text-muted);font-style:italic">No activity types found.</div>';
     }
     h += '</div>';
     sec.innerHTML = h;

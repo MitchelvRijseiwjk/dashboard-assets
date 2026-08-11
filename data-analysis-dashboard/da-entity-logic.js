@@ -274,7 +274,7 @@ function invalidateExtraCache() {
 function loadingPlaceholder(label) {
   return '<div style="display:flex;align-items:center;gap:12px;padding:32px 20px;color:#999">' +
     '<div style="width:20px;height:20px;border:2.5px solid #e0dfdc;border-top-color:var(--so-green);border-radius:50%;animation:spin .8s linear infinite"></div>' +
-    '<span style="font-size:.85rem">' + label + '</span></div>';
+    '<span style="font-size:var(--fs-table)">' + label + '</span></div>';
 }
 
 // Spinner/fadeIn keyframes moved to da-styles.css
@@ -667,7 +667,7 @@ function renderCompanyOverviewV2() {
     var nums = '';
     if (val !== '') nums += '<span style="font-weight:600;color:#1c2b29;margin-left:8px">' + val + '</span>';
     if (pct !== '') nums += '<span style="color:#8a8f8b;margin-left:5px">' + pct + '</span>';
-    return '<div style="display:flex;align-items:center;gap:7px;font-size:12px;color:#3c423f;margin:4px 0">' +
+    return '<div style="display:flex;align-items:center;gap:7px;font-size:var(--fs-chip);color:#3c423f;margin:4px 0">' +
       '<span style="width:10px;height:10px;border-radius:3px;flex:none;background:' + color + '"></span>' +
       '<span>' + label + '</span>' + nums + '</div>';
   }
@@ -716,7 +716,7 @@ function renderCompanyOverviewV2() {
       var segs = fn.segments;
       var segTot = fn.total || tC;
             var engCol = hcEngColor;
-      h += '<div style="font-size:12px;color:' + MUTED + ';border-top:1px solid #eee5d8;padding-top:12px;margin-top:10px;margin-bottom:10px">How engaged the active companies are</div>';
+      h += '<div style="font-size:var(--fs-chip);color:' + MUTED + ';border-top:1px solid #eee5d8;padding-top:12px;margin-top:10px;margin-bottom:10px">How engaged the active companies are</div>';
       h += '<div class="engbar" style="margin-bottom:12px">';
       for (var sa = 0; sa < segs.length; sa++) {
         var sp = segTot > 0 ? (segs[sa].count / segTot * 100) : 0;
@@ -727,8 +727,8 @@ function renderCompanyOverviewV2() {
       h += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:9px 24px">';
       for (var sb = 0; sb < segs.length; sb++) {
         var sbp = segTot > 0 ? Math.round(segs[sb].count / segTot * 1000) / 10 : 0;
-        h += '<div style="display:flex;gap:7px"><span style="width:10px;height:10px;border-radius:3px;flex:none;background:' + engCol(segs[sb].name) + ';margin-top:3px"></span><div style="min-width:0"><div style="font-size:12px;color:#1c2b29"><b style="font-weight:600">' + segs[sb].name + '</b> <span style="color:#6b706c;font-weight:500;margin-left:2px">' + fmtNum(segs[sb].count) + ' \u00b7 ' + sbp + '%</span></div>';
-        if (segs[sb].description) h += '<div style="font-size:13px;color:var(--muted);line-height:1.35;margin-top:1px">' + segs[sb].description + '</div>';
+        h += '<div style="display:flex;gap:7px"><span style="width:10px;height:10px;border-radius:3px;flex:none;background:' + engCol(segs[sb].name) + ';margin-top:3px"></span><div style="min-width:0"><div style="font-size:var(--fs-chip);color:#1c2b29"><b style="font-weight:600">' + segs[sb].name + '</b> <span style="color:#6b706c;font-weight:500;margin-left:2px">' + fmtNum(segs[sb].count) + ' \u00b7 ' + sbp + '%</span></div>';
+        if (segs[sb].description) h += '<div style="font-size:var(--fs-kpisub);color:var(--muted);line-height:1.35;margin-top:1px">' + segs[sb].description + '</div>';
         h += '</div></div>';
       }
       h += '</div>';
@@ -759,7 +759,7 @@ function renderCompanyOverviewV2() {
       xax += '<span>' + t.year + '</span>';
       if (!saturated) {
         var ret = t.count > 0 ? Math.round(t.active / t.count * 100) : 0;
-        rets += '<span style="color:var(--faint);font-size:11px">' + ret + '%</span>';
+        rets += '<span style="color:var(--faint);font-size:var(--fs-th)">' + ret + '%</span>';
       }
     }
     var svg = '<div class="chart" role="img" aria-label="Companies by registration year">' + cols + '</div>';
@@ -768,16 +768,16 @@ function renderCompanyOverviewV2() {
     h += secLabel('Trajectory \u00b7 over time');
     h += '<div class="entity-card" style="background:var(--card);border:1px solid #e6e1d8;border-radius:16px;padding:18px">';
     if (saturated) {
-      h += '<div style="font-size:17px;font-weight:700;color:var(--ink);margin-bottom:3px">Active companies by registration year</div>';
-      h += '<div style="font-size:12px;color:' + MUTED + ';margin-bottom:12px">Each bar counts the currently active companies by the year they were first registered. ' + fmtNum(trendBefore) + ' were registered before this range.</div>';
+      h += '<div style="font-size:var(--fs-cardtitle);font-weight:700;color:var(--ink);margin-bottom:3px">Active companies by registration year</div>';
+      h += '<div style="font-size:var(--fs-chip);color:' + MUTED + ';margin-bottom:12px">Each bar counts the currently active companies by the year they were first registered. ' + fmtNum(trendBefore) + ' were registered before this range.</div>';
       h += svg;
-      h += '<div style="font-size:12px;color:#5b6b5f;background:#eef3ee;border-radius:6px;padding:10px 12px;margin-top:12px;line-height:1.5">Only currently active companies are counted here, grouped by registration year. Companies that are no longer active are left out, so this reflects the registration years of the part of the base still in use.</div>';
+      h += '<div style="font-size:var(--fs-chip);color:#5b6b5f;background:#eef3ee;border-radius:6px;padding:10px 12px;margin-top:12px;line-height:1.5">Only currently active companies are counted here, grouped by registration year. Companies that are no longer active are left out, so this reflects the registration years of the part of the base still in use.</div>';
     } else {
       var overallRet = sumC > 0 ? Math.round(sumA / sumC * 100) : 0;
-      h += '<div style="display:flex;align-items:baseline;margin-bottom:3px"><div style="font-size:17px;font-weight:700;color:var(--ink)">New companies per year</div><div style="margin-left:auto"><span style="font-size:17px;font-weight:800;color:var(--ink)">' + overallRet + '%</span><span style="font-size:12px;color:' + MUTED + '"> still active</span></div></div>';
-      h += '<div style="font-size:12px;color:' + MUTED + ';margin-bottom:12px">Bars show how many companies were added each year. The percentage under each bar is how many of that year\u0027s companies are still active today.</div>';
+      h += '<div style="display:flex;align-items:baseline;margin-bottom:3px"><div style="font-size:var(--fs-cardtitle);font-weight:700;color:var(--ink)">New companies per year</div><div style="margin-left:auto"><span style="font-size:var(--fs-cardtitle);font-weight:800;color:var(--ink)">' + overallRet + '%</span><span style="font-size:var(--fs-chip);color:' + MUTED + '"> still active</span></div></div>';
+      h += '<div style="font-size:var(--fs-chip);color:' + MUTED + ';margin-bottom:12px">Bars show how many companies were added each year. The percentage under each bar is how many of that year\u0027s companies are still active today.</div>';
       h += svg;
-      h += '<div style="font-size:12px;color:#5b6b5f;background:#eef3ee;border-radius:6px;padding:10px 12px;margin-top:12px;line-height:1.5">A low percentage on the most recent years means newly added companies stop being used quickly. The older years stay high partly because inactive companies are never removed from the database.</div>';
+      h += '<div style="font-size:var(--fs-chip);color:#5b6b5f;background:#eef3ee;border-radius:6px;padding:10px 12px;margin-top:12px;line-height:1.5">A low percentage on the most recent years means newly added companies stop being used quickly. The older years stay high partly because inactive companies are never removed from the database.</div>';
     }
     h += '</div>';
   }
@@ -798,7 +798,7 @@ function renderCompanyOverviewV2() {
       for (var ok = 6; ok < items.length; ok++) otherC += items[ok].count;
       h += secLabel('Context');
       h += '<div class="entity-card" style="background:var(--card);border:1px solid #e6e1d8;border-radius:16px;padding:16px">';
-      h += '<div style="display:flex;align-items:center;margin-bottom:10px"><div style="font-size:16px;font-weight:700;color:var(--ink)">Category mix</div><span style="margin-left:auto;font-size:11px;color:#a09a8e">for context, not something to act on</span></div>';
+      h += '<div style="display:flex;align-items:center;margin-bottom:10px"><div style="font-size:var(--fs-cardtitle);font-weight:700;color:var(--ink)">Category mix</div><span style="margin-left:auto;font-size:var(--fs-th);color:#a09a8e">for context, not something to act on</span></div>';
       h += '<div class="catbar" style="margin-bottom:8px">';
       for (var pi = 0; pi < topN.length; pi++) {
         var pp = catTot > 0 ? (topN[pi].count / catTot * 100) : 0;
@@ -807,7 +807,7 @@ function renderCompanyOverviewV2() {
       }
       if (otherC > 0) { var op = catTot > 0 ? (otherC / catTot * 100) : 0; h += '<span style="width:' + op.toFixed(1) + '%;background:var(--cn)"></span>'; }
       h += '</div>';
-      h += '<div style="display:flex;gap:8px 18px;flex-wrap:wrap;font-size:13px;color:' + MUTED + '">';
+      h += '<div style="display:flex;gap:8px 18px;flex-wrap:wrap;font-size:var(--fs-kpisub);color:' + MUTED + '">';
       for (var li = 0; li < topN.length; li++) {
         var lp = catTot > 0 ? Math.round(topN[li].count / catTot * 1000) / 10 : 0;
         h += '<span><span style="display:inline-block;width:9px;height:9px;border-radius:2px;vertical-align:-1px;margin-right:4px;background:' + palette[li] + '"></span>' + topN[li].name + ' ' + lp + '%</span>';
@@ -860,7 +860,7 @@ function renderSaleOverviewV2() {
   var GREEN = 'var(--so-green,#06423e)', OKC = 'var(--sl-ok,#f9a825)', WARN = 'var(--sl-warn,#ef6c00)', BAD = 'var(--sl-bad,#c62828)', GOOD = 'var(--sl-good,#2e7d32)', MUTED = 'var(--so-text-muted,#6b706c)';
   var secLabel = hcSecLabel;
   var kpiCard = hcKpi;
-  function dotLeg(color, label, val, pc) { var nums = ''; if (val !== '') nums += '<span style="font-weight:600;color:#1c2b29;margin-left:8px">' + val + '</span>'; if (pc !== '') nums += '<span style="color:#8a8f8b;margin-left:5px">' + pc + '</span>'; return '<div style="display:flex;align-items:center;gap:7px;font-size:12px;color:#3c423f;margin:4px 0"><span style="width:10px;height:10px;border-radius:3px;flex:none;background:' + color + '"></span><span>' + label + '</span>' + nums + '</div>'; }
+  function dotLeg(color, label, val, pc) { var nums = ''; if (val !== '') nums += '<span style="font-weight:600;color:#1c2b29;margin-left:8px">' + val + '</span>'; if (pc !== '') nums += '<span style="color:#8a8f8b;margin-left:5px">' + pc + '</span>'; return '<div style="display:flex;align-items:center;gap:7px;font-size:var(--fs-chip);color:#3c423f;margin:4px 0"><span style="width:10px;height:10px;border-radius:3px;flex:none;background:' + color + '"></span><span>' + label + '</span>' + nums + '</div>'; }
   function findDist(key) { for (var i = 0; i < dists.length; i++) { if ((dists[i].title || '').toLowerCase().indexOf(key) >= 0) return dists[i]; } return null; }
   function dval(d, name) { if (d && d.items) { for (var i = 0; i < d.items.length; i++) { if ((d.items[i].name || '').toLowerCase() === name) return d.items[i].count; } } return 0; }
   function pct(n, t) { return t > 0 ? Math.round(n / t * 1000) / 10 : 0; }
@@ -898,17 +898,17 @@ function renderSaleOverviewV2() {
     cum += sp;
   }
   h += '<div class="entity-card" style="background:var(--card);border:1px solid #e6e1d8;border-radius:16px;padding:16px">';
-  h += '<div style="font-size:16px;font-weight:700;color:var(--ink);margin-bottom:10px">Status split</div>';
+  h += '<div style="font-size:var(--fs-cardtitle);font-weight:700;color:var(--ink);margin-bottom:10px">Status split</div>';
   h += '<div style="display:flex;gap:12px;align-items:center"><svg viewBox="0 0 180 180" width="118" height="118" role="img" aria-label="Sale status split"><circle cx="90" cy="90" r="70" fill="none" stroke="var(--track)" stroke-width="26"/>' + circles + '<text x="90" y="86" text-anchor="middle" font-size="17" font-weight="500" fill="var(--ink)">' + fmtNum(total) + '</text><text x="90" y="103" text-anchor="middle" font-size="10" fill="var(--muted)">sales</text></svg>';
   h += '<div style="flex:1;min-width:0">' + dotLeg(BAD, 'Lost', fmtNum(lost), pct(lost, total) + '%') + dotLeg(OKC, 'Open', fmtNum(open), pct(open, total) + '%') + dotLeg(GOOD, 'Sold', fmtNum(sold), pct(sold, total) + '%') + dotLeg('var(--cn)', 'Stalled' + sbInfoIcon('A sale put on hold, neither won nor lost yet.'), fmtNum(stalled), pct(stalled, total) + '%') + '</div></div></div>';
   if (typeD && typeD.items && typeD.items.length > 0) {
     var titems = typeD.items.slice().sort(function (a, b) { return b.count - a.count; });
     var ttot = 0; for (var ti = 0; ti < titems.length; ti++) ttot += titems[ti].count;
     var tpal = ['var(--c1)', 'var(--c3)', 'var(--c5)', 'var(--cn)'];
-    h += '<div class="entity-card" style="background:var(--card);border:1px solid #e6e1d8;border-radius:16px;padding:16px"><div style="font-size:16px;font-weight:700;color:var(--ink)">Sale type</div><div style="font-size:13px;color:var(--muted);margin:2px 0 11px">From the Sale Type field on each sale, chosen by the user. It is not derived from the data.</div>';
+    h += '<div class="entity-card" style="background:var(--card);border:1px solid #e6e1d8;border-radius:16px;padding:16px"><div style="font-size:var(--fs-cardtitle);font-weight:700;color:var(--ink)">Sale type</div><div style="font-size:var(--fs-kpisub);color:var(--muted);margin:2px 0 11px">From the Sale Type field on each sale, chosen by the user. It is not derived from the data.</div>';
     for (var tj = 0; tj < titems.length && tj < 4; tj++) {
       var tp = pct(titems[tj].count, ttot);
-      h += '<div style="margin-bottom:9px"><div style="display:flex;font-size:12px;margin-bottom:3px"><span>' + titems[tj].name + '</span><b style="margin-left:auto;color:#6b706c">' + tp + '%</b></div><div style="height:9px;background:#eef0ec;border-radius:5px"><div style="width:' + Math.max(tp, 1).toFixed(0) + '%;height:9px;background:' + tpal[Math.min(tj, 3)] + ';border-radius:5px"></div></div></div>';
+      h += '<div style="margin-bottom:9px"><div style="display:flex;font-size:var(--fs-chip);margin-bottom:3px"><span>' + titems[tj].name + '</span><b style="margin-left:auto;color:#6b706c">' + tp + '%</b></div><div style="height:9px;background:#eef0ec;border-radius:5px"><div style="width:' + Math.max(tp, 1).toFixed(0) + '%;height:9px;background:' + tpal[Math.min(tj, 3)] + ';border-radius:5px"></div></div></div>';
     }
     h += '</div>';
   }
@@ -936,7 +936,7 @@ function renderSaleOverviewV2() {
       stageMsg = 'Stage is filled in for most sales and spread across the buckets, which gives a usable basis for pipeline forecasting.';
     }
     h += secLabel(stagePoor ? 'The real gap \u00b7 pipeline data' : 'Pipeline \u00b7 stage tracking');
-    h += '<div class="entity-card" style="background:var(--card);border:1px solid #e6e1d8;border-radius:16px;padding:16px"><div style="font-size:16px;font-weight:700;color:var(--ink);margin-bottom:2px">Stage / probability tracking' + sbInfoIcon('The probability field on each sale (Low, Middle or High chance). It is what pipeline forecasting relies on.') + '</div><div style="font-size:12px;color:' + MUTED + ';margin-bottom:12px;line-height:1.5">' + stageMsg + '</div>';
+    h += '<div class="entity-card" style="background:var(--card);border:1px solid #e6e1d8;border-radius:16px;padding:16px"><div style="font-size:var(--fs-cardtitle);font-weight:700;color:var(--ink);margin-bottom:2px">Stage / probability tracking' + sbInfoIcon('The probability field on each sale (Low, Middle or High chance). It is what pipeline forecasting relies on.') + '</div><div style="font-size:var(--fs-chip);color:' + MUTED + ';margin-bottom:12px;line-height:1.5">' + stageMsg + '</div>';
     h += '<div class="engbar" style="height:30px;margin-bottom:12px">';
     h += '<span style="width:' + spNo + '%;background:var(--cn);color:#6b6657;font-weight:500">' + (spNo >= 12 ? spNo.toFixed(0) + '% no stage set' : '') + '</span>';
     h += '<span style="width:' + spLow + '%;background:' + OKC + '">' + (spLow >= 14 ? spLow.toFixed(0) + '% low chance' : (spLow >= 7 ? spLow.toFixed(0) + '%' : '')) + '</span>';
@@ -981,7 +981,7 @@ function renderContactOverviewV2() {
   var kpiCard = hcKpi;
   var total = o.total || 0;
   function P(n) { return total > 0 ? Math.round((o[n] || 0) / total * 1000) / 10 : 0; }
-  function bar(label, n) { var p = total > 0 ? Math.round(n / total * 1000) / 10 : 0; return '<div style="margin-bottom:11px"><div style="display:flex;font-size:12px;margin-bottom:4px;color:#3c423f"><span>' + label + '</span><span style="margin-left:auto;color:#6b706c"><b style="color:#1c2b29">' + p + '%</b> &middot; ' + fmtNum(n) + '</span></div><div style="height:10px;background:#eef0ec;border-radius:5px"><div style="width:' + Math.max(p, 1).toFixed(0) + '%;height:10px;background:#0f5c57;border-radius:5px"></div></div></div>'; }
+  function bar(label, n) { var p = total > 0 ? Math.round(n / total * 1000) / 10 : 0; return '<div style="margin-bottom:11px"><div style="display:flex;font-size:var(--fs-chip);margin-bottom:4px;color:#3c423f"><span>' + label + '</span><span style="margin-left:auto;color:#6b706c"><b style="color:#1c2b29">' + p + '%</b> &middot; ' + fmtNum(n) + '</span></div><div style="height:10px;background:#eef0ec;border-radius:5px"><div style="width:' + Math.max(p, 1).toFixed(0) + '%;height:10px;background:#0f5c57;border-radius:5px"></div></div></div>'; }
 
   var h = '';
   h += dateFilterNotice();
@@ -993,7 +993,7 @@ function renderContactOverviewV2() {
   h += kpiCard('With position', P('withPosition') + '%', fmtNum(o.withPosition || 0) + ' have a role', P('withPosition') < 60);
   h += '</div>';
   h += secLabel('Field completeness');
-  h += '<div class="entity-card" style="background:var(--card);border:1px solid #e6e1d8;border-radius:16px;padding:16px"><div style="font-size:12px;color:' + MUTED + ';margin-bottom:12px">How completely the key contact fields are filled in.</div>';
+  h += '<div class="entity-card" style="background:var(--card);border:1px solid #e6e1d8;border-radius:16px;padding:16px"><div style="font-size:var(--fs-chip);color:' + MUTED + ';margin-bottom:12px">How completely the key contact fields are filled in.</div>';
   h += bar('Email address', o.withEmail || 0);
   h += bar('Phone number', o.withPhone || 0);
   h += bar('Position', o.withPosition || 0);
@@ -1039,7 +1039,7 @@ function renderProjectOverviewV2() {
   var secLabel = hcSecLabel;
   var kpiCard = hcKpi;
   function findDist(k) { for (var i = 0; i < dists.length; i++) { if ((dists[i].title || '').toLowerCase().indexOf(k) >= 0) return dists[i]; } return null; }
-  function miniList(title, d) { var s = '<div class="entity-card" style="background:var(--card);border:1px solid #e6e1d8;border-radius:16px;padding:16px"><div style="font-size:16px;font-weight:700;color:var(--ink);margin-bottom:10px">' + title + '</div>'; var any = false; if (d && d.items) { for (var i = 0; i < d.items.length; i++) { if (d.items[i].count > 0) { any = true; s += '<div style="display:flex;font-size:12px;margin:5px 0;color:#3c423f"><span>' + d.items[i].name + '</span><b style="margin-left:auto;color:#1c2b29">' + fmtNum(d.items[i].count) + '</b></div>'; } } } if (!any) s += '<div style="font-size:12px;color:' + MUTED + '">No values set.</div>'; return s + '</div>'; }
+  function miniList(title, d) { var s = '<div class="entity-card" style="background:var(--card);border:1px solid #e6e1d8;border-radius:16px;padding:16px"><div style="font-size:var(--fs-cardtitle);font-weight:700;color:var(--ink);margin-bottom:10px">' + title + '</div>'; var any = false; if (d && d.items) { for (var i = 0; i < d.items.length; i++) { if (d.items[i].count > 0) { any = true; s += '<div style="display:flex;font-size:var(--fs-chip);margin:5px 0;color:#3c423f"><span>' + d.items[i].name + '</span><b style="margin-left:auto;color:#1c2b29">' + fmtNum(d.items[i].count) + '</b></div>'; } } } if (!any) s += '<div style="font-size:var(--fs-chip);color:' + MUTED + '">No values set.</div>'; return s + '</div>'; }
 
   var total = o.total || 0, overdue = o.overdue || 0, withMembers = o.withMembers || 0;
   var h = '';
@@ -1106,16 +1106,16 @@ function renderRequestsOverviewV2() {
     var tot = 0; for (var j = 0; j < items.length; j++) tot += items[j].v;
     var head = items.slice(0, topN);
     var restV = 0; for (var k = topN; k < items.length; k++) restV += items[k].v;
-    var s = '<div class="entity-card" style="background:var(--card);border:1px solid #e6e1d8;border-radius:16px;padding:16px"><div style="font-size:16px;font-weight:700;color:var(--ink)">' + title + (tip ? sbInfoIcon(tip) : '') + '</div>';
-    s += note ? '<div style="font-size:13px;color:var(--muted);margin:2px 0 11px">' + note + '</div>' : '<div style="height:9px"></div>';
+    var s = '<div class="entity-card" style="background:var(--card);border:1px solid #e6e1d8;border-radius:16px;padding:16px"><div style="font-size:var(--fs-cardtitle);font-weight:700;color:var(--ink)">' + title + (tip ? sbInfoIcon(tip) : '') + '</div>';
+    s += note ? '<div style="font-size:var(--fs-kpisub);color:var(--muted);margin:2px 0 11px">' + note + '</div>' : '<div style="height:9px"></div>';
     for (var m = 0; m < head.length; m++) {
       var p = pct(head[m].v, tot);
       var col = palette[Math.min(m, palette.length - 1)];
-      s += '<div style="margin-bottom:9px"><div style="display:flex;font-size:12px;margin-bottom:3px;gap:8px"><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + head[m].n + '</span><b style="margin-left:auto;color:#1c2b29;flex:none">' + fmtNum(head[m].v) + '</b><span style="color:#8a8f8b;flex:none;width:48px;text-align:right">' + p + '%</span></div><div style="height:9px;background:#eef0ec;border-radius:5px"><div style="width:' + Math.max(p, 0.6).toFixed(1) + '%;height:9px;background:' + col + ';border-radius:5px"></div></div></div>';
+      s += '<div style="margin-bottom:9px"><div style="display:flex;font-size:var(--fs-chip);margin-bottom:3px;gap:8px"><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + head[m].n + '</span><b style="margin-left:auto;color:#1c2b29;flex:none">' + fmtNum(head[m].v) + '</b><span style="color:#8a8f8b;flex:none;width:48px;text-align:right">' + p + '%</span></div><div style="height:9px;background:#eef0ec;border-radius:5px"><div style="width:' + Math.max(p, 0.6).toFixed(1) + '%;height:9px;background:' + col + ';border-radius:5px"></div></div></div>';
     }
     if (restV > 0) {
       var rp = pct(restV, tot);
-      s += '<div style="margin-bottom:2px"><div style="display:flex;font-size:12px;margin-bottom:3px;gap:8px;color:#8a8f8b"><span>Other (' + (items.length - topN) + ')</span><b style="margin-left:auto;color:#6b706c;flex:none">' + fmtNum(restV) + '</b><span style="flex:none;width:48px;text-align:right">' + rp + '%</span></div><div style="height:9px;background:#eef0ec;border-radius:5px"><div style="width:' + Math.max(rp, 0.6).toFixed(1) + '%;height:9px;background:#cfc9bd;border-radius:5px"></div></div></div>';
+      s += '<div style="margin-bottom:2px"><div style="display:flex;font-size:var(--fs-chip);margin-bottom:3px;gap:8px;color:#8a8f8b"><span>Other (' + (items.length - topN) + ')</span><b style="margin-left:auto;color:#6b706c;flex:none">' + fmtNum(restV) + '</b><span style="flex:none;width:48px;text-align:right">' + rp + '%</span></div><div style="height:9px;background:#eef0ec;border-radius:5px"><div style="width:' + Math.max(rp, 0.6).toFixed(1) + '%;height:9px;background:#cfc9bd;border-radius:5px"></div></div></div>';
     }
     return s + '</div>';
   }
@@ -1261,7 +1261,7 @@ function renderEntityOverview(key, d) {
 }
 
 function secHead(t) {
-  return '<h4 style="font-size:.85rem;text-transform:uppercase;color:var(--so-text-muted);margin-bottom:12px;font-weight:600;letter-spacing:.5px">' + t + '</h4>';
+  return '<h4 style="font-size:var(--fs-table);text-transform:uppercase;color:var(--so-text-muted);margin-bottom:12px;font-weight:600;letter-spacing:.5px">' + t + '</h4>';
 }
 
 function ovCard(label, value, total, color) {
@@ -1290,7 +1290,7 @@ function pctCard(label, pct, desc, color, count, base) {
     h += '<div class="stat-label">' + label + '</div>';
   }
   h += '<div style="margin-top:6px">' + fillBar(v, 8, color) + '</div>';
-  h += '<div class="stat-label" style="margin-top:4px;font-size:.7rem;color:#999">' + desc + '</div>';
+  h += '<div class="stat-label" style="margin-top:4px;font-size:var(--fs-th);color:#999">' + desc + '</div>';
   h += '</div>';
   return h;
 }
@@ -1549,11 +1549,11 @@ function renderCrossEntityFunnel(d) {
 
   // -- Inline category filter bar (always visible) --
   h += '<div class="cat-filter-bar" id="companyCatFilterBar">';
-  h += '<span style="font-weight:500;font-size:.85rem;color:var(--so-charcoal)">Category filter:</span>';
+  h += '<span style="font-weight:500;font-size:var(--fs-table);color:var(--so-charcoal)">Category filter:</span>';
   h += '<select id="companyDetailCatFilter" class="cat-filter-select" onchange="onDetailFilterChange(\'company\')">';
   h += '<option value="">All categories</option>';
   h += '</select>';
-  h += '<span class="filter-count" id="companyDetailFilterCount" style="font-size:.82rem;color:#666"></span>';
+  h += '<span class="filter-count" id="companyDetailFilterCount" style="font-size:var(--fs-kpisub);color:#666"></span>';
   h += '<span class="filter-reset-link" id="companyFilterReset" style="display:none" onclick="resetDetailFilter(\'company\')">Reset</span>';
   h += '</div>';
 
@@ -1584,7 +1584,7 @@ function renderCrossEntityFunnel(d) {
     var col = slColor(pctTotal);
     h += '<tr>';
     h += '<td><span style="font-weight:500">' + step.label + '</span>';
-    h += '<div style="font-size:.75rem;color:var(--so-text-muted)">' + step.desc + '</div></td>';
+    h += '<div style="font-size:var(--fs-chip);color:var(--so-text-muted)">' + step.desc + '</div></td>';
     h += '<td class="col-right">' + fmtNum(step.count) + '</td>';
     h += '<td class="col-right">' + pctTotal + P + '</td>';
     h += '<td class="col-right">' + conv + '</td>';
@@ -1607,7 +1607,7 @@ function renderCrossEntityFunnel(d) {
     h += '<td><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:' + hcEngColor(seg.name) + ';margin-right:8px;vertical-align:middle"></span>';
     h += '<span style="font-weight:500">' + seg.name + '</span></td>';
     h += '<td class="col-right">' + fmtNum(seg.count) + '</td>';
-    h += '<td style="color:var(--so-text-muted);font-size:.82rem">' + seg.description + '</td>';
+    h += '<td style="color:var(--so-text-muted);font-size:var(--fs-kpisub)">' + seg.description + '</td>';
     h += '<td class="col-right">' + barCell(segPct, hcEngColor(seg.name)) + '</td>';
     h += '</tr>';
   }
@@ -1838,7 +1838,7 @@ function renderScoreBanner(key) {
   h += '<span class="note">Overall = weighted average of the three \u00b7 measured against your own data</span>';
   h += '</div>';
   h += '<div style="grid-column:1 / -1; display:flex; align-items:center; gap:14px; margin-top:12px">';
-  h += '<span style="color:var(--faint); font-size:12px; font-weight:700; letter-spacing:.06em; text-transform:uppercase">Score bands</span>';
+  h += '<span style="color:var(--faint); font-size:var(--fs-chip); font-weight:700; letter-spacing:.06em; text-transform:uppercase">Score bands</span>';
   h += '<div class="legend"><span class="lg"><i style="background:var(--bad)"></i> &lt;15</span><span class="lg"><i style="background:var(--mod)"></i> 15\u201339</span><span class="lg"><i style="background:#c9b03a"></i> 40\u201369</span><span class="lg"><i style="background:var(--good)"></i> 70+ Good</span></div>';
   h += '</div>';
   h += '</div>';
@@ -1895,7 +1895,7 @@ function renderDQScore(key) {
           var attn = isActive ? Math.round(pct) : -1;
           var reason = '<b>' + attnBandWord(attn) + ' attention.</b> Active quality flag, ' + Math.round(pct) + '% of companies affected. Fewer affected lifts the score.';
           var dimStyle = isActive ? '' : ' style="opacity:0.4"';
-          var badge = isActive ? '' : ' <span style="font-size:.65rem;color:var(--so-text-muted)">(not in score)</span>';
+          var badge = isActive ? '' : ' <span style="font-size:var(--fs-tag);color:var(--so-text-muted)">(not in score)</span>';
           var row = '<tr' + dimStyle + '><td class="attn-col">' + attnIconHtml(attn, reason) + '</td><td>' + iss.label + badge + '</td>';
           row += '<td class="col-right">' + fmtNum(iss.val) + '</td>';
           row += '<td class="col-right">' + barCell(pct, col) + '</td></tr>';
@@ -2018,11 +2018,11 @@ function computeDQScore(key) {
 // reload with the Adoption tab bar via companyDetailCatValue.
 function integrityCatFilterBar() {
   var h = '<div class="cat-filter-bar" id="companyIntegrityCatFilterBar">';
-  h += '<span style="font-weight:500;font-size:.85rem;color:var(--so-charcoal)">Category filter:</span>';
+  h += '<span style="font-weight:500;font-size:var(--fs-table);color:var(--so-charcoal)">Category filter:</span>';
   h += '<select id="companyIntegrityDetailCatFilter" class="cat-filter-select" onchange="onDetailFilterChange(\'companyIntegrity\')">';
   h += '<option value="">All categories</option>';
   h += '</select>';
-  h += '<span class="filter-count" id="companyIntegrityDetailFilterCount" style="font-size:.82rem;color:#666"></span>';
+  h += '<span class="filter-count" id="companyIntegrityDetailFilterCount" style="font-size:var(--fs-kpisub);color:#666"></span>';
   h += '<span class="filter-reset-link" id="companyIntegrityFilterReset" style="display:none" onclick="resetDetailFilter(\'companyIntegrity\')">Reset</span>';
   h += '</div>';
   return h;
@@ -2046,7 +2046,7 @@ function renderAdoptionTab(key) {
     hAd += '<div class="entity-header"><div class="entity-info">';
     hAd += '<h3>Adoption Score</h3>';
     hAd += '</div>';
-    hAd += '<span class="record-badge" style="background:' + ac + ';color:#fff;font-size:1.1rem;padding:4px 14px;border-radius:16px">' + ad.total + P + '</span></div>';
+    hAd += '<span class="record-badge" style="background:' + ac + ';color:#fff;font-size:var(--fs-cardtitle);padding:4px 14px;border-radius:16px">' + ad.total + P + '</span></div>';
     hAd += '<div class="tbl-cap"><b>Higher coverage is better.</b> Drives the Adoption score. Sorted by attention, so heavily weighted components with the largest gaps sit on top.</div>';
     hAd += '<table class="data-table"><thead><tr><th class="attn-col"></th><th>Component</th><th class="col-right" style="width:80px">Count</th><th style="text-align:center;width:90px">Weight</th><th class="col-right" style="width:130px">Completeness</th></tr></thead><tbody>';
     var adRows = [];
@@ -2077,7 +2077,7 @@ function renderAdoptionTab(key) {
     hInt += '<div class="entity-header"><div class="entity-info">';
     hInt += '<h3>Data Integrity</h3>';
     hInt += '</div>';
-    hInt += '<span class="record-badge" style="background:' + ic + ';color:#fff;font-size:1.1rem;padding:4px 14px;border-radius:16px">' + ig.total + P + '</span></div>';
+    hInt += '<span class="record-badge" style="background:' + ic + ';color:#fff;font-size:var(--fs-cardtitle);padding:4px 14px;border-radius:16px">' + ig.total + P + '</span></div>';
     hInt += '<div class="tbl-cap"><b>Lower is better.</b> Drives the Data Integrity score. Sorted by attention, so heavily weighted checks affecting the most records sit on top.</div>';
     hInt += '<table class="data-table"><thead><tr><th class="attn-col"></th><th>Check</th><th class="col-right" style="width:80px">Affected</th><th style="text-align:center;width:90px">Weight</th><th class="col-right" style="width:130px">% Affected</th></tr></thead><tbody>';
     var igRows = [];
@@ -2100,7 +2100,7 @@ function renderAdoptionTab(key) {
     // --- Rule checks (from intake conditional rules) ---
     var ruleResults = (window.rulesData && window.rulesData[key]) ? window.rulesData[key] : [];
     if (ruleResults.length > 0) {
-      hInt += '<tr><td colspan="5" style="padding:12px 8px 8px;font-size:12px;font-weight:600;letter-spacing:.02em;color:var(--so-green);border-bottom:1px solid var(--so-border);border-top:2px solid var(--so-border)"><span style="display:inline-flex;align-items:center;gap:6px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="6" y1="3" x2="6" y2="15"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/></svg>Rule checks &middot; ' + ruleResults.length + ' evaluated</span></td></tr>';
+      hInt += '<tr><td colspan="5" style="padding:12px 8px 8px;font-size:var(--fs-chip);font-weight:600;letter-spacing:.02em;color:var(--so-green);border-bottom:1px solid var(--so-border);border-top:2px solid var(--so-border)"><span style="display:inline-flex;align-items:center;gap:6px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="6" y1="3" x2="6" y2="15"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/></svg>Rule checks &middot; ' + ruleResults.length + ' evaluated</span></td></tr>';
       var rRows = [];
       for (var ri = 0; ri < ruleResults.length; ri++) {
         var rv = ruleResults[ri];
@@ -2111,8 +2111,8 @@ function renderAdoptionTab(key) {
         var rvAttn = attnScore(rvPct, rvW);
         var rvTip = 'Rule: for category <b>' + (rv.condLabel || '?') + '</b>, field <b>' + (rv.reqLabel || '?') + '</b> must be filled.';
         if (rv.segmentTotal > 0) rvTip += '<br>' + rv.violations + ' of ' + fmtNum(rv.segmentTotal) + ' records in this segment are missing the field.';
-        if (rv.ownerLabel) rvTip += '<br><span style="display:inline-flex;align-items:center;gap:4px;margin-top:4px;font-size:11px;font-weight:600;color:var(--so-green-light);background:var(--so-meadow);padding:2px 8px;border-radius:4px">' + rv.ownerLabel + '</span>';
-        else rvTip += '<br><span style="display:inline-flex;align-items:center;gap:4px;margin-top:4px;font-size:11px;color:var(--so-text-muted)">No owner assigned</span>';
+        if (rv.ownerLabel) rvTip += '<br><span style="display:inline-flex;align-items:center;gap:4px;margin-top:4px;font-size:var(--fs-th);font-weight:600;color:var(--so-green-light);background:var(--so-meadow);padding:2px 8px;border-radius:4px">' + rv.ownerLabel + '</span>';
+        else rvTip += '<br><span style="display:inline-flex;align-items:center;gap:4px;margin-top:4px;font-size:var(--fs-th);color:var(--so-text-muted)">No owner assigned</span>';
         var rvReason = '<b>' + attnBandWord(rvAttn) + ' attention.</b> ' + _capFirst(rvW) + ' weight, ' + rvPct + '% of segment affected.';
         var rvRow = '<tr><td class="attn-col">' + attnIconHtml(rvAttn, rvReason) + '</td>';
         rvRow += '<td>' + (rv.condLabel || '?') + ' &rarr; ' + (rv.reqLabel || '?') + sbInfoIcon(rvTip) + '</td>';
@@ -2200,7 +2200,7 @@ function renderCompanyDetails(d) {
     h += '<div style="display:flex;gap:16px;margin-top:6px;flex-wrap:wrap">';
     for (var i = 0; i < ahParts.length; i++) {
       var pct = Math.round(ahParts[i].val / total * 1000) / 10;
-      h += '<span style="font-size:.75rem;color:#666;display:flex;align-items:center;gap:4px">';
+      h += '<span style="font-size:var(--fs-chip);color:#666;display:flex;align-items:center;gap:4px">';
       h += '<span style="width:8px;height:8px;border-radius:50%;background:' + ahParts[i].col + ';flex-shrink:0"></span>';
       h += ahParts[i].label + ': ' + fmtNum(ahParts[i].val) + ' (' + pct + P + ')';
       h += '</span>';
@@ -2247,11 +2247,11 @@ function renderCompanyDetails(d) {
       h += '<tr>';
       h += '<td data-sort-value="' + c.name + '">' + c.name + '</td>';
       h += '<td class="col-right" data-sort-value="' + c.total + '">' + fmtNum(c.total) + '</td>';
-      h += '<td class="col-right" data-sort-value="' + pctPers + '">' + fmtNum(c.withPerson) + '<span style="color:#999;font-size:.75rem;margin-left:4px">' + pctPers + P + '</span></td>';
-      h += '<td class="col-right" data-sort-value="' + pctAct + '">' + fmtNum(c.withActivity) + '<span style="color:#999;font-size:.75rem;margin-left:4px">' + pctAct + P + '</span></td>';
+      h += '<td class="col-right" data-sort-value="' + pctPers + '">' + fmtNum(c.withPerson) + '<span style="color:#999;font-size:var(--fs-chip);margin-left:4px">' + pctPers + P + '</span></td>';
+      h += '<td class="col-right" data-sort-value="' + pctAct + '">' + fmtNum(c.withActivity) + '<span style="color:#999;font-size:var(--fs-chip);margin-left:4px">' + pctAct + P + '</span></td>';
       if (catShowPipe) {
         var pctSale = c.total > 0 ? Math.round((c.withSale / c.total) * 1000) / 10 : 0;
-        h += '<td class="col-right" data-sort-value="' + pctSale + '">' + fmtNum(c.withSale) + '<span style="color:#999;font-size:.75rem;margin-left:4px">' + pctSale + P + '</span></td>';
+        h += '<td class="col-right" data-sort-value="' + pctSale + '">' + fmtNum(c.withSale) + '<span style="color:#999;font-size:var(--fs-chip);margin-left:4px">' + pctSale + P + '</span></td>';
       }
       h += '<td class="col-right" data-sort-value="' + engagement + '">' + barCell(engagement, engCol) + '</td>';
       h += '</tr>';
@@ -2313,11 +2313,11 @@ function renderCompanyDetails(d) {
       var displayName = a.name;
       if (/^\(\d+\)$/.test(displayName)) { displayName = '<span style="color:#999;font-style:italic">Unknown user ' + displayName + '</span>'; }
       r += '<td data-sort-value="' + a.name + '">' + displayName + '</td>';
-      r += '<td class="col-right" data-sort-value="' + a.total + '">' + fmtNum(a.total) + '<span style="color:#999;font-size:.75rem;margin-left:4px">' + shareP + P + '</span></td>';
-      r += '<td class="col-right" data-sort-value="' + a.withPersons + '">' + fmtNum(a.withPersons) + '<span style="color:#999;font-size:.75rem;margin-left:4px">' + pctPers + P + '</span></td>';
-      r += '<td class="col-right" data-sort-value="' + a.withActivities + '">' + fmtNum(a.withActivities) + '<span style="color:#999;font-size:.75rem;margin-left:4px">' + pctAct + P + '</span></td>';
-      r += '<td class="col-right" data-sort-value="' + a.withEmail + '">' + fmtNum(a.withEmail) + '<span style="color:#999;font-size:.75rem;margin-left:4px">' + pctEm + P + '</span></td>';
-      r += '<td class="col-right" data-sort-value="' + stale + '">' + fmtNum(stale) + '<span style="color:#999;font-size:.75rem;margin-left:4px">' + pctStale + P + '</span></td>';
+      r += '<td class="col-right" data-sort-value="' + a.total + '">' + fmtNum(a.total) + '<span style="color:#999;font-size:var(--fs-chip);margin-left:4px">' + shareP + P + '</span></td>';
+      r += '<td class="col-right" data-sort-value="' + a.withPersons + '">' + fmtNum(a.withPersons) + '<span style="color:#999;font-size:var(--fs-chip);margin-left:4px">' + pctPers + P + '</span></td>';
+      r += '<td class="col-right" data-sort-value="' + a.withActivities + '">' + fmtNum(a.withActivities) + '<span style="color:#999;font-size:var(--fs-chip);margin-left:4px">' + pctAct + P + '</span></td>';
+      r += '<td class="col-right" data-sort-value="' + a.withEmail + '">' + fmtNum(a.withEmail) + '<span style="color:#999;font-size:var(--fs-chip);margin-left:4px">' + pctEm + P + '</span></td>';
+      r += '<td class="col-right" data-sort-value="' + stale + '">' + fmtNum(stale) + '<span style="color:#999;font-size:var(--fs-chip);margin-left:4px">' + pctStale + P + '</span></td>';
       r += '<td class="col-right" data-sort-value="' + compP + '">' + barCell(compP, '') + '</td>';
       r += '</tr>';
       return r;
@@ -2330,12 +2330,12 @@ function renderCompanyDetails(d) {
         var gCompP = g.total > 0 ? Math.round(((g.withPersons + g.withActivities + g.withEmail) / (g.total * 3)) * 100) : 0;
         var gPctStale = g.total > 0 ? Math.round((g.stale / g.total) * 1000) / 10 : 0;
         h += '<tr class="assoc-group-header" onclick="togGroup(this)">';
-        h += '<td data-sort-value="' + g.name + '"><svg class="group-chevron" viewBox="0 0 10 6" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M1 1l4 4 4-4" stroke="#333" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>' + g.name + ' <span style="color:#999;font-weight:400;font-size:.75rem">(' + g.members.length + ')</span></td>';
-        h += '<td class="col-right" data-sort-value="' + g.total + '">' + fmtNum(g.total) + '<span style="color:#999;font-size:.75rem;margin-left:4px">' + gShareP + P + '</span></td>';
+        h += '<td data-sort-value="' + g.name + '"><svg class="group-chevron" viewBox="0 0 10 6" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M1 1l4 4 4-4" stroke="#333" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>' + g.name + ' <span style="color:#999;font-weight:400;font-size:var(--fs-chip)">(' + g.members.length + ')</span></td>';
+        h += '<td class="col-right" data-sort-value="' + g.total + '">' + fmtNum(g.total) + '<span style="color:#999;font-size:var(--fs-chip);margin-left:4px">' + gShareP + P + '</span></td>';
         h += '<td class="col-right" data-sort-value="' + g.withPersons + '">' + fmtNum(g.withPersons) + '</td>';
         h += '<td class="col-right" data-sort-value="' + g.withActivities + '">' + fmtNum(g.withActivities) + '</td>';
         h += '<td class="col-right" data-sort-value="' + g.withEmail + '">' + fmtNum(g.withEmail) + '</td>';
-        h += '<td class="col-right" data-sort-value="' + g.stale + '">' + fmtNum(g.stale) + '<span style="color:#999;font-size:.75rem;margin-left:4px">' + gPctStale + P + '</span></td>';
+        h += '<td class="col-right" data-sort-value="' + g.stale + '">' + fmtNum(g.stale) + '<span style="color:#999;font-size:var(--fs-chip);margin-left:4px">' + gPctStale + P + '</span></td>';
         h += '<td class="col-right" data-sort-value="' + gCompP + '">' + barCell(gCompP, '') + '</td>';
         h += '</tr>';
         for (var mi = 0; mi < g.members.length; mi++) {
@@ -2454,7 +2454,7 @@ function renderExtra(tbl, idx) {
         var rc = '';
         if (f.filledCount === 0) rc = 'unused';
         h += '<tr class="' + rc + '">';
-        h += '<td data-sort-value="' + f.displayName + '">' + f.displayName + ' <code style="font-size:.75rem;color:#999">(' + f.fieldName + ')</code></td>';
+        h += '<td data-sort-value="' + f.displayName + '">' + f.displayName + ' <code style="font-size:var(--fs-chip);color:#999">(' + f.fieldName + ')</code></td>';
         h += '<td data-sort-value="' + f.fieldType + '"><span class="type-badge">' + f.fieldType + '</span></td>';
         h += '<td class="col-right" data-sort-value="' + f.filledCount + '">' + f.filledCount + '</td>';
         h += '<td class="col-right" data-sort-value="' + f.fillPercent + '">' + f.fillPercent + P + '</td>';
@@ -2658,7 +2658,7 @@ function renderTicket() {
     h += '<td class="col-right" data-sort-value="' + f.filledCount + '">' + f.filledCount + '</td>';
     h += '<td class="col-right" data-sort-value="' + f.fillPercent + '">' + f.fillPercent + P + '</td>';
     h += '<td>' + fillBar(f.fillPercent) + '</td>';
-    h += '<td style="font-size:.78rem;color:#888">';
+    h += '<td style="font-size:var(--fs-count);color:#888">';
     if (f.isRelation && f.filledCount > 0) {
       h += f.uniqueCount + ' unique ' + f.entityType + 's, ' + f.avgPerEntity + ' avg/entity, ' + f.coveragePercent + P + ' coverage';
     }
@@ -2833,7 +2833,7 @@ function mmKpiCard(value, label, trend) {
   var h = '<div class="stat-card">';
   h += '<div class="stat-value" style="color:var(--so-charcoal)">' + value + '</div>';
   h += '<div class="stat-label">' + label + '</div>';
-  if (trend) h += '<div style="font-size:.72rem;margin-top:6px;font-weight:600" class="' + trend.cls + '">' + trend.text + '</div>';
+  if (trend) h += '<div style="font-size:var(--fs-seclabel);margin-top:6px;font-weight:600" class="' + trend.cls + '">' + trend.text + '</div>';
   h += '</div>';
   return h;
 }
@@ -3049,7 +3049,7 @@ function renderUserAdoption(users, totalUsers, grandTotal, filterMonths, filterL
 
   var top10 = users.slice(0, Math.min(10, users.length));
   if (top10.length > 0 && top10[0].total > 0) {
-    h += '<div style="padding:16px 16px 8px;border-top:1px solid var(--so-border);font-size:.78rem;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.04em">Top 10 Most Active Users</div>';
+    h += '<div style="padding:16px 16px 8px;border-top:1px solid var(--so-border);font-size:var(--fs-count);font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.04em">Top 10 Most Active Users</div>';
     h += '<table class="data-table mm-user-table"><thead><tr>';
     h += '<th class="mm-col-rank">#</th><th class="mm-col-user">User</th><th class="mm-col-level">Level</th>';
     h += '<th class="mm-col-group">Group</th><th class="col-right mm-col-num">Activities</th><th class="col-right mm-col-num">Documents</th>';
@@ -3071,7 +3071,7 @@ function renderUserAdoption(users, totalUsers, grandTotal, filterMonths, filterL
 
   var groups = mmGroupUsers(users);
   if (groups.length > 0) {
-    h += '<div style="padding:16px 16px 8px;border-top:1px solid var(--so-border);font-size:.78rem;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.04em">All Users by Group</div>';
+    h += '<div style="padding:16px 16px 8px;border-top:1px solid var(--so-border);font-size:var(--fs-count);font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.04em">All Users by Group</div>';
     h += '<table class="data-table mm-user-table"><thead><tr>';
     h += '<th class="mm-col-rank"></th><th class="mm-col-user">User</th><th class="mm-col-level">Level</th><th class="mm-col-group">Group</th>';
     h += '<th class="col-right mm-col-num">Activities</th><th class="col-right mm-col-num">Documents</th>';
@@ -3083,7 +3083,7 @@ function renderUserAdoption(users, totalUsers, grandTotal, filterMonths, filterL
       var gInfo = grp.members.length + ' user' + (grp.members.length !== 1 ? 's' : '') + ' \u00B7 ' + fmtNum(grp.total) + ' activities';
       if (gPct > 0) gInfo += ' \u00B7 ' + gPct + P;
       h += '<tr class="assoc-group-header" onclick="togGroup(this)"><td colspan="8">' + svgBadgeChev + ' ' + grp.name;
-      h += ' <span style="color:#999;font-weight:400;font-size:.75rem;margin-left:4px">(' + gInfo + ')</span></td></tr>';
+      h += ' <span style="color:#999;font-weight:400;font-size:var(--fs-chip);margin-left:4px">(' + gInfo + ')</span></td></tr>';
       for (var mi = 0; mi < grp.members.length; mi++) {
         var u = grp.members[mi];
         var pct = totalAct > 0 ? Math.round((u.total / totalAct) * 100) : 0;
