@@ -1384,6 +1384,10 @@ function fetchCompanyDetails(cb) {
   if (companyDetailCache[key]) {
     companyDetailData = companyDetailCache[key];
     renderCompanyDetails(companyDetailData);
+    // The Company Overview reads companyDetailData for the database composition and
+    // the registration-year trend. Without this it keeps the version rendered before
+    // the detail data existed, so both blocks silently disappear on a cache hit.
+    renderCompanyOverviewV2();
     if (companyDetailData.funnel) {
       companyCrossData = companyDetailData;
       renderCrossEntityFunnel(companyDetailData);
