@@ -425,6 +425,9 @@ function startFullEntity(key) {
     // Call 1: CompanyCoreFetch (activity health, trend) — lightweight, ~6s
     ajax(coreUrl + dfParam + catParam, function(d) {
       if (!companyDetailData) companyDetailData = {};
+      // Without this payload the overview loses the database composition and the
+      // registration-year trend, with nothing on screen to explain why. Say so.
+      if (!d && typeof console !== 'undefined') console.warn('[HealthCheck] CompanyCoreFetch returned no data; database composition and registration trend will be missing.');
       if (d) {
         if (d.activityHealth) companyDetailData.activityHealth = d.activityHealth;
         if (d.trend) companyDetailData.trend = d.trend;
@@ -1210,9 +1213,8 @@ function renderEntityOverview(key, d) {
 
   h += dateFilterNotice();
 
-  h += '<div class="detail-section">';
-  h += '<div class="detail-section-head">' + secHead(cfg.title) + '</div>';
-  h += '<div class="stat-row">';
+  h += hcSecLabel(cfg.title);
+  h += '<div class="kpis" style="grid-template-columns:repeat(' + Math.min(cfg.stats.length, 5) + ',minmax(0,1fr))">';
   for (var i = 0; i < cfg.stats.length; i++) {
     var s = cfg.stats[i];
     if (s[0] === totalKey) {
@@ -1221,15 +1223,14 @@ function renderEntityOverview(key, d) {
       h += ovCard(s[1], o[s[0]], total, '');
     }
   }
-  h += '</div></div>';
+  h += '</div>';
 
   if (cfg.sections) {
     for (var si = 0; si < cfg.sections.length; si++) {
       var sec = cfg.sections[si];
       var secTotal = o[sec.totalKey];
-      h += '<div class="detail-section">';
-      h += '<div class="detail-section-head">' + secHead(sec.title) + '</div>';
-      h += '<div class="stat-row">';
+      h += hcSecLabel(sec.title);
+      h += '<div class="kpis" style="grid-template-columns:repeat(' + Math.min(sec.stats.length, 5) + ',minmax(0,1fr))">';
       for (var sj = 0; sj < sec.stats.length; sj++) {
         var ss = sec.stats[sj];
         if (ss[0] === sec.totalKey) {
@@ -1275,19 +1276,18 @@ function secHead(t) {
   return '<h4 style="font-size:var(--fs-table);text-transform:uppercase;color:var(--so-text-muted);margin-bottom:12px;font-weight:600;letter-spacing:.5px">' + t + '</h4>';
 }
 
+// Every generic entity overview builds its figures through this one helper, so
+// routing it at hcKpi puts Activities, Marketing, Selection, Requests and Extra
+// Tables on the same tile as the entity pages in a single step.
 function ovCard(label, value, total, color) {
   var v = (typeof value === 'number' && !isNaN(value)) ? value : 0;
-  var h = '<div class="stat-card">';
-  h += '<div class="stat-value">' + fmtNum(v) + '</div>';
-  h += '<div class="stat-label">' + label + '</div>';
+  var sub = '';
   if (total && total > 0) {
     var pct = Math.round((v / total) * 1000) / 10;
     if (isNaN(pct)) pct = 0;
-    h += '<div style="margin-top:6px">' + fillBar(pct, 8, color) + '</div>';
-    h += '<div class="stat-label" style="margin-top:3px">' + pct + P + '</div>';
+    sub = fillBar(pct, 8, color) + '<div style="margin-top:4px">' + pct + P + '</div>';
   }
-  h += '</div>';
-  return h;
+  return hcKpi(label, fmtNum(v), sub, '', '');
 }
 
 function pctCard(label, pct, desc, color, count, base) {
@@ -2436,18 +2436,13 @@ function renderExtra(tbl, idx) {
         h += '<div class="relation-block"><div class="relation-block-header">';
         h += '<div><span class="field-name">' + rf.displayName + '</span> <code>(' + rf.fieldName + ')</code></div>';
         h += '<span class="badge-relation">' + rf.entityType + '</span></div>';
-        h += '<div class="stat-row">';
-        h += '<div class="stat-card"><div class="stat-value">' + rf.filledCount + ' / ' + tbl.totalRows + '</div>';
-        h += '<div class="stat-label">Records with ' + rf.entityType + '</div>';
-        h += '<div style="margin-top:6px">' + fillBar(rf.fillPercent, 8) + '</div>';
-        h += '<div class="stat-label" style="margin-top:3px">' + rf.fillPercent + P + ' filled</div></div>';
-        h += '<div class="stat-card"><div class="stat-value">' + rf.uniqueCount + '</div>';
-        h += '<div class="stat-label">Unique ' + rf.entityType + 's linked</div></div>';
-        h += '<div class="stat-card"><div class="stat-value">' + rf.avgPerEntity + '</div>';
-        h += '<div class="stat-label">Avg records per ' + rf.entityType + '</div></div>';
-        h += '<div class="stat-card"><div class="stat-value">' + rf.coveragePercent + P + '</div>';
-        h += '<div class="stat-label">' + rf.uniqueCount + ' of ' + rf.totalEntityCount + ' ' + rf.entityType + 's</div>';
-        h += '<div class="stat-label">have a record in this table</div></div>';
+        h += '<div class="kpis" style="grid-template-columns:repeat(4,minmax(0,1fr))">';
+        h += hcKpi('Records with ' + rf.entityType, rf.filledCount + ' / ' + tbl.totalRows,
+          fillBar(rf.fillPercent, 8) + '<div style="margin-top:4px">' + rf.fillPercent + P + ' filled</div>', '', '');
+        h += hcKpi('Unique ' + rf.entityType + 's linked', rf.uniqueCount, '', '', '');
+        h += hcKpi('Avg records per ' + rf.entityType, rf.avgPerEntity, '', '', '');
+        h += hcKpi(rf.entityType + 's covered', rf.coveragePercent + P,
+          rf.uniqueCount + ' of ' + rf.totalEntityCount + ' have a record here', '', '');
         h += '</div></div>';
       }
       h += '</div>';
