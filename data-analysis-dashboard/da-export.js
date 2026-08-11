@@ -57,7 +57,7 @@ function exportFullEntity(key, entityName, udefEntityId, returnWb) {
     if (od.distributions && od.distributions.length > 0) {
       for (var di = 0; di < od.distributions.length; di++) {
         var dist = od.distributions[di];
-        var distTotal = dist.total || total;
+        var distTotal = hrDistDenominator(dist, total);
         ovRows.push(['', '', '', '']);
         ovRows.push([dist.title.toUpperCase(), '', '', '']);
         ovRows.push(['Value', 'Count', 'Total', 'Percentage']);
@@ -268,7 +268,7 @@ function exportTicketWb() {
     if (od.distributions && od.distributions.length > 0) {
       for (var di = 0; di < od.distributions.length; di++) {
         var dist = od.distributions[di];
-        var distTotal = dist.total || total;
+        var distTotal = hrDistDenominator(dist, total);
         ovRows.push(['', '', '', '']);
         ovRows.push([dist.title.toUpperCase(), '', '', '']);
         ovRows.push(['Value', 'Count', 'Total', 'Percentage']);
@@ -418,7 +418,7 @@ function exportSimpleEntity(key, entityName, returnWb) {
     if (od.distributions && od.distributions.length > 0) {
       for (var di = 0; di < od.distributions.length; di++) {
         var dist = od.distributions[di];
-        var distTotal = dist.total || total;
+        var distTotal = hrDistDenominator(dist, total);
         ovRows.push(['', '', '', '']);
         ovRows.push([dist.title.toUpperCase(), '', '', '']);
         ovRows.push(['Value', 'Count', 'Total', 'Percentage']);
@@ -538,24 +538,48 @@ var HR_PAGE_W = 210, HR_PAGE_H = 297;
 var HR_ML = 22, HR_MR = 22, HR_MT = 20, HR_MB = 18;
 var HR_CW = HR_PAGE_W - HR_ML - HR_MR; // 166mm content width
 
+// The report palette mirrors the dashboard tokens one to one, in RGB because jsPDF
+// takes no custom properties. Keeping two palettes in step by hand is the reason the
+// report drifted a full design generation behind the app.
+//   soGreen --green-deep #0c4a3f · soGreenLight --green #15564b · charcoal --ink
+//   #173a32 · gray --muted #5a6760 · muted --faint #6f7972 · border --line #e0dacd
+//   dune --card #f2efe9 · duneDark --card-border #e8e4dc · tblBorder --line-soft
+//   good #2f8f5b · ok --mod #b9832f · bad #c0473a · teal --c2 #2f817a · cn #c8c2b4
 var HR_COLORS = {
-  soGreen: [6,66,62], soGreenLight: [15,92,87], white: [255,255,255],
-  charcoal: [28,28,30], muted: [137,137,145], gray: [96,94,92],
-  border: [221,217,212], dune: [242,239,234], duneDark: [232,227,218],
-  good: [46,125,50], ok: [249,168,37], warn: [239,108,0], bad: [198,40,40],
-  tblBorder: [240,238,234], blue: [21,101,192]
+  soGreen: [12,74,63], soGreenLight: [21,86,75], white: [255,255,255],
+  charcoal: [23,58,50], muted: [111,121,114], gray: [90,103,96],
+  border: [224,218,205], dune: [242,239,233], duneDark: [232,228,220],
+  good: [47,143,91], ok: [185,131,47], warn: [192,71,58], bad: [192,71,58],
+  tblBorder: [230,225,213], teal: [47,129,122], cn: [200,194,180]
 };
 
+// Three bands at 70 and 40, identical to slColor in the dashboard. The report used
+// four bands at 70/50/30, so the same score could be amber here and ocher there.
 function hrScoreColor(pct) {
   if (pct >= 70) return HR_COLORS.good;
-  if (pct >= 50) return HR_COLORS.ok;
-  if (pct >= 30) return HR_COLORS.warn;
+  if (pct >= 40) return HR_COLORS.ok;
   return HR_COLORS.bad;
 }
 
 function hrScoreHex(pct) {
   var c = hrScoreColor(pct);
   return '#' + c.map(function(v){ return ('0'+v.toString(16)).slice(-2); }).join('');
+}
+
+// Denominator for a distribution table, shared by the Excel and PDF exports.
+// Some distributions count rows in a link table rather than records: a person can
+// hold several consent rows, so dividing by the record total produced percentages
+// above 100 on a real tenant (809%, 927%, 1027%). When the items outweigh the record
+// total the distribution becomes its own denominator, so the column stays readable as
+// a share. The counts themselves are a backend matter.
+function hrDistDenominator(dist, recordTotal) {
+  var sum = 0;
+  if (dist && dist.items) {
+    for (var i = 0; i < dist.items.length; i++) sum += (dist.items[i].count || 0);
+  }
+  var t = dist && dist.total ? dist.total : recordTotal;
+  if (!t || sum > t) t = sum;
+  return t;
 }
 
 // Score objects from daSettings are {total: N, ...} — extract the number safely
@@ -1058,6 +1082,16 @@ function hrDrawUdefTable(doc, y, entity) {
 
   y = hrCheckPageBreak(doc, y, 30);
   y = hrSectionTitle(doc, y, 'User-Defined Field Completeness', ud.fields.length + ' fields');
+  // The UDEF scan has its own record count, which differs from the entity total on the
+  // other pages. The dashboard says so next to the table; the report showed a bare
+  // "130 / 325" against a chapter header reading 245 records and explained nothing.
+  if (ud.total) {
+    doc.setFontSize(7.5); doc.setFont('helvetica','italic');
+    doc.setTextColor.apply(doc, HR_COLORS.muted);
+    doc.text('Measured over ' + fmtNum(ud.total) + ' records covered by the custom-field scan, which can differ from the record count in this chapter.', HR_ML, y);
+    doc.setFont('helvetica','normal');
+    y += 5;
+  }
 
   var fields = ud.fields.slice().sort(function(a,b) { return b.percent - a.percent; });
   var tHead = [['Field','Type','Filled','%']];
@@ -1101,7 +1135,7 @@ function hrDrawDistributions(doc, y, entity) {
   for (var di = 0; di < ov.distributions.length; di++) {
     var dist = ov.distributions[di];
     if (!dist.items || dist.items.length === 0) continue;
-    var distTotal = dist.total || total;
+    var distTotal = hrDistDenominator(dist, total);
 
     y = hrCheckPageBreak(doc, y, 25);
     y = hrSectionTitle(doc, y, dist.title + ' Distribution', fmtNum(dist.items.length) + ' values');
@@ -1379,7 +1413,9 @@ function exportHealthReport() {
     var users = momentumData.users || [];
     var totalU = momentumData.totalUsers || 0;
     var monthly = momentumData.monthly || [];
-    var filterMonths = monthly.length;
+    // Same window as the dashboard, otherwise the report and the screen disagree
+    // about a user's level for the same run.
+    var filterMonths = (typeof mmWindowMonths === 'function') ? mmWindowMonths(monthly) : monthly.length;
     var levels = {Power:0, Regular:0, Low:0, Inactive:0};
     var levelActs = {Power:0, Regular:0, Low:0, Inactive:0};
     var totalActs = 0;
@@ -1393,9 +1429,9 @@ function exportHealthReport() {
     }
     var mmCards = [
       {label:'Power Users', value: levels.Power, color: HR_COLORS.good, sub: totalU > 0 ? Math.round(levels.Power / totalU * 100) + '% of users' : ''},
-      {label:'Regular Users', value: levels.Regular, color: HR_COLORS.blue, sub: totalU > 0 ? Math.round(levels.Regular / totalU * 100) + '% of users' : ''},
+      {label:'Regular Users', value: levels.Regular, color: HR_COLORS.teal, sub: totalU > 0 ? Math.round(levels.Regular / totalU * 100) + '% of users' : ''},
       {label:'Low Usage', value: levels.Low, color: HR_COLORS.warn, sub: totalU > 0 ? Math.round(levels.Low / totalU * 100) + '% of users' : ''},
-      {label:'Inactive', value: levels.Inactive, color: HR_COLORS.bad, sub: totalU > 0 ? Math.round(levels.Inactive / totalU * 100) + '% of users' : ''}
+      {label:'Inactive', value: levels.Inactive, color: HR_COLORS.cn, sub: totalU > 0 ? Math.round(levels.Inactive / totalU * 100) + '% of users' : ''}
     ];
     var mmCardW = (HR_CW - 9) / 4;
     for (var mi = 0; mi < 4; mi++) {
@@ -1480,7 +1516,9 @@ function exportHealthReport() {
   doc.addPage();
   chapters.push({id:'momentum', title:'CRM Momentum', page: doc.internal.getNumberOfPages(), users: momentumData.totalUsers || 0});
   hrDrawPageHeader(doc);
-  var mmSub = 'Activity trends & user engagement \u00b7 Last 24 months';
+  // Computed here because the subtitle needs it before the level loop below runs.
+  var mmFilterMonths = (typeof mmWindowMonths === 'function') ? mmWindowMonths(momentumData.monthly || []) : (momentumData.monthly || []).length;
+  var mmSub = 'Activity trends & user engagement \u00b7 Last ' + mmFilterMonths + ' months';
   var mmScore = (momentumData.totalUsers || 0) + ' users';
   var mmY = hrDrawEntityHeader(doc, 'CRM Momentum', mmSub, mmScore);
 
@@ -1488,7 +1526,7 @@ function exportHealthReport() {
   var mmUsers = momentumData.users || [];
   var mmTotalU = momentumData.totalUsers || 0;
   var mmMonthly = momentumData.monthly || [];
-  var mmFilterMonths = mmMonthly.length;
+  // mmFilterMonths is already resolved above, next to the subtitle that prints it.
   var mmLevels = {Power:0, Regular:0, Low:0, Inactive:0};
   var mmLevelActs = {Power:0, Regular:0, Low:0, Inactive:0};
   var mmTotalActs = 0;
@@ -1548,9 +1586,9 @@ function exportHealthReport() {
   mmY = hrSectionTitle(doc, mmY, 'User Adoption Levels');
   var ulCards = [
     {label:'Power Users', value: mmLevels.Power, color: HR_COLORS.good, sub: mmTotalU > 0 ? Math.round(mmLevels.Power / mmTotalU * 100) + '% of users' : ''},
-    {label:'Regular Users', value: mmLevels.Regular, color: HR_COLORS.blue, sub: mmTotalU > 0 ? Math.round(mmLevels.Regular / mmTotalU * 100) + '% of users' : ''},
+    {label:'Regular Users', value: mmLevels.Regular, color: HR_COLORS.teal, sub: mmTotalU > 0 ? Math.round(mmLevels.Regular / mmTotalU * 100) + '% of users' : ''},
     {label:'Low Usage', value: mmLevels.Low, color: HR_COLORS.warn, sub: mmTotalU > 0 ? Math.round(mmLevels.Low / mmTotalU * 100) + '% of users' : ''},
-    {label:'Inactive', value: mmLevels.Inactive, color: HR_COLORS.bad, sub: mmTotalU > 0 ? Math.round(mmLevels.Inactive / mmTotalU * 100) + '% of users' : ''}
+    {label:'Inactive', value: mmLevels.Inactive, color: HR_COLORS.cn, sub: mmTotalU > 0 ? Math.round(mmLevels.Inactive / mmTotalU * 100) + '% of users' : ''}
   ];
   var ulCardW = (HR_CW - 9) / 4;
   for (var li = 0; li < 4; li++) {
@@ -1596,9 +1634,9 @@ function exportHealthReport() {
     if (data.section === 'body' && data.column.index === 6) {
       var lvl = data.cell.raw;
       if (lvl === 'Power') data.cell.styles.textColor = HR_COLORS.good;
-      else if (lvl === 'Regular') data.cell.styles.textColor = HR_COLORS.blue;
+      else if (lvl === 'Regular') data.cell.styles.textColor = HR_COLORS.teal;
       else if (lvl === 'Low') data.cell.styles.textColor = HR_COLORS.warn;
-      else if (lvl === 'Inactive') data.cell.styles.textColor = HR_COLORS.bad;
+      else if (lvl === 'Inactive') data.cell.styles.textColor = HR_COLORS.chipInk || HR_COLORS.gray;
     }
   };
   // Page break handling — redraw header on new pages
@@ -1724,7 +1762,7 @@ function hrGenerateSummary(scores, entities) {
 
   // Momentum insight
   if (momentumData) {
-    parts.push('CRM Momentum shows ' + (momentumData.totalUsers || 0) + ' active users over the last 24 months.');
+    parts.push('CRM Momentum shows ' + (momentumData.totalUsers || 0) + ' users in scope.');
   }
 
   return parts.join(' ');

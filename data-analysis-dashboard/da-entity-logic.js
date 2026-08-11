@@ -2828,6 +2828,19 @@ function mmLevelColor(level) {
   return MM_RED;
 }
 
+// One definition of the Momentum window. The dashboard derived it from the date
+// filter while the PDF report used the full 24-month series, so the same person could
+// be Regular on screen and Low in the report from a single run.
+function mmWindowMonths(monthly) {
+  var n = (monthly && monthly.length) ? monthly.length : 0;
+  var dfVal = '';
+  try { dfVal = (typeof activeFilterValue !== 'undefined' && activeFilterValue) ? (activeFilterValue['activities'] || '') : ''; } catch (e) { dfVal = ''; }
+  if (!dfVal) return n > 0 ? n : 1;
+  var diffMs = new Date().getTime() - new Date(dfVal).getTime();
+  var m = Math.max(1, Math.round(diffMs / (30.44 * 86400000)));
+  return n > 0 ? Math.min(m, n) : m;
+}
+
 function mmUserLevel(total, months) {
   var avg = months > 0 ? total / months : total;
   var powerT = 100, regT = 25;
@@ -2852,14 +2865,11 @@ function renderMomentum(key, d) {
   // monthly[n-1] = current month (incomplete), monthly[n-2] = last full, monthly[n-3] = previous full
   var lastFullMonth = monthly.length > 1 ? monthly[monthly.length - 2] : null;
   var prevFullMonth = monthly.length > 2 ? monthly[monthly.length - 3] : null;
-  var filterMonths = monthly.length;
+  var filterMonths = mmWindowMonths(monthly);
   var filterLabel = 'All data';
   var dfVal = activeFilterValue['activities'] || '';
   if (dfVal) {
-    var now = new Date();
     var filterDate = new Date(dfVal);
-    var diffMs = now.getTime() - filterDate.getTime();
-    filterMonths = Math.max(1, Math.round(diffMs / (30.44 * 86400000)));
     var mo = filterDate.getMonth() + 1;
     var yr = filterDate.getFullYear();
     filterLabel = 'Since ' + yr + '-' + (mo < 10 ? '0' : '') + mo;
