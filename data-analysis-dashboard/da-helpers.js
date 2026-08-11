@@ -1335,6 +1335,10 @@ function aaRunFullEntity(key, cb, markStepDone) {
         if (d.trendBefore !== undefined) companyDetailData.trendBefore = d.trendBefore;
       }
       if (typeof renderCompanyDetails === 'function') renderCompanyDetails(companyDetailData);
+      // The Company Overview reads companyDetailData for the database composition and
+      // the registration-year trend. The per-entity loader re-renders it here; this
+      // Analyze All loader did not, so a full run left both blocks missing.
+      if (typeof renderCompanyOverviewV2 === 'function') renderCompanyOverviewV2();
       stepDone('core');
     });
 
@@ -1350,6 +1354,8 @@ function aaRunFullEntity(key, cb, markStepDone) {
         if (typeof renderCrossEntityFunnel === 'function') renderCrossEntityFunnel(companyDetailData);
       }
       if (typeof renderCompanyDetails === 'function') renderCompanyDetails(companyDetailData);
+      // The engagement segments on the Overview come from funnel, so re-render here too.
+      if (typeof renderCompanyOverviewV2 === 'function') renderCompanyOverviewV2();
       if (typeof renderDQScore === 'function') renderDQScore('company');
       stepDone('quality');
     });
@@ -1361,6 +1367,7 @@ function aaRunFullEntity(key, cb, markStepDone) {
         if (d.categoryEffectiveness) companyDetailData.categoryEffectiveness = d.categoryEffectiveness;
       }
       if (typeof renderCompanyDetails === 'function') renderCompanyDetails(companyDetailData);
+      if (typeof renderCompanyOverviewV2 === 'function') renderCompanyOverviewV2();
       stepDone('assoc');
     });
   }
