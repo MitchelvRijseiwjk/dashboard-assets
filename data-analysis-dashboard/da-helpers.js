@@ -148,7 +148,11 @@ var DP_SCOPES = [
 ];
 
 var DP_COV = {
-  active: { label: 'Active base', rows: [['Company', 'active in last 12 months'], ['Contact', 'created or active'], ['Sale', 'open or active'], ['Project', 'active'], ['Requests', 'open or updated'], ['Activities', 'logged in period']] },
+  // Verified against the live scripts. Under the active scope OverviewFetch.applyScope
+  // filters on an appointment inside the fixed 12-month window; record status plays no
+  // part. Tickets have no appointment key, so active falls back to the created date and
+  // does follow the chosen period. Activities are always windowed on activeDate.
+  active: { label: 'Active base', rows: [['Company', 'activity in last 12 months'], ['Contact', 'activity in last 12 months'], ['Sale', 'activity in last 12 months'], ['Project', 'activity in last 12 months'], ['Requests', 'created in period'], ['Activities', 'logged in period']] },
   created: { label: 'Newly created', rows: [['Company', 'created in period'], ['Contact', 'created in period'], ['Sale', 'created in period'], ['Project', 'created in period'], ['Requests', 'created in period'], ['Activities', 'logged in period']] },
   all: { label: 'Full database', rows: [['Company', 'entire database'], ['Contact', 'entire database'], ['Sale', 'entire database'], ['Project', 'entire database'], ['Requests', 'entire database'], ['Activities', 'logged in period']] }
 };
