@@ -566,6 +566,21 @@ function hrScoreHex(pct) {
   return '#' + c.map(function(v){ return ('0'+v.toString(16)).slice(-2); }).join('');
 }
 
+// The period line printed the literal string "Period: All data" whatever the run, so
+// a report over a 12-month active scope still claimed to cover everything. It now
+// states the window and the scope the run actually used.
+function hrPeriodLabel(prefix) {
+  var df = '', dt = '', sc = 'active';
+  try {
+    df = (typeof activeFilterValue !== 'undefined' && activeFilterValue) ? (activeFilterValue['company'] || activeFilterValue[currentAnalysisEntity] || '') : '';
+    dt = (typeof activeWindowTo !== 'undefined' && activeWindowTo) ? activeWindowTo : '';
+    sc = (typeof activeScope !== 'undefined' && activeScope) ? activeScope : 'active';
+  } catch (e) { df = ''; }
+  var scopeName = sc === 'all' ? 'full database' : (sc === 'created' ? 'newly created' : 'active base');
+  var win = df ? (dt ? (df + ' to ' + dt) : ('since ' + df)) : 'all data';
+  return (prefix || '') + win + ' \u00b7 ' + scopeName;
+}
+
 // Denominator for a distribution table, shared by the Excel and PDF exports.
 // Some distributions count rows in a link table rather than records: a person can
 // hold several consent rows, so dividing by the record total produced percentages
@@ -573,12 +588,21 @@ function hrScoreHex(pct) {
 // total the distribution becomes its own denominator, so the column stays readable as
 // a share. The counts themselves are a backend matter.
 function hrDistDenominator(dist, recordTotal) {
-  var sum = 0;
+  var sum = 0, max = 0;
   if (dist && dist.items) {
-    for (var i = 0; i < dist.items.length; i++) sum += (dist.items[i].count || 0);
+    for (var i = 0; i < dist.items.length; i++) {
+      var c = dist.items[i].count || 0;
+      sum += c;
+      if (c > max) max = c;
+    }
   }
   var t = dist && dist.total ? dist.total : recordTotal;
-  if (!t || sum > t) t = sum;
+  // Multi-value fields legitimately sum past the record total: a company can carry
+  // several interests, and "29% of companies have this interest" is the useful
+  // reading even though the column adds up to more than 100. Only when a single
+  // value outruns the record total is the denominator provably wrong, which is the
+  // consent case, and then the distribution becomes its own denominator.
+  if (!t || max > t) t = sum;
   return t;
 }
 
@@ -1250,7 +1274,7 @@ function exportHealthReport() {
   ty += 8;
   doc.setFontSize(10); doc.setFont('helvetica','normal');
   doc.setTextColor.apply(doc, HR_COLORS.muted);
-  doc.text('Generated: ' + rptDate + ' \u00b7 Period: All data', HR_ML, ty);
+  doc.text('Generated: ' + rptDate + ' \u00b7 ' + hrPeriodLabel('Period: '), HR_ML, ty);
   // Green bar bottom
   doc.setFillColor.apply(doc, HR_COLORS.soGreen);
   doc.rect(0, HR_PAGE_H - 5, HR_PAGE_W, 5, 'F');
@@ -1430,7 +1454,7 @@ function exportHealthReport() {
     var mmCards = [
       {label:'Power Users', value: levels.Power, color: HR_COLORS.good, sub: totalU > 0 ? Math.round(levels.Power / totalU * 100) + '% of users' : ''},
       {label:'Regular Users', value: levels.Regular, color: HR_COLORS.teal, sub: totalU > 0 ? Math.round(levels.Regular / totalU * 100) + '% of users' : ''},
-      {label:'Low Usage', value: levels.Low, color: HR_COLORS.warn, sub: totalU > 0 ? Math.round(levels.Low / totalU * 100) + '% of users' : ''},
+      {label:'Low Usage', value: levels.Low, color: HR_COLORS.ok, sub: totalU > 0 ? Math.round(levels.Low / totalU * 100) + '% of users' : ''},
       {label:'Inactive', value: levels.Inactive, color: HR_COLORS.cn, sub: totalU > 0 ? Math.round(levels.Inactive / totalU * 100) + '% of users' : ''}
     ];
     var mmCardW = (HR_CW - 9) / 4;
@@ -1467,7 +1491,7 @@ function exportHealthReport() {
       health: pSc ? _st(pSc.health) : 0
     });
     hrDrawPageHeader(doc);
-    var pSub = fmtNum(pOv.total) + ' records \u00b7 All data';
+    var pSub = fmtNum(pOv.total) + ' records \u00b7 ' + hrPeriodLabel('');
     var pScore = pSc ? _st(pSc.health) + '%' : '-';
     var pTitle = pk.charAt(0).toUpperCase() + pk.slice(1);
     var pY = hrDrawEntityHeader(doc, pTitle, pSub, pScore);
@@ -1587,7 +1611,7 @@ function exportHealthReport() {
   var ulCards = [
     {label:'Power Users', value: mmLevels.Power, color: HR_COLORS.good, sub: mmTotalU > 0 ? Math.round(mmLevels.Power / mmTotalU * 100) + '% of users' : ''},
     {label:'Regular Users', value: mmLevels.Regular, color: HR_COLORS.teal, sub: mmTotalU > 0 ? Math.round(mmLevels.Regular / mmTotalU * 100) + '% of users' : ''},
-    {label:'Low Usage', value: mmLevels.Low, color: HR_COLORS.warn, sub: mmTotalU > 0 ? Math.round(mmLevels.Low / mmTotalU * 100) + '% of users' : ''},
+    {label:'Low Usage', value: mmLevels.Low, color: HR_COLORS.ok, sub: mmTotalU > 0 ? Math.round(mmLevels.Low / mmTotalU * 100) + '% of users' : ''},
     {label:'Inactive', value: mmLevels.Inactive, color: HR_COLORS.cn, sub: mmTotalU > 0 ? Math.round(mmLevels.Inactive / mmTotalU * 100) + '% of users' : ''}
   ];
   var ulCardW = (HR_CW - 9) / 4;
@@ -1635,7 +1659,7 @@ function exportHealthReport() {
       var lvl = data.cell.raw;
       if (lvl === 'Power') data.cell.styles.textColor = HR_COLORS.good;
       else if (lvl === 'Regular') data.cell.styles.textColor = HR_COLORS.teal;
-      else if (lvl === 'Low') data.cell.styles.textColor = HR_COLORS.warn;
+      else if (lvl === 'Low') data.cell.styles.textColor = HR_COLORS.ok;
       else if (lvl === 'Inactive') data.cell.styles.textColor = HR_COLORS.chipInk || HR_COLORS.gray;
     }
   };
