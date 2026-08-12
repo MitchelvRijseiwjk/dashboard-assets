@@ -699,24 +699,40 @@ function renderCompanyOverviewV2() {
     var withPersons = o ? o.withPersons : 0;
     var withPersonsPct = totalC > 0 ? Math.round(withPersons / totalC * 1000) / 10 : 0;
 
+    // The dormant tail is the part of the database outside the scan. Under the full
+    // database scope nothing is outside it, so the tile would read a hard zero and
+    // suggest no company is dormant, right after the active scope showed hundreds.
+    // The split only carries meaning inside a scoped run, so the tile is replaced by
+    // the coverage figure it can still answer there.
+    var scopeAll = (typeof activeScope !== 'undefined' && activeScope === 'all');
     h += secLabel('State \u00b7 where things stand');
     h += '<div class="kpis">';
-    h += kpiCard('Companies', fmtNum(totalC), 'of ' + fmtNum(dbT) + ' total', '', '');
-    h += kpiCard('Dormant tail', fmtNum(dormantTail), dormantPct + '% with no recent activity', 'var(--cn)', 'Create selection');
+    h += kpiCard('Companies', fmtNum(totalC), scopeAll ? 'whole database' : 'of ' + fmtNum(dbT) + ' total', '', '');
+    if (scopeAll) {
+      var wpAll = o ? (o.withActivities || 0) : 0;
+      var wpAllPct = totalC > 0 ? Math.round(wpAll / totalC * 100) : 0;
+      h += kpiCard('With activity', fmtNum(wpAll), wpAllPct + '% active in the last 12 months', 'var(--cn)', '');
+    } else {
+      h += kpiCard('Dormant tail', fmtNum(dormantTail), dormantPct + '% with no recent activity', 'var(--cn)', 'Create selection');
+    }
     h += kpiCard('New this year', fmtNum(newThisYear), 'registered this year', '', '');
     h += kpiCard('With contact person', withPersonsPct + '%', fmtNum(withPersons) + ' companies', 'var(--good)', '');
     h += '</div>';
   }
 
   // ---- STATE: database composition (active vs dormant) + engagement segments ----
+  // Under the full database scope the active/dormant split collapses to one full bar,
+  // so the bar is skipped and only the engagement breakdown below it is kept.
   if (ah && ah.dbTotal) {
     var tC = ah.total;
     var dbC = ah.dbTotal;
     var dorm = dbC - tC;
     var actPct = dbC > 0 ? (tC / dbC * 100) : 0;
     var dormPctC = 100 - actPct;
-    h += secLabel('Database composition');
-    h += '<div class="entity-card" style="background:var(--card);border:1px solid #dcd5c8;border-radius:16px;padding:16px">';
+    var compAll = (typeof activeScope !== 'undefined' && activeScope === 'all');
+    h += secLabel(compAll ? 'Engagement' : 'Database composition');
+    h += '<div class="entity-card" style="background:var(--card);border:1px solid var(--card-border);border-radius:16px;padding:16px">';
+    if (!compAll) {
     h += '<div class="compbar" style="margin-bottom:10px">';
     h += hcBarSeg(actPct, 'var(--c1)', actPct >= 6 ? actPct.toFixed(0) + '%' : '');
     h += hcBarSeg(dormPctC, 'var(--cn)', 'Dormant tail \u00b7 ' + fmtNum(dorm) + ' companies with no recent activity', 'color:#6b6657;font-weight:500');
@@ -725,11 +741,12 @@ function renderCompanyOverviewV2() {
     h += dotLeg('var(--c1)', 'Active companies', fmtNum(tC), actPct.toFixed(1) + '%');
     h += dotLeg('var(--cn)', 'Dormant tail' + sbInfoIcon('Companies with no registered activity in the selected period. The active companies are the rest. Dormant records are never removed, so they accumulate over time.'), fmtNum(dorm), dormPctC.toFixed(1) + '%');
     h += '</div>';
+    } // end of the active/dormant split
     if (fn && fn.segments && fn.segments.length > 0) {
       var segs = fn.segments;
       var segTot = fn.total || tC;
             var engCol = hcEngColor;
-      h += '<div style="font-size:var(--fs-chip);color:' + MUTED + ';border-top:1px solid #eee5d8;padding-top:12px;margin-top:10px;margin-bottom:10px">How engaged the active companies are</div>';
+      h += '<div style="font-size:var(--fs-chip);color:var(--muted);' + (compAll ? '' : 'border-top:1px solid var(--line);padding-top:12px;margin-top:10px;') + 'margin-bottom:10px">How engaged ' + (compAll ? 'the companies' : 'the active companies') + ' are</div>';
       h += '<div class="engbar" style="margin-bottom:12px">';
       for (var sa = 0; sa < segs.length; sa++) {
         var sp = segTot > 0 ? (segs[sa].count / segTot * 100) : 0;
