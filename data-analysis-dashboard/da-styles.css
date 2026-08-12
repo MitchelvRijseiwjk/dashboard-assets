@@ -61,6 +61,12 @@
   /* score bands -> semantic (4-band collapsed to 3) */
   --sl-good:var(--good); --sl-ok:var(--mod); --sl-warn:var(--bad); --sl-bad:var(--bad);
 
+  /* --- Reading width. The floating panel keeps filling the viewport, but its content
+         stops at this width and centres, so lines and tables do not stretch to 2500px
+         on a wide monitor. Applied to the header row, the tab strip and the content
+         area alike, so the title, the tabs and the cards share one left edge. --- */
+  --measure:1440px;
+
   /* --- Status split (Sale): running versus decided is a distribution, not a verdict,
          so --open points at the categorical ramp instead of carrying a bespoke tone.
          --c4 also lifts the dark label from 5.2:1 to 6.1:1. --good-deep is --good
@@ -1297,3 +1303,26 @@ html[data-surface="warm"] {
 .ssplit .row .pc { text-align:right; color:var(--muted); font-weight:600; font-variant-numeric:tabular-nums; }
 .ssplit .row.off .nm, .ssplit .row.off .ct, .ssplit .row.off .pc { color:var(--faint); font-weight:600; }
 @media (max-width: 900px) { .ssplit .b2 { grid-template-columns:1fr; gap:18px; } }
+
+
+/* ================================================================
+   Maximum reading width.
+   The white panel still spans the viewport; only what sits inside it
+   is capped and centred. The cap is applied to the inner rows rather
+   than to .main, so the panel background, its border and the sticky
+   header keep running edge to edge.
+   ================================================================ */
+.page-header-top,
+.page-header > .sub-tabs,
+.content-area > div {
+  max-width: var(--measure);
+  margin-left: auto;
+  margin-right: auto;
+  width: 100%;
+  box-sizing: border-box;
+}
+/* The scroll container itself stays full width, otherwise its scrollbar detaches
+   from the panel edge. The cap lives on its children. */
+.content-area { max-width: none; }
+/* The full-screen states centre themselves rather than sitting in a capped column. */
+.content-area > .start-screen { max-width: none; }
