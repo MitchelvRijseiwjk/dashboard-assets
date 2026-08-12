@@ -44,7 +44,9 @@ function renderUdef(ent, idx, entityKey) {
       var dimStyle = '';  // dimming is a row class now, see .data-table tr.dimmed
       var tr = '<tr class="' + rc + '"' + dimStyle + '>';
       tr += '<td class="attn-col" data-sort-value="' + uAttn + '">' + attnIconHtml(uAttn, uReason) + '</td>';
-      tr += '<td data-sort-value="' + f.label + '">' + f.label + '</td>';
+      // Same reason chip as the flags table: excluded is a setting, never used is data.
+      var uChip = imp === 'excluded' ? '<span class="excl-chip">Not scored</span>' : (f.filled === 0 ? '<span class="excl-chip">Never used</span>' : '');
+      tr += '<td data-sort-value="' + f.label + '">' + f.label + uChip + '</td>';
       tr += '<td data-sort-value="' + f.type + '"><span class="type-badge">' + f.type + '</span>';
       if (f.items && f.items.length > 0) {
         ddCnt++;
@@ -1990,7 +1992,9 @@ function renderDQScore(key) {
           var attn = isActive ? Math.round(pct) : -1;
           var reason = '<b>' + attnBandWord(attn) + ' attention.</b> Active quality flag, ' + Math.round(pct) + '% of companies affected. Fewer affected lifts the score.';
           var dimStyle = '';  // dimming is a row class now, see .data-table tr.dimmed
-          var badge = isActive ? '' : ' <span style="font-size:var(--fs-tag);color:var(--so-text-muted)">(not in score)</span>';
+          // The chip carries the reason, so a greyed row explains itself instead of
+          // leaving the reader to guess what the shade means.
+          var badge = isActive ? '' : '<span class="excl-chip">Not scored</span>';
           var row = '<tr class="' + (isActive ? '' : 'dimmed') + '"' + dimStyle + '><td class="attn-col">' + attnIconHtml(attn, reason) + '</td><td>' + iss.label + badge + '</td>';
           row += '<td class="col-right">' + fmtNum(iss.val) + '</td>';
           row += '<td class="col-right">' + barCell(pct, col) + '</td></tr>';
