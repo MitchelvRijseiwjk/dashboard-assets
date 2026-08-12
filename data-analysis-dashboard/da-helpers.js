@@ -1616,6 +1616,11 @@ function attnIconHtml(score, reason) {
 // Sort row objects {attn, badness, html} by attention desc, worst-percentage first on ties, then join.
 function attnSortRows(rows) {
   rows.sort(function(a, b) {
+    // Rows that carry no action sink to the bottom regardless of their score: a field
+    // excluded from the score and a field nobody has ever filled both used to rank
+    // above half-complete fields, purely because 0% empty scores worst.
+    var ao = a.off ? 1 : 0, bo = b.off ? 1 : 0;
+    if (ao !== bo) return ao - bo;
     if (b.attn !== a.attn) return b.attn - a.attn;
     return b.badness - a.badness;
   });

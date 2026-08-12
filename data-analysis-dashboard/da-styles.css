@@ -943,6 +943,17 @@ html[data-surface="warm"] {
 .attn-tip{display:none;position:absolute;bottom:calc(100% + 8px);left:-6px;z-index:100;width:230px;background:var(--so-white);border:1px solid var(--so-border);border-radius:8px;box-shadow:0 6px 18px rgba(0,0,0,.13);padding:9px 11px;font-size:var(--fs-seclabel);font-weight:400;line-height:1.5;color:#5a5953;text-align:left;text-transform:none;letter-spacing:0;white-space:normal}
 .attn-iw:hover .attn-tip{display:block}
 .attn-tip b{color:var(--so-charcoal);font-weight:600}
+/* Rows that do not count towards the score.
+   Dimming used to be inline opacity on the <tr>, which faded the whole row as one
+   layer: the icon went with it, and because the attention column was exempted the
+   grey read as a band that stopped short of the icon. The row now carries a real
+   recessed background across every cell, including the icon column, and its ink is
+   muted rather than made transparent. */
+.data-table tbody tr.dimmed td{background:var(--track);color:var(--faint)}
+.data-table tbody tr.dimmed td b,
+.data-table tbody tr.dimmed td span{color:var(--faint)}
+.data-table tbody tr.dimmed:hover td{background:var(--track)}
+.data-table tbody tr.dimmed .attn-dot{background:var(--cn)}
 /* keep the attention icon and its tooltip readable even on dimmed/unused rows */
 .data-table tbody tr.unused td.attn-col{opacity:1;text-decoration:none}
 .tbl-cap{margin:0;padding:10px 18px 12px;font-size:var(--fs-seclabel);color:var(--so-text-muted);line-height:1.5}

@@ -31,12 +31,17 @@ function renderUdef(ent, idx, entityKey) {
       var f = ent.fields[fi];
       var pid = f.progId || f.label || ('f' + fi);
       var imp = udefCfg[pid] || 'normal';
+      // Two kinds of row drop out of the ranking: a field excluded from the score, and
+      // a field nobody has ever filled. Neither is an action, so neither belongs above
+      // the fields that are half complete.
       var rc = '';
       if (f.filled === 0) rc = 'unused';
+      var uOff = (imp === 'excluded' || f.filled === 0) ? 1 : 0;
+      if (uOff) rc = (rc ? rc + ' ' : '') + 'dimmed';
       var uBad = 100 - f.percent;
       var uAttn = attnScore(uBad, imp);
       var uReason = '<b>' + attnBandWord(uAttn) + ' attention.</b> ' + _capFirst(imp) + ' field, ' + Math.round(uBad) + '% empty. Higher completeness lifts the Data Quality score.';
-      var dimStyle = imp === 'excluded' ? ' style="opacity:0.4"' : '';
+      var dimStyle = '';  // dimming is a row class now, see .data-table tr.dimmed
       var tr = '<tr class="' + rc + '"' + dimStyle + '>';
       tr += '<td class="attn-col" data-sort-value="' + uAttn + '">' + attnIconHtml(uAttn, uReason) + '</td>';
       tr += '<td data-sort-value="' + f.label + '">' + f.label + '</td>';
@@ -63,7 +68,7 @@ function renderUdef(ent, idx, entityKey) {
       tr += '<td style="text-align:center"><span class="imp-badge ' + imp + '">' + imp + '</span></td>';
       tr += '<td class="col-right" data-sort-value="' + f.percent + '">' + barCell(f.percent, '') + '</td>';
       tr += '</tr>';
-      uRows.push({ attn: uAttn, badness: uBad, html: tr });
+      uRows.push({ attn: uAttn, badness: uBad, off: uOff, html: tr });
     }
     h += attnSortRows(uRows);
     h += '</tbody></table>';
@@ -1978,15 +1983,18 @@ function renderDQScore(key) {
           var iss = allIssues[i];
           var isActive = qiFields.indexOf(iss.key) >= 0;
           var pct = Math.round((iss.val / total) * 1000) / 10;
-          var col = slColorInv(pct);
+          // A flag outside the score gets a neutral bar. It used to keep its semantic
+          // colour, so the longest, reddest bar in the table belonged to the one row
+          // that does not count, which is the opposite of what the table is sorted on.
+          var col = isActive ? slColorInv(pct) : 'var(--cn)';
           var attn = isActive ? Math.round(pct) : -1;
           var reason = '<b>' + attnBandWord(attn) + ' attention.</b> Active quality flag, ' + Math.round(pct) + '% of companies affected. Fewer affected lifts the score.';
-          var dimStyle = isActive ? '' : ' style="opacity:0.4"';
+          var dimStyle = '';  // dimming is a row class now, see .data-table tr.dimmed
           var badge = isActive ? '' : ' <span style="font-size:var(--fs-tag);color:var(--so-text-muted)">(not in score)</span>';
-          var row = '<tr' + dimStyle + '><td class="attn-col">' + attnIconHtml(attn, reason) + '</td><td>' + iss.label + badge + '</td>';
+          var row = '<tr class="' + (isActive ? '' : 'dimmed') + '"' + dimStyle + '><td class="attn-col">' + attnIconHtml(attn, reason) + '</td><td>' + iss.label + badge + '</td>';
           row += '<td class="col-right">' + fmtNum(iss.val) + '</td>';
           row += '<td class="col-right">' + barCell(pct, col) + '</td></tr>';
-          qRows.push({ attn: attn, badness: pct, html: row });
+          qRows.push({ attn: attn, badness: pct, off: isActive ? 0 : 1, html: row });
         }
         h += attnSortRows(qRows);
         h += '</tbody></table></div>';
@@ -2018,13 +2026,13 @@ function renderDQScore(key) {
           var badness = 100 - pct;
           var attn = attnScore(badness, imp);
           var reason = '<b>' + attnBandWord(attn) + ' attention.</b> ' + _capFirst(imp) + ' field, ' + Math.round(badness) + '% empty. Higher completeness lifts the Data Quality score.';
-          var dimStyle = imp === 'excluded' ? ' style="opacity:0.4"' : '';
+          var dimStyle = '';  // dimming is a row class now, see .data-table tr.dimmed
           var badgeHtml = '<span class="imp-badge ' + imp + '">' + imp + '</span>';
-          var row = '<tr' + dimStyle + '><td class="attn-col">' + attnIconHtml(attn, reason) + '</td><td>' + label + '</td>';
+          var row = '<tr class="' + (imp === 'excluded' ? 'dimmed' : '') + '"' + dimStyle + '><td class="attn-col">' + attnIconHtml(attn, reason) + '</td><td>' + label + '</td>';
           row += '<td class="col-right">' + fmtNum(val) + '</td>';
           row += '<td style="text-align:center">' + badgeHtml + '</td>';
           row += '<td class="col-right">' + barCell(pct, '') + '</td></tr>';
-          cRows.push({ attn: attn, badness: badness, html: row });
+          cRows.push({ attn: attn, badness: badness, off: imp === 'excluded' ? 1 : 0, html: row });
         }
         h += attnSortRows(cRows);
         h += '</tbody></table></div>';
@@ -2058,13 +2066,13 @@ function renderDQScore(key) {
         var fBad = 100 - fPct;
         var fAttn = attnScore(fBad, imp);
         var fReason = '<b>' + attnBandWord(fAttn) + ' attention.</b> ' + _capFirst(imp) + ' field, ' + Math.round(fBad) + '% empty. Higher completeness lifts the Data Quality score.';
-        var dimStyle = imp === 'excluded' ? ' style="opacity:0.4"' : '';
+        var dimStyle = '';  // dimming is a row class now, see .data-table tr.dimmed
         var badgeHtml = '<span class="imp-badge ' + imp + '">' + imp + '</span>';
-        var eRow = '<tr' + dimStyle + '><td class="attn-col">' + attnIconHtml(fAttn, fReason) + '</td><td>' + fLabel + '</td>';
+        var eRow = '<tr class="' + (imp === 'excluded' ? 'dimmed' : '') + '"' + dimStyle + '><td class="attn-col">' + attnIconHtml(fAttn, fReason) + '</td><td>' + fLabel + '</td>';
         eRow += '<td class="col-right">' + fmtNum(fVal) + '</td>';
         eRow += '<td style="text-align:center">' + badgeHtml + '</td>';
         eRow += '<td class="col-right">' + barCell(fPct, '') + '</td></tr>';
-        eRows.push({ attn: fAttn, badness: fBad, html: eRow });
+        eRows.push({ attn: fAttn, badness: fBad, off: imp === 'excluded' ? 1 : 0, html: eRow });
       }
       h += attnSortRows(eRows);
       h += '</tbody></table></div>';
