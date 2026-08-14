@@ -691,6 +691,13 @@ function _ruleRows(entityKey) {
 function getRulesParam(entityKey) { var rows = _ruleRows(entityKey); return rows.length ? String.fromCharCode(38) + 'rules=' + encodeURIComponent(rows.join(';')) : ''; }
 function aaHasRules(entityKey) { return _ruleRows(entityKey).length > 0; }
 
+// CompanyQualityFetch was split into two endpoints so each half gets its own
+// request timeout: eighteen counted queries in one call exceeded the 150 second
+// limit on a tenant where every query runs about ten times slower than normal.
+// The second url is derived from the first, so the host file does not need to be
+// re-pasted for this change.
+var funnelUrl = (typeof qualityUrl === 'string' && qualityUrl) ? qualityUrl.replace('CompanyQualityFetch', 'CompanyFunnelFetch') : '';
+
 function dateFilterNotice(suppressFilter) {
   var key = currentAnalysisEntity;
   var df = suppressFilter ? '' : activeFilterValue[key];
@@ -1268,7 +1275,7 @@ function aaRunFullEntity(key, cb, markStepDone) {
   var totalSteps = 1; // overview always
   if (ec.udefId > 0) totalSteps++;
   if (ec.hasTicketFields) totalSteps++;
-  if (hasDetails) totalSteps += 3; // core + quality + detail
+  if (hasDetails) totalSteps += 4; // core + quality + funnel + detail
   totalSteps++; // extra tables always
   var doRules = aaHasRules(key);
   if (doRules) totalSteps++; // RulesFetch when the entity has active rules
@@ -1343,10 +1350,18 @@ function aaRunFullEntity(key, cb, markStepDone) {
       stepDone('core');
     });
 
-    // 3b: CompanyQualityFetch (~5s)
+    // 3b: CompanyQualityFetch (quality counts only)
     ajax(qualityUrl + dfParam + catParam + getExclParam('company'), function(d) {
+      if (d && d.quality) companyDetailData.quality = d.quality;
+      if (typeof renderDQScore === 'function') renderDQScore('company');
+      if (typeof renderCompanyOverviewV2 === 'function') renderCompanyOverviewV2();
+      stepDone('quality');
+    });
+
+    // 3b2: CompanyFunnelFetch (funnel, segments, churn), split off so each half
+    // has its own request timeout.
+    ajax(funnelUrl + dfParam + catParam + getExclParam('company'), function(d) {
       if (d) {
-        if (d.quality) companyDetailData.quality = d.quality;
         if (d.funnel) companyDetailData.funnel = d.funnel;
         if (d.churnRisk) companyDetailData.churnRisk = d.churnRisk;
       }
@@ -1358,7 +1373,7 @@ function aaRunFullEntity(key, cb, markStepDone) {
       // The engagement segments on the Overview come from funnel, so re-render here too.
       if (typeof renderCompanyOverviewV2 === 'function') renderCompanyOverviewV2();
       if (typeof renderDQScore === 'function') renderDQScore('company');
-      stepDone('quality');
+      stepDone('funnel');
     });
 
     // 3c: CompanyDetailFetch (~25s)

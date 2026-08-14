@@ -353,7 +353,7 @@ function startFullEntity(key) {
   var totalSteps = 2; // overview + extra (always)
   if (ec && ec.udefId > 0) totalSteps++;
   if (ec && ec.hasTicketFields) totalSteps++;
-  if (hasDetails) totalSteps += 3; // core + quality + detail (3 parallel scripts)
+  if (hasDetails) totalSteps += 4; // core + quality + funnel + detail (4 parallel scripts)
   var completedSteps = 0;
   var dfParam = getDateFilterParam();
 
@@ -448,11 +448,20 @@ function startFullEntity(key) {
       stepDone('Activity health loaded');
     });
 
-    // Call 2: CompanyQualityFetch (quality, funnel, segments, churn) — countRows only, ~5s
+    // Call 2: CompanyQualityFetch (quality counts only). The funnel, segments and
+    // churn moved to CompanyFunnelFetch in call 2b so each half has its own
+    // request timeout; both run in parallel, so nothing gets slower.
     ajax(qualityUrl + dfParam + catParam + getExclParam('company'), function(d) {
       if (!companyDetailData) companyDetailData = {};
+      if (d && d.quality) companyDetailData.quality = d.quality;
+      if (typeof renderDQScore === 'function') renderDQScore('company');
+      renderCompanyOverviewV2();
+    });
+
+    // Call 2b: CompanyFunnelFetch (funnel, segments, churn)
+    ajax(funnelUrl + dfParam + catParam + getExclParam('company'), function(d) {
+      if (!companyDetailData) companyDetailData = {};
       if (d) {
-        if (d.quality) companyDetailData.quality = d.quality;
         if (d.funnel) companyDetailData.funnel = d.funnel;
         if (d.churnRisk) companyDetailData.churnRisk = d.churnRisk;
       }
@@ -1484,7 +1493,8 @@ function fetchCompanyDetails(cb) {
     catParam = String.fromCharCode(38) + 'categoryName=' + encodeURIComponent(companyDetailCatValue);
   }
   var dfParam = getDateFilterParam();
-  var pending = 3;
+  // Four calls since CompanyQualityFetch was split into quality and funnel.
+  var pending = 4;
   companyDetailData = {};
 
   function checkDone() {
@@ -1509,10 +1519,16 @@ function fetchCompanyDetails(cb) {
     checkDone();
   });
 
-  // Call 2: Quality (quality, funnel, churn)
+  // Call 2: Quality counts
   ajax(qualityUrl + dfParam + catParam + getExclParam('company'), function(d) {
+    if (d && d.quality) companyDetailData.quality = d.quality;
+    checkDone();
+  });
+
+  // Call 2b: Funnel, segments and churn, split off so each half has its own
+  // request timeout.
+  ajax(funnelUrl + dfParam + catParam + getExclParam('company'), function(d) {
     if (d) {
-      if (d.quality) companyDetailData.quality = d.quality;
       if (d.funnel) companyDetailData.funnel = d.funnel;
       if (d.churnRisk) companyDetailData.churnRisk = d.churnRisk;
     }
