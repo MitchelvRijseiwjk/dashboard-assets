@@ -429,7 +429,70 @@ function startFullEntity(key) {
     // Each script renders its part independently as it arrives
     // companyDetailData is progressively built up
 
-    // Call 1: CompanyCoreFetch (activity health, trend) — lightweight, ~6s
+    // The four company scripts run one after another, not in parallel.
+    //
+    // Splitting the quality script gave each half its own request limit but made
+    // things worse on a throughput-bound tenant: with a fourth concurrent call
+    // every script slowed by roughly 1.8x, including scripts that were not
+    // touched, and the funnel half alone then took longer (177s) than the whole
+    // unsplit script had (157s). The database is the constraint, so running more
+    // at once only divides the same capacity and pushes individual requests past
+    // the 150 second limit.
+    //
+    // Chained, each request gets the full capacity and stays well inside the
+    // limit, which is what the limit applies to. Total wall time is comparable
+    // because the work is the same; it is only spread differently.
+    function coCall2() {
+      ajax(qualityUrl + dfParam + catParam + getExclParam('company'), function(d) {
+        if (!companyDetailData) companyDetailData = {};
+        if (d && d.quality) companyDetailData.quality = d.quality;
+        if (typeof renderDQScore === 'function') renderDQScore('company');
+        renderCompanyOverviewV2();
+        stepDone('Quality counts loaded');
+        coCall2b();
+      });
+    }
+
+    function coCall2b() {
+      ajax(funnelUrl + dfParam + catParam + getExclParam('company'), function(d) {
+        if (!companyDetailData) companyDetailData = {};
+        if (d) {
+          if (d.funnel) companyDetailData.funnel = d.funnel;
+          if (d.churnRisk) companyDetailData.churnRisk = d.churnRisk;
+        }
+        if (companyDetailData.funnel) {
+          companyCrossData = companyDetailData;
+          renderCrossEntityFunnel(companyDetailData);
+          var crossEl2 = document.getElementById('companyCrossContent');
+          if (crossEl2) crossEl2.style.animation = 'fadeIn .3s ease';
+        }
+        populateDetailCatFilter();
+        var countEl = document.getElementById('companyDetailFilterCount');
+        if (countEl && companyDetailData.activityHealth) {
+          countEl.textContent = companyDetailCatValue ? fmtNum(companyDetailData.activityHealth.total) + ' companies' : '';
+        }
+        renderCompanyDetails(companyDetailData);
+        renderDQScore('company');
+        renderCompanyOverviewV2();
+        stepDone('Funnel loaded');
+        coCall3();
+      });
+    }
+
+    function coCall3() {
+      ajax(detailUrl + dfParam + catParam, function(d) {
+        if (!companyDetailData) companyDetailData = {};
+        if (d) {
+          if (d.associates) companyDetailData.associates = d.associates;
+          if (d.categoryEffectiveness) companyDetailData.categoryEffectiveness = d.categoryEffectiveness;
+        }
+        renderCompanyDetails(companyDetailData);
+        renderCompanyOverviewV2();
+        stepDone('Associate breakdown loaded');
+      });
+    }
+
+    // Call 1 of 4: CompanyCoreFetch (activity health, trend)
     ajax(coreUrl + dfParam + catParam, function(d) {
       if (!companyDetailData) companyDetailData = {};
       // Without this payload the overview loses the database composition and the
@@ -442,61 +505,10 @@ function startFullEntity(key) {
         if (d.trendBefore !== undefined) companyDetailData.trendBefore = d.trendBefore;
         if (d.newRecords) companyDetailData.newRecords = d.newRecords;
       }
-      // Re-render details with whatever data we have so far
       renderCompanyDetails(companyDetailData);
       renderCompanyOverviewV2();
       stepDone('Activity health loaded');
-    });
-
-    // Call 2: CompanyQualityFetch (quality counts only). The funnel, segments and
-    // churn moved to CompanyFunnelFetch in call 2b so each half has its own
-    // request timeout; both run in parallel, so nothing gets slower.
-    ajax(qualityUrl + dfParam + catParam + getExclParam('company'), function(d) {
-      if (!companyDetailData) companyDetailData = {};
-      if (d && d.quality) companyDetailData.quality = d.quality;
-      if (typeof renderDQScore === 'function') renderDQScore('company');
-      renderCompanyOverviewV2();
-    });
-
-    // Call 2b: CompanyFunnelFetch (funnel, segments, churn)
-    ajax(funnelUrl + dfParam + catParam + getExclParam('company'), function(d) {
-      if (!companyDetailData) companyDetailData = {};
-      if (d) {
-        if (d.funnel) companyDetailData.funnel = d.funnel;
-        if (d.churnRisk) companyDetailData.churnRisk = d.churnRisk;
-      }
-      // Render funnel (creates category filter)
-      if (companyDetailData.funnel) {
-        companyCrossData = companyDetailData;
-        renderCrossEntityFunnel(companyDetailData);
-        var crossEl2 = document.getElementById('companyCrossContent');
-        if (crossEl2) crossEl2.style.animation = 'fadeIn .3s ease';
-      }
-      populateDetailCatFilter();
-      var countEl = document.getElementById('companyDetailFilterCount');
-      if (countEl && companyDetailData.activityHealth) {
-        countEl.textContent = companyDetailCatValue ? fmtNum(companyDetailData.activityHealth.total) + ' companies' : '';
-      }
-      // Re-render details
-      renderCompanyDetails(companyDetailData);
-      // Trigger DQ score recalc (quality data now available)
-      renderDQScore('company');
-      renderCompanyOverviewV2();
-      stepDone('Quality analysis loaded');
-    });
-
-    // Call 3: CompanyDetailFetch (associates, category effectiveness) — bulk loop, ~25s
-    ajax(detailUrl + dfParam + catParam, function(d) {
-      if (!companyDetailData) companyDetailData = {};
-      if (d) {
-        if (d.associates) companyDetailData.associates = d.associates;
-        if (d.categoryEffectiveness) companyDetailData.categoryEffectiveness = d.categoryEffectiveness;
-      }
-      // Re-render details (now with associate + category data)
-      renderCompanyDetails(companyDetailData);
-      var detailEl2 = document.getElementById('companyDetailContent');
-      if (detailEl2) detailEl2.style.animation = 'fadeIn .3s ease';
-      stepDone('Associate breakdown loaded');
+      coCall2();
     });
   }
 

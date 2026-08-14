@@ -1333,7 +1333,51 @@ function aaRunFullEntity(key, cb, markStepDone) {
     }
     if (!companyDetailData) companyDetailData = {};
 
-    // 3a: CompanyCoreFetch (~6s)
+    // Chained, not parallel. See the note in runFullEntity: on a throughput-bound
+    // tenant a fourth concurrent company call slowed every script by about 1.8x
+    // and pushed the funnel half past the 150 second request limit. One at a time
+    // keeps each request inside the limit.
+    function aaCo2() {
+      ajax(qualityUrl + dfParam + catParam + getExclParam('company'), function(d) {
+        if (d && d.quality) companyDetailData.quality = d.quality;
+        if (typeof renderDQScore === 'function') renderDQScore('company');
+        if (typeof renderCompanyOverviewV2 === 'function') renderCompanyOverviewV2();
+        stepDone('quality');
+        aaCo2b();
+      });
+    }
+
+    function aaCo2b() {
+      ajax(funnelUrl + dfParam + catParam + getExclParam('company'), function(d) {
+        if (d) {
+          if (d.funnel) companyDetailData.funnel = d.funnel;
+          if (d.churnRisk) companyDetailData.churnRisk = d.churnRisk;
+        }
+        if (companyDetailData.funnel) {
+          companyCrossData = companyDetailData;
+          if (typeof renderCrossEntityFunnel === 'function') renderCrossEntityFunnel(companyDetailData);
+        }
+        if (typeof renderCompanyDetails === 'function') renderCompanyDetails(companyDetailData);
+        if (typeof renderCompanyOverviewV2 === 'function') renderCompanyOverviewV2();
+        if (typeof renderDQScore === 'function') renderDQScore('company');
+        stepDone('funnel');
+        aaCo3();
+      });
+    }
+
+    function aaCo3() {
+      ajax(detailUrl + dfParam + catParam, function(d) {
+        if (d) {
+          if (d.associates) companyDetailData.associates = d.associates;
+          if (d.categoryEffectiveness) companyDetailData.categoryEffectiveness = d.categoryEffectiveness;
+        }
+        if (typeof renderCompanyDetails === 'function') renderCompanyDetails(companyDetailData);
+        if (typeof renderCompanyOverviewV2 === 'function') renderCompanyOverviewV2();
+        stepDone('assoc');
+      });
+    }
+
+    // 3a of 4: CompanyCoreFetch
     ajax(coreUrl + dfParam + catParam, function(d) {
       if (d) {
         if (d.activityHealth) companyDetailData.activityHealth = d.activityHealth;
@@ -1343,48 +1387,9 @@ function aaRunFullEntity(key, cb, markStepDone) {
         if (d.newRecords) companyDetailData.newRecords = d.newRecords;
       }
       if (typeof renderCompanyDetails === 'function') renderCompanyDetails(companyDetailData);
-      // The Company Overview reads companyDetailData for the database composition and
-      // the registration-year trend. The per-entity loader re-renders it here; this
-      // Analyze All loader did not, so a full run left both blocks missing.
       if (typeof renderCompanyOverviewV2 === 'function') renderCompanyOverviewV2();
       stepDone('core');
-    });
-
-    // 3b: CompanyQualityFetch (quality counts only)
-    ajax(qualityUrl + dfParam + catParam + getExclParam('company'), function(d) {
-      if (d && d.quality) companyDetailData.quality = d.quality;
-      if (typeof renderDQScore === 'function') renderDQScore('company');
-      if (typeof renderCompanyOverviewV2 === 'function') renderCompanyOverviewV2();
-      stepDone('quality');
-    });
-
-    // 3b2: CompanyFunnelFetch (funnel, segments, churn), split off so each half
-    // has its own request timeout.
-    ajax(funnelUrl + dfParam + catParam + getExclParam('company'), function(d) {
-      if (d) {
-        if (d.funnel) companyDetailData.funnel = d.funnel;
-        if (d.churnRisk) companyDetailData.churnRisk = d.churnRisk;
-      }
-      if (companyDetailData.funnel) {
-        companyCrossData = companyDetailData;
-        if (typeof renderCrossEntityFunnel === 'function') renderCrossEntityFunnel(companyDetailData);
-      }
-      if (typeof renderCompanyDetails === 'function') renderCompanyDetails(companyDetailData);
-      // The engagement segments on the Overview come from funnel, so re-render here too.
-      if (typeof renderCompanyOverviewV2 === 'function') renderCompanyOverviewV2();
-      if (typeof renderDQScore === 'function') renderDQScore('company');
-      stepDone('funnel');
-    });
-
-    // 3c: CompanyDetailFetch (~25s)
-    ajax(detailUrl + dfParam + catParam, function(d) {
-      if (d) {
-        if (d.associates) companyDetailData.associates = d.associates;
-        if (d.categoryEffectiveness) companyDetailData.categoryEffectiveness = d.categoryEffectiveness;
-      }
-      if (typeof renderCompanyDetails === 'function') renderCompanyDetails(companyDetailData);
-      if (typeof renderCompanyOverviewV2 === 'function') renderCompanyOverviewV2();
-      stepDone('assoc');
+      aaCo2();
     });
   }
 
