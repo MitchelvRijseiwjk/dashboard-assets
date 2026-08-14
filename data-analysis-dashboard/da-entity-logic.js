@@ -1689,13 +1689,21 @@ function renderCrossEntityFunnel(d) {
     { label: 'With Contact Person', count: f.withPerson, from: f.total, desc: 'Has at least one linked person' },
     { label: 'With Activity (12m)', count: f.withPersonActivity, from: f.withPerson, desc: 'Person + recent activity logged' }
   ];
-  if (showPipeline) {
+  // pipelineKnown is false when the backend skipped the pipeline intersection
+  // because the tenant carries too many appointments in the window for it to be
+  // computed inside the request limit. Dropping the step is honest; showing a
+  // zero would read as "nobody has an open sale".
+  var pipeKnown = (f.pipelineKnown !== false);
+  if (showPipeline && pipeKnown) {
     funnelSteps.push({ label: 'With ' + pipeLabel, count: f.withPersonActivitySale, from: f.withPersonActivity, desc: 'Active + ' + pipeLabel.toLowerCase() });
   }
 
   h += '<div class="entity-card">';
   h += '<div class="entity-header"><div class="entity-info"><h3>CRM Health Pipeline</h3></div>';
   h += '<span class="record-badge">' + fmtNum(f.total) + ' companies</span></div>';
+  if (showPipeline && !pipeKnown) {
+    h += '<div style="font-size:var(--fs-kpisub);color:var(--muted);margin:2px 0 10px">The ' + pipeLabel.toLowerCase() + ' step is left out here. This database holds ' + fmtNum(f.appointmentsInWindow || 0) + ' activities in the last 12 months, and combining activity with pipeline over that volume does not finish inside the request limit. Every other figure on this page is unaffected.</div>';
+  }
   h += '<table class="data-table"><thead><tr>';
   h += '<th>Stage</th><th class="col-right" style="width:80px">Count</th><th class="col-right" style="width:80px">% of Total</th><th class="col-right" style="width:90px">Conversion</th><th class="col-right" style="width:130px">Completeness</th>';
   h += '</tr></thead><tbody>';
@@ -1780,7 +1788,7 @@ function gatherEntityData(key) {
       compData.withPerson = f.withPerson;
       compData.withActivity = f.withPersonActivity;
       var pt = (typeof daSettings !== 'undefined') ? daSettings.getPipelineType('company') : 'sale';
-      if (pt !== 'none') compData.withPipeline = f.withPersonActivitySale;
+      if (pt !== 'none' && f.pipelineKnown !== false) compData.withPipeline = f.withPersonActivitySale;
       adoptionTotal = f.total || total;
     }
   } else if (key === 'contact') {
