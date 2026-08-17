@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Component reference — Zwevend mono</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700;9..40,800&display=swap" rel="stylesheet" />
+<style>
+  :root{
+    /* ===== Zwevend mono — effectieve tokens (basis + float-mono override, samengevoegd) ===== */
+    --shell:#f2efe9; --page:#ffffff; --card:#f2efe9; --card-border:#e8e4dc;
+    --ink:#173a32; --ink-soft:#2c4a42; --muted:#5a6760; --faint:#6f7972;
+    --line:#e0dacd; --line-soft:#e6e1d5;
+    --track:#d5cec0; --group-band:#e6ece8; --zebra:#ede9e0;
+    --chip-fill:#ece6db; --chip-line:#d7d0c2; --chip-ink:#625d51; --chip-line-teal:#bcd2cc;
+    --green:#15564b; --green-deep:#0c4a3f;
+
+    /* SEMANTIC ramp (status/score) — muted */
+    --good:#2f8f5b; --good-bg:#d3e8d8; --good-ink:#226a43; --good-line:#bfe0c9;
+    --mod:#b9832f;  --mod-bg:#e8d5b0;  --mod-ink:#785012;  --mod-line:#dcc79b;
+    --bad:#c0473a;  --bad-bg:#eccfc6;  --bad-ink:#9e3529;  --bad-line:#e0b6ab;
+
+    /* CATEGORICAL ramp (distributions, brand teal) */
+    --c1:#0d5f59; --c2:#2f817a; --c3:#51a399; --c4:#82c2b8; --c5:#b3ddd5; --c6:#dcebe7; --cn:#c8c2b4;
+
+    /* NEUTRAL EMPHASIS ramp (Weight, Importance — rangorde, NOOIT groen) */
+    --emph-strong-bg:#3d4a44; --emph-strong-ink:#ffffff;              /* High / Required */
+    --emph-mid-bg:var(--chip-fill); --emph-mid-ink:var(--chip-ink); --emph-mid-line:var(--chip-line); /* Medium / Normal */
+    --emph-faint-ink:var(--faint); --emph-faint-line:var(--chip-line); /* Low / Excluded */
+
+    /* LEVEL ramp (engagement — eigen geordende schaal, GEEN blauw) */
+    --lvl-power-bg:#d3e8d8; --lvl-power-ink:#226a43; --lvl-power-dot:var(--good);
+    --lvl-reg-bg:#d6e7e3;   --lvl-reg-ink:#1f6a63;  --lvl-reg-dot:#2f817a;
+    --lvl-low-bg:#e8d5b0;   --lvl-low-ink:#785012;  --lvl-low-dot:var(--mod);
+    --lvl-dorm-bg:#e4ded3;  --lvl-dorm-ink:#625d51; --lvl-dorm-dot:var(--cn);
+  }
+  *{box-sizing:border-box;}
+  body{margin:0; background:#ffffff; color:var(--ink); font-family:'DM Sans',system-ui,sans-serif; -webkit-font-smoothing:antialiased;}
+  .sheet{max-width:1280px; margin:0 auto; padding:40px 34px 90px;}
+  .doc-h h1{font-size:25px; font-weight:800; letter-spacing:-.015em; margin:0 0 8px;}
+  .doc-h p{margin:0; color:var(--muted); font-size:14.5px; line-height:1.6; max-width:880px;}
+  .doc-h .pill{display:inline-block; margin-top:14px; font-size:11px; font-weight:800; letter-spacing:.09em; text-transform:uppercase; color:var(--green-deep); background:#e2ece7; border:1px solid #cadfd8; border-radius:999px; padding:5px 12px;}
+
+  .sec{margin-top:46px;}
+  .sec > h2{font-size:12px; font-weight:800; letter-spacing:.14em; text-transform:uppercase; color:var(--faint); margin:0 0 4px; padding-bottom:11px; border-bottom:1px solid var(--line);}
+  .sec > .lead{margin:12px 0 20px; color:var(--muted); font-size:13.5px; line-height:1.55; max-width:860px;}
+  .rule{font-size:12px; color:var(--faint); margin-top:9px; font-style:italic;}
+
+  /* mono card as the real surface */
+  .card{background:var(--card); border:1px solid var(--card-border); border-radius:16px; padding:22px 24px;}
+  .grid{display:grid; gap:18px;}
+  .g2{grid-template-columns:1fr 1fr;} .g3{grid-template-columns:1fr 1fr 1fr;} .g4{grid-template-columns:repeat(4,1fr);}
+  .demo{display:flex; flex-wrap:wrap; gap:12px; align-items:center;}
+  .demo.col{flex-direction:column; align-items:stretch; gap:12px;}
+  .cap{font-size:11.5px; color:var(--faint); font-weight:700; letter-spacing:.02em; margin-bottom:9px; text-transform:uppercase;}
+
+  /* swatches */
+  .sw{display:flex; flex-direction:column; gap:6px;}
+  .sw .chip{height:46px; border-radius:9px; border:1px solid rgba(0,0,0,.06);}
+  .sw .lab{font-size:11px; color:var(--muted); font-weight:600;} .sw .lab b{color:var(--ink); display:block; font-size:12px;}
+  .ramp{display:grid; grid-template-columns:repeat(7,1fr); gap:8px;}
+  .ramp .cell{height:54px; border-radius:9px; display:flex; align-items:flex-end; padding:6px; font-size:10px; font-weight:700; color:#fff;}
+
+  /* chips / badges */
+  .badge{display:inline-flex; align-items:center; gap:7px; border-radius:999px; padding:5px 12px; font-size:12.5px; font-weight:700;}
+  .badge .dot{width:7px; height:7px; border-radius:50%;}
+  .badge.good{background:var(--good-bg); color:var(--good-ink); border:1px solid var(--good-line);} .badge.good .dot{background:var(--good);}
+  .badge.mod{background:var(--mod-bg); color:var(--mod-ink); border:1px solid var(--mod-line);} .badge.mod .dot{background:var(--mod);}
+  .badge.bad{background:var(--bad-bg); color:var(--bad-ink); border:1px solid var(--bad-line);} .badge.bad .dot{background:var(--bad);}
+
+  .emph{display:inline-flex; align-items:center; font-size:11px; font-weight:700; border-radius:6px; padding:3px 10px; letter-spacing:.01em;}
+  .emph.strong{background:var(--emph-strong-bg); color:var(--emph-strong-ink);}
+  .emph.mid{background:var(--emph-mid-bg); color:var(--emph-mid-ink); border:1px solid var(--emph-mid-line);}
+  .emph.faint{background:transparent; color:var(--emph-faint-ink); border:1px solid var(--emph-faint-line);}
+
+  .lvl{display:inline-flex; align-items:center; gap:7px; font-size:12px; font-weight:700; border-radius:999px; padding:4px 11px;}
+  .lvl .dot{width:7px; height:7px; border-radius:50%;}
+  .lvl.power{background:var(--lvl-power-bg); color:var(--lvl-power-ink);} .lvl.power .dot{background:var(--lvl-power-dot);}
+  .lvl.reg{background:var(--lvl-reg-bg); color:var(--lvl-reg-ink);} .lvl.reg .dot{background:var(--lvl-reg-dot);}
+  .lvl.low{background:var(--lvl-low-bg); color:var(--lvl-low-ink);} .lvl.low .dot{background:var(--lvl-low-dot);}
+  .lvl.dorm{background:var(--lvl-dorm-bg); color:var(--lvl-dorm-ink);} .lvl.dorm .dot{background:var(--lvl-dorm-dot);}
+
+  .scorepill{display:inline-flex; align-items:center; justify-content:center; min-width:64px; border-radius:9px; padding:7px 14px; font-size:20px; font-weight:800; color:#fff; letter-spacing:-.01em;}
+  .scorepill.good{background:#1f7a4d;} .scorepill.mod{background:var(--mod);} .scorepill.bad{background:var(--bad);}
+
+  .nchip{display:inline-flex; align-items:center; font-size:12px; font-weight:600; color:var(--muted); background:var(--chip-fill); border:1px solid var(--chip-line); border-radius:6px; padding:3px 10px;}
+  .tag{display:inline-flex; align-items:center; font-size:10.5px; font-weight:800; letter-spacing:.06em; text-transform:uppercase; color:var(--c1); background:transparent; border:1px solid var(--chip-line-teal); border-radius:6px; padding:3px 9px;}
+
+  /* donut */
+  .donut{width:150px; height:150px; border-radius:50%; position:relative; display:grid; place-items:center;}
+  .donut::before{content:''; position:absolute; inset:26px; background:var(--card); border-radius:50%;}
+  .donut .mid{position:relative; text-align:center;} .donut .mid b{font-size:22px; font-weight:800; color:var(--ink);} .donut .mid span{display:block; font-size:11px; color:var(--muted); font-weight:600;}
+  .leg{display:flex; flex-direction:column; gap:8px;}
+  .leg .li{display:flex; align-items:center; gap:9px; font-size:13px;}
+  .leg .li i{width:11px; height:11px; border-radius:3px; flex:none;}
+  .leg .li b{color:var(--ink); font-weight:700;} .leg .li .n{color:var(--faint); margin-left:auto; font-variant-numeric:tabular-nums;}
+
+  /* ranked bar list */
+  .ranklist{display:flex; flex-direction:column; gap:14px;}
+  .rankrow .top{display:flex; justify-content:space-between; align-items:baseline; gap:12px; margin-bottom:6px;}
+  .rankrow .top .l{font-size:13.5px; color:var(--ink-soft); font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-width:0; flex:1;}
+  .rankrow .top .v{flex:none; font-size:13px; font-weight:800; color:var(--ink); font-variant-numeric:tabular-nums; white-space:nowrap;} .rankrow .top .v small{color:var(--faint); font-weight:600; margin-left:6px;}
+  .rtrack{height:10px; border-radius:999px; background:var(--track); overflow:hidden;}
+  .rtrack > i{display:block; height:100%; border-radius:999px;}
+
+  /* stacked distribution bar */
+  .stack{display:flex; height:30px; border-radius:9px; overflow:hidden; gap:2px;}
+  .stack > span{display:grid; place-items:center; font-size:12px; font-weight:700; color:#fff; min-width:2px;}
+
+  /* trend chart (line + bar) */
+  .trend{position:relative; height:200px; padding:8px 6px 0; border-bottom:1px solid var(--line);}
+  .tbars{position:absolute; inset:8px 6px 0; display:flex; align-items:flex-end; gap:10px;}
+  .tbars .tc{flex:1; display:flex; flex-direction:column; justify-content:flex-end; height:100%;}
+  .tbars .tc i{display:block; width:100%; border-radius:4px 4px 0 0; background:var(--c4);}
+  .tsvg{position:absolute; inset:8px 6px 0; width:calc(100% - 12px); height:calc(100% - 8px); overflow:visible;}
+  .txaxis{display:flex; gap:10px; padding:8px 6px 0;} .txaxis span{flex:1; text-align:center; font-size:11px; color:var(--faint); font-variant-numeric:tabular-nums;}
+
+  /* table */
+  .tbl{width:100%; border-collapse:collapse; font-size:13.5px;}
+  .tbl th{text-align:left; color:var(--faint); font-size:11px; letter-spacing:.07em; text-transform:uppercase; font-weight:700; padding:0 12px 10px; border-bottom:1px solid var(--line);}
+  .tbl td{padding:11px 12px; border-bottom:1px solid var(--line-soft); color:var(--ink-soft);}
+  .tbl tbody tr:last-child td{border-bottom:none;}
+  .tbl .num{text-align:right; font-variant-numeric:tabular-nums; white-space:nowrap;}
+  .minibar{display:inline-block; width:90px; height:8px; border-radius:999px; background:var(--track); overflow:hidden; vertical-align:middle;}
+  .minibar>i{display:block; height:100%; border-radius:999px; background:var(--good);}
+  .pctc{display:flex; align-items:center; gap:10px; justify-content:flex-end;} .pctc b{width:44px; text-align:right; font-weight:800; color:var(--ink); font-variant-numeric:tabular-nums;}
+
+  /* the "sheeted" data card (tinted header, white data to the edge) */
+  .sheeted{padding:18px 0 0; overflow:hidden;}
+  .sheeted .sh-head{padding:0 24px 4px; display:flex; align-items:center; gap:10px;}
+  .sheeted .sh-head h3{margin:0; font-size:16px; font-weight:700; color:var(--ink);}
+  .sheeted .sh-head .count{margin-left:auto; font-size:12.5px; color:var(--chip-ink); background:var(--chip-fill); border:1px solid var(--chip-line); border-radius:999px; padding:4px 11px; font-weight:700;}
+  .sheeted .tbl thead th{border-bottom:none;} .sheeted .tbl thead th:first-child{padding-left:24px;} .sheeted .tbl thead th:last-child{padding-right:24px;}
+  .sheeted .tbl tbody td{background:#fff;} .sheeted .tbl tbody td:first-child{padding-left:24px;} .sheeted .tbl tbody td:last-child{padding-right:24px;}
+  .sheeted .tbl tbody tr:first-child td{border-top:1px solid var(--card-border);}
+
+  /* controls */
+  .seg{display:inline-flex; background:var(--chip-fill); border:1px solid var(--chip-line); border-radius:999px; padding:4px;}
+  .seg button{border:none; background:transparent; border-radius:999px; padding:8px 20px; font-size:13.5px; font-weight:700; color:var(--muted); cursor:pointer; font-family:inherit;}
+  .seg button.on{background:var(--green-deep); color:#fff;}
+  .radios{display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px;}
+  .radc{position:relative; border:1.5px solid var(--card-border); background:var(--page); border-radius:12px; padding:15px 16px;}
+  .radc.on{border-color:var(--good); background:var(--good-bg);}
+  .radc .rtag{position:absolute; top:-10px; left:14px; font-size:10px; font-weight:800; letter-spacing:.06em; text-transform:uppercase; color:#fff; background:var(--green-deep); border-radius:999px; padding:3px 9px;}
+  .radc b{display:block; font-size:14px; color:var(--ink); margin-bottom:3px;} .radc span{font-size:12px; color:var(--muted);}
+  .radc .ck{position:absolute; top:14px; right:14px; color:var(--good);}
+  .slider{position:relative; height:8px; border-radius:999px; background:var(--track); margin:34px 0 14px;}
+  .slider .fill{position:absolute; left:0; top:0; bottom:0; border-radius:999px; background:var(--green-deep);}
+  .slider .knob{position:absolute; top:50%; width:18px; height:18px; border-radius:50%; background:#fff; border:2px solid var(--green-deep); transform:translate(-50%,-50%);}
+  .slider .tgt{position:absolute; top:-9px; width:0; height:0; border-left:6px solid transparent; border-right:6px solid transparent; border-top:8px solid var(--ink-soft); transform:translateX(-50%);}
+  .sel{display:inline-flex; align-items:center; gap:10px; background:var(--page); border:1px solid var(--chip-line); border-radius:9px; padding:9px 13px; font-size:13.5px; font-weight:700; color:var(--ink);}
+
+  /* sticky action bar */
+  .actionbar{display:flex; align-items:center; gap:12px; background:var(--card); border:1px solid var(--card-border); border-radius:14px; padding:11px 12px 11px 16px; box-shadow:0 6px 18px rgba(40,45,40,.08);}
+  .actionbar .abchip{display:inline-flex; align-items:center; gap:7px; background:var(--page); border:1px solid var(--chip-line); border-radius:999px; padding:6px 12px; font-size:12.5px; font-weight:700; color:var(--ink-soft);}
+  .actionbar .est{margin-left:auto; color:var(--muted); font-size:12.5px;}
+  .btn{display:inline-flex; align-items:center; gap:8px; border:none; border-radius:999px; padding:11px 20px; font-size:14px; font-weight:700; cursor:pointer; font-family:inherit;}
+  .btn.primary{background:var(--green-deep); color:#fff;}
+
+  /* insight cards (unified: thin muted left-accent) */
+  .insights{display:flex; flex-direction:column; gap:12px;}
+  .insight{display:flex; align-items:center; gap:15px; background:var(--card); border:1px solid var(--card-border); border-left:3px solid var(--cn); border-radius:12px; padding:15px 18px;}
+  .insight.pos{border-left-color:var(--good);} .insight.watch{border-left-color:var(--mod);} .insight.crit{border-left-color:var(--bad);}
+  .insight .tx{font-size:14px; color:var(--ink-soft); line-height:1.5;} .insight .tx b{color:var(--ink); font-weight:700;}
+  .insight .lead-tag{display:inline-block; font-size:10.5px; font-weight:800; letter-spacing:.06em; text-transform:uppercase; margin-right:8px; vertical-align:1.5px; white-space:nowrap;}
+  .insight.pos .lead-tag{color:var(--good-ink);} .insight.watch .lead-tag{color:var(--mod-ink);} .insight .lead-tag.info{color:var(--c1);}
+  .insight .acts{margin-left:auto; flex:none;}
+
+  .note{background:#faf8f3; border:1px solid var(--line); border-radius:10px; padding:13px 16px; font-size:13px; color:var(--ink-soft); line-height:1.55;}
+  .note b{color:var(--ink);} .note .x{color:var(--bad-ink); font-weight:700;} .note .ok{color:var(--good-ink); font-weight:700;}
+</style>
+</head>
+<body>
+<div class="sheet">
+
+  <div class="doc-h">
+    <h1>Component reference — Zwevend mono</h1>
+    <p>De visuele spec voor het uitrollen van het gerefactorde systeem over de héle Health Check (Company, Contact, Sale, Requests, Project, Activities/Momentum, Adoption, Integrity, Analyze&nbsp;All, Settings). Elk component staat hier gerenderd in de <b>Zwevend mono</b>-surface met de exacte tokens uit <code>:root</code>. Waar de live app afwijkt van deze regels, wint deze spec. Zie <code>README.md</code> voor de onderbouwing en de 7 kernbeslissingen.</p>
+    <span class="pill">Doel-shell: Zwevend mono · getinte kaarten</span>
+  </div>
+
+  <!-- FOUNDATIONS -->
+  <div class="sec">
+    <h2>Fundament · kleur-rampen</h2>
+    <p class="lead">Vier gescheiden rampen, elk met één taak. <b>Meng ze nooit:</b> een categorische slice mag geen semantische kleur krijgen en andersom. Nadruk (Weight/Importance) en Level zijn eigen, aparte schalen — juist om te voorkomen dat "belangrijk/actief" als "goed" (groen) leest.</p>
+    <div class="grid g2">
+      <div class="card">
+        <div class="cap">Semantisch — alleen status / score (gedempt)</div>
+        <div class="ramp" style="grid-template-columns:repeat(3,1fr)">
+          <div class="cell" style="background:var(--good)">good #2f8f5b</div>
+          <div class="cell" style="background:var(--mod)">mod #b9832f</div>
+          <div class="cell" style="background:var(--bad)">bad #c0473a</div>
+        </div>
+        <div class="rule">Gebruik: health-scores, kwaliteitsstatus, win/verlies. Amber = gedempte ocher, geen fel oranje.</div>
+      </div>
+      <div class="card">
+        <div class="cap">Categorisch — alleen verdelingen (brand teal)</div>
+        <div class="ramp">
+          <div class="cell" style="background:var(--c1)">c1</div>
+          <div class="cell" style="background:var(--c2)">c2</div>
+          <div class="cell" style="background:var(--c3)">c3</div>
+          <div class="cell" style="background:var(--c4)">c4</div>
+          <div class="cell" style="background:var(--c5); color:#2c4a42">c5</div>
+          <div class="cell" style="background:var(--c6); color:#2c4a42">c6</div>
+          <div class="cell" style="background:var(--cn); color:#2c4a42">cn</div>
+        </div>
+        <div class="rule">Gebruik: segment-/type-verdelingen, compositie-balken. <code>cn</code> = neutraal "overig/rest" (bv. Dormant tail).</div>
+      </div>
+      <div class="card">
+        <div class="cap">Neutrale nadruk — Weight & Importance (rangorde)</div>
+        <div class="demo">
+          <span class="emph strong">High</span><span class="emph mid">Medium</span><span class="emph faint">Low</span>
+          <span style="width:14px"></span>
+          <span class="emph strong">Required</span><span class="emph mid">Normal</span><span class="emph faint">Excluded</span>
+        </div>
+        <div class="rule"><b>Vervangt het groene "Required/High" uit de live app.</b> Zwaarder = donkerder neutraal, niet groener. Groen blijft voorbehouden aan gezondheid.</div>
+      </div>
+      <div class="card">
+        <div class="cap">Level — engagement (eigen geordende schaal, geen blauw)</div>
+        <div class="demo">
+          <span class="lvl power"><span class="dot"></span>Power</span>
+          <span class="lvl reg"><span class="dot"></span>Regular</span>
+          <span class="lvl low"><span class="dot"></span>Low</span>
+          <span class="lvl dorm"><span class="dot"></span>Dormant</span>
+        </div>
+        <div class="rule">Groen → teal → ocher → <b>neutraal grijs</b> voor Dormant (kans, geen alarm — consistent met de dormant-tail-regel). Vervangt het losse blauw.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TYPOGRAPHY -->
+  <div class="sec">
+    <h2>Fundament · typografie</h2>
+    <p class="lead">Font overal <b>DM&nbsp;Sans</b> (400/500/600/700/800). Cijfer-elementen (KPI, donut, %, tabelgetallen) gebruiken <code>font-variant-numeric: tabular-nums</code>. Elk element hieronder staat op zijn <b>exacte</b> grootte; de volledige, per-element geannoteerde versie is <code>Type scale - Zwevend mono.html</code> (+ <code>.png</code>).</p>
+    <div class="grid g2">
+      <div class="card">
+        <div class="cap">De trap (px)</div>
+        <div style="display:flex; flex-direction:column; gap:11px">
+          <div style="display:flex; align-items:baseline; gap:14px"><span style="font-size:33px; font-weight:800; color:var(--ink); letter-spacing:-.01em; font-variant-numeric:tabular-nums">33</span><span style="font-size:12.5px; color:var(--muted)">KPI-waarde · 800</span></div>
+          <div style="display:flex; align-items:baseline; gap:14px"><span style="font-size:30px; font-weight:800; color:var(--ink)">30</span><span style="font-size:12.5px; color:var(--muted)">donut-score · 800</span></div>
+          <div style="display:flex; align-items:baseline; gap:14px"><span style="font-size:20px; font-weight:800; color:var(--ink); letter-spacing:-.01em">20</span><span style="font-size:12.5px; color:var(--muted)">paginatitel · 800</span></div>
+          <div style="display:flex; align-items:baseline; gap:14px"><span style="font-size:16px; font-weight:700; color:var(--ink)">16</span><span style="font-size:12.5px; color:var(--muted)">kaarttitel · 700</span></div>
+          <div style="display:flex; align-items:baseline; gap:14px"><span style="font-size:14.5px; font-weight:600; color:var(--ink)">14.5</span><span style="font-size:12.5px; color:var(--muted)">nav-item + tab · 500/600</span></div>
+          <div style="display:flex; align-items:baseline; gap:14px"><span style="font-size:14px; font-weight:400; color:var(--ink-soft)">14</span><span style="font-size:12.5px; color:var(--muted)">body / insight · 400</span></div>
+          <div style="display:flex; align-items:baseline; gap:14px"><span style="font-size:13.5px; font-weight:400; color:var(--ink-soft)">13.5</span><span style="font-size:12.5px; color:var(--muted)">tabel-cel / legenda · 400</span></div>
+          <div style="display:flex; align-items:baseline; gap:14px"><span style="font-size:11px; font-weight:700; color:var(--faint); letter-spacing:.07em; text-transform:uppercase">11</span><span style="font-size:12.5px; color:var(--muted)">kolomkop / importance · 700 UPPER</span></div>
+          <div style="display:flex; align-items:baseline; gap:14px"><span style="font-size:10.5px; font-weight:800; color:var(--c1); letter-spacing:.06em; text-transform:uppercase">10.5</span><span style="font-size:12.5px; color:var(--muted)">nav-sectie / tag · 800 UPPER</span></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="cap">Gewichten & regels</div>
+        <div style="font-size:13.5px; color:var(--ink-soft); line-height:1.7">
+          <div><b style="color:var(--ink)">800</b> — display + KPI-cijfers</div>
+          <div><b style="color:var(--ink)">700</b> — titels, labels, nadruk-tekst</div>
+          <div><b style="color:var(--ink)">600</b> — tabs, subkoppen</div>
+          <div><b style="color:var(--ink)">500</b> — nav-item in rust</div>
+          <div><b style="color:var(--ink)">400</b> — body, tabel-cellen</div>
+          <div style="margin-top:12px; padding-top:12px; border-top:1px solid var(--line)">Uppercase micro-labels (10.5–11.5px): letter-spacing <b style="color:var(--ink)">.06–.13em</b>.</div>
+          <div style="margin-top:8px">Alle cijfers: <code>tabular-nums</code>. Display + titel: ls <b style="color:var(--ink)">−.01em</b>.</div>
+        </div>
+        <div class="rule">Full detail per element (spacing + kleurtoken): <code>Type scale - Zwevend mono.html</code>.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CHIPS -->
+  <div class="sec">
+    <h2>Chips, badges & score-pill</h2>
+    <p class="lead">Twee chip-families blijven leidend: <b>semantisch = zachte gevulde pill + stip</b>, <b>categorisch/neutraal = hairline</b>. De grote score-pill kleurt naar de band van de score.</p>
+    <div class="grid g3">
+      <div class="card">
+        <div class="cap">Semantische status-badges (gevuld + stip)</div>
+        <div class="demo">
+          <span class="badge good"><span class="dot"></span>Good</span>
+          <span class="badge mod"><span class="dot"></span>Moderate</span>
+          <span class="badge bad"><span class="dot"></span>Weak</span>
+        </div>
+      </div>
+      <div class="card">
+        <div class="cap">Neutrale / categorische chips (hairline)</div>
+        <div class="demo">
+          <span class="nchip">Dropdown</span>
+          <span class="nchip">1.808 records</span>
+          <span class="tag">Recommended</span>
+        </div>
+      </div>
+      <div class="card">
+        <div class="cap">Score-pill — kleurt naar band</div>
+        <div class="demo">
+          <span class="scorepill good">87%</span>
+          <span class="scorepill mod">58%</span>
+          <span class="scorepill bad">34%</span>
+        </div>
+        <div class="rule">≥70 good · 40–69 mod · &lt;40 bad. Dit ís een health-score, dus semantisch klopt (P1).</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- DATA VIZ -->
+  <div class="sec">
+    <h2>Datavisualisatie</h2>
+    <p class="lead">De scheidslijn: drukt de grafiek <b>gezondheid/uitkomst</b> uit → semantisch. Drukt hij een <b>categorie-verdeling</b> uit → teal. Lege rails altijd <code>--track</code>.</p>
+
+    <div class="grid g2">
+      <div class="card">
+        <div class="cap">Donut / pie — semantische uitkomst (Sale · status split)</div>
+        <div class="demo" style="gap:26px">
+          <div class="donut" style="background:conic-gradient(from -90deg, var(--bad) 0 59.9%, var(--mod) 59.9% 80.4%, var(--good) 80.4% 99.8%, var(--cn) 99.8% 100%)">
+            <div class="mid"><b>1.980</b><span>sales</span></div>
+          </div>
+          <div class="leg" style="flex:1">
+            <div class="li"><i style="background:var(--bad)"></i><b>Lost</b><span class="n">1.187 · 59.9%</span></div>
+            <div class="li"><i style="background:var(--mod)"></i><b>Open</b><span class="n">406 · 20.5%</span></div>
+            <div class="li"><i style="background:var(--good)"></i><b>Sold</b><span class="n">384 · 19.4%</span></div>
+            <div class="li"><i style="background:var(--cn)"></i><b>Stalled</b><span class="n">3 · 0.2%</span></div>
+          </div>
+        </div>
+        <div class="rule">Win/verlies-status = semantisch (gedempt). "Stalled/none" = neutraal <code>cn</code>.</div>
+      </div>
+
+      <div class="card">
+        <div class="cap">Ranked bar list — categorie-verdeling (teal)</div>
+        <div class="ranklist">
+          <div class="rankrow"><div class="top"><span class="l">Afgesloten</span><span class="v">172.406 <small>94.2%</small></span></div><div class="rtrack"><i style="width:94%; background:var(--c1)"></i></div></div>
+          <div class="rankrow"><div class="top"><span class="l">Gepland</span><span class="v">4.942 <small>2.7%</small></span></div><div class="rtrack"><i style="width:22%; background:var(--c2)"></i></div></div>
+          <div class="rankrow"><div class="top"><span class="l">Wacht op behandelaar</span><span class="v">4.846 <small>2.6%</small></span></div><div class="rtrack"><i style="width:20%; background:var(--c3)"></i></div></div>
+          <div class="rankrow"><div class="top"><span class="l">Overig (9)</span><span class="v">762 <small>0.4%</small></span></div><div class="rtrack"><i style="width:6%; background:var(--cn)"></i></div></div>
+        </div>
+        <div class="rule">Status/priority/type = teal-ramp. "Overig" = <code>cn</code>.</div>
+      </div>
+
+      <div class="card">
+        <div class="cap">Ranked bar list — completeness (semantisch groen)</div>
+        <div class="ranklist">
+          <div class="rankrow"><div class="top"><span class="l">Email address</span><span class="v">96.8% <small>· 2.757</small></span></div><div class="rtrack"><i style="width:96.8%; background:var(--good)"></i></div></div>
+          <div class="rankrow"><div class="top"><span class="l">Phone number</span><span class="v">66.8% <small>· 1.903</small></span></div><div class="rtrack"><i style="width:66.8%; background:var(--good)"></i></div></div>
+          <div class="rankrow"><div class="top"><span class="l">Position</span><span class="v">48.4% <small>· 1.378</small></span></div><div class="rtrack"><i style="width:48.4%; background:var(--mod)"></i></div></div>
+        </div>
+        <div class="rule">Vult een %-<b>compleetheid</b> → semantisch (groen; ocher onder drempel). Dit is géén categorie.</div>
+      </div>
+
+      <div class="card">
+        <div class="cap">Trend — lijn + staaf (Activities · Momentum)</div>
+        <div class="trend">
+          <div class="tbars">
+            <div class="tc"><i style="height:40%"></i></div><div class="tc"><i style="height:55%"></i></div><div class="tc"><i style="height:48%"></i></div><div class="tc"><i style="height:70%"></i></div><div class="tc"><i style="height:62%"></i></div><div class="tc"><i style="height:80%"></i></div><div class="tc"><i style="height:58%"></i></div><div class="tc"><i style="height:66%"></i></div><div class="tc"><i style="height:90%"></i></div><div class="tc"><i style="height:72%"></i></div>
+          </div>
+          <svg class="tsvg" viewBox="0 0 100 100" preserveAspectRatio="none"><polyline points="5,64 15,50 25,58 35,36 45,44 55,24 65,48 75,40 85,14 95,32" fill="none" stroke="var(--green-deep)" stroke-width="1.4" vector-effect="non-scaling-stroke"/></svg>
+        </div>
+        <div class="txaxis"><span>Sep</span><span>Oct</span><span>Nov</span><span>Dec</span><span>Jan</span><span>Feb</span><span>Mar</span><span>Apr</span><span>May</span><span>Jun</span></div>
+        <div class="rule">Staven = teal (<code>c4</code>), trendlijn = één merk-accent (<code>green-deep</code>). Rasterlijn = <code>--line</code>.</div>
+      </div>
+    </div>
+
+    <div class="grid" style="grid-template-columns:1fr; margin-top:18px">
+      <div class="card">
+        <div class="cap">Stacked distribution bar (Sale · stage / probability)</div>
+        <div class="stack">
+          <span style="width:62.6%; background:var(--cn); color:#4a463c">63% no stage set</span>
+          <span style="width:34.8%; background:var(--mod)">35% low chance</span>
+          <span style="width:1.7%; background:var(--c3)"></span>
+          <span style="width:0.9%; background:var(--good)"></span>
+        </div>
+        <div class="demo" style="margin-top:13px; gap:20px">
+          <span class="leg"><span class="li"><i style="background:var(--cn)"></i><b>No value</b> <span style="color:var(--faint); margin-left:6px">1.239 · 62.6%</span></span></span>
+          <span class="leg"><span class="li"><i style="background:var(--mod)"></i><b>Low chance</b> <span style="color:var(--faint); margin-left:6px">690 · 34.8%</span></span></span>
+          <span class="leg"><span class="li"><i style="background:var(--c3)"></i><b>Middle</b> <span style="color:var(--faint); margin-left:6px">34 · 1.7%</span></span></span>
+          <span class="leg"><span class="li"><i style="background:var(--good)"></i><b>High</b> <span style="color:var(--faint); margin-left:6px">17 · 0.9%</span></span></span>
+        </div>
+        <div class="rule">Gemengd geval: "no value" neutraal, kans-niveaus lopen ocher→teal→groen als geordende waarschijnlijkheid.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TABLES -->
+  <div class="sec">
+    <h2>Tabellen</h2>
+    <p class="lead">Alle datatabellen krijgen de <b>sheeted</b>-behandeling: getinte kaart + getinte kop, witte datarijen tot de rand, geen zebra. Weight/Importance als neutrale nadruk-chips; completeness-minibars semantisch.</p>
+    <div class="grid" style="grid-template-columns:1fr">
+      <div class="card sheeted">
+        <div class="sh-head"><h3>Standard field completeness</h3><span class="count">3.083 companies</span></div>
+        <table class="tbl">
+          <thead><tr><th>Field</th><th class="num">Filled</th><th>Importance</th><th style="text-align:right">Completeness</th></tr></thead>
+          <tbody>
+            <tr><td>Org. number</td><td class="num">1.055</td><td><span class="emph strong">Required</span></td><td><div class="pctc"><span class="minibar"><i style="width:34.2%; background:var(--mod)"></i></span><b>34.2%</b></div></td></tr>
+            <tr><td>Postcode</td><td class="num">2.832</td><td><span class="emph strong">Required</span></td><td><div class="pctc"><span class="minibar"><i style="width:91.9%"></i></span><b>91.9%</b></div></td></tr>
+            <tr><td>Business type</td><td class="num">3.083</td><td><span class="emph mid">Normal</span></td><td><div class="pctc"><span class="minibar"><i style="width:100%"></i></span><b>100%</b></div></td></tr>
+            <tr><td style="color:var(--faint)">Email address</td><td class="num">631</td><td><span class="emph faint">Excluded</span></td><td><div class="pctc"><span class="minibar"><i style="width:20.5%; background:var(--faint)"></i></span><b>20.5%</b></div></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="card sheeted">
+        <div class="sh-head"><h3>Data Integrity — checks</h3><span class="count">97%</span></div>
+        <table class="tbl">
+          <thead><tr><th>Check</th><th class="num">Affected</th><th>Weight</th><th style="text-align:right">% affected</th></tr></thead>
+          <tbody>
+            <tr><td>Unreachable company</td><td class="num">185</td><td><span class="emph strong">High</span></td><td><div class="pctc"><span class="minibar"><i style="width:6%; background:var(--mod)"></i></span><b>6%</b></div></td></tr>
+            <tr><td>No contact person</td><td class="num">108</td><td><span class="emph strong">High</span></td><td><div class="pctc"><span class="minibar"><i style="width:3.5%; background:var(--mod)"></i></span><b>3.5%</b></div></td></tr>
+            <tr><td>No category</td><td class="num">0</td><td><span class="emph mid">Medium</span></td><td><div class="pctc"><span class="minibar"><i style="width:0%"></i></span><b>0%</b></div></td></tr>
+            <tr><td>No business type</td><td class="num">0</td><td><span class="emph mid">Medium</span></td><td><div class="pctc"><span class="minibar"><i style="width:0%"></i></span><b>0%</b></div></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:18px">
+      <div class="cap">User leaderboard met level-badges (Activities · Momentum)</div>
+      <table class="tbl">
+        <thead><tr><th>User</th><th>Level</th><th>Group</th><th class="num">Activities</th><th class="num">Total</th></tr></thead>
+        <tbody>
+          <tr><td>Dirk Groeneveld</td><td><span class="lvl power"><span class="dot"></span>Power</span></td><td>EvW NL – Verkoop</td><td class="num">985</td><td class="num">1.285</td></tr>
+          <tr><td>Stijn Pol</td><td><span class="lvl reg"><span class="dot"></span>Regular</span></td><td>E. van W. – Forwarding</td><td class="num">822</td><td class="num">837</td></tr>
+          <tr><td>Klaas Jan Hertog</td><td><span class="lvl low"><span class="dot"></span>Low</span></td><td>EvW NL – Verkoop</td><td class="num">9</td><td class="num">64</td></tr>
+          <tr><td style="color:var(--faint)">Yvo Meis</td><td><span class="lvl dorm"><span class="dot"></span>Dormant</span></td><td>EvW NL – Verkoop</td><td class="num">0</td><td class="num">0</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- CONTROLS -->
+  <div class="sec">
+    <h2>Controls (Intake · Analyze All · Settings)</h2>
+    <p class="lead">Interactieve controls gebruiken <b>merk-groen</b> voor selectie/actief — dat is UI-state, geen data. De twee-rampen-regel (P1) geldt alleen voor datavisualisatie, niet voor knoppen.</p>
+    <div class="grid g2">
+      <div class="card">
+        <div class="cap">Segmented control</div>
+        <div class="seg"><button class="on">Rolling</button><button>Custom range</button></div>
+        <div style="height:20px"></div>
+        <div class="cap">Select / dropdown</div>
+        <div class="sel">Medium <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></div>
+        <div class="rule">Vervangt de lavendel/paarse dropdowns uit Settings — terug in het palet.</div>
+      </div>
+      <div class="card">
+        <div class="cap">Radio selection cards</div>
+        <div class="radios">
+          <div class="radc on"><span class="rtag">Recommended</span><span class="ck"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg></span><b>Active base</b><span>Created or active in period</span></div>
+          <div class="radc"><b>Newly created</b><span>Only records added</span></div>
+          <div class="radc"><b>Full database</b><span>Period ignored</span></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="cap">Slider met huidig + doel-marker (Score targets)</div>
+        <div class="slider">
+          <div class="fill" style="width:63%"></div>
+          <div class="tgt" style="left:63%"></div>
+          <div class="knob" style="left:67%"></div>
+        </div>
+        <div class="demo" style="justify-content:space-between"><span style="font-size:12px; color:var(--muted)">current <b style="color:var(--ink)">63%</b></span><span style="font-size:13px; font-weight:800; color:var(--green-deep)">67%</span></div>
+      </div>
+      <div class="card">
+        <div class="cap">Sticky action bar (Intake)</div>
+        <div class="actionbar">
+          <span class="abchip">Last 12 months</span>
+          <span class="abchip">Active base</span>
+          <span class="abchip">3.083 companies</span>
+          <span class="est">est. ~2 min · 8 entities</span>
+          <button class="btn primary"><svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg> Start Analysis</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- INSIGHTS -->
+  <div class="sec">
+    <h2>Insight-kaarten — verzoend</h2>
+    <p class="lead">De live app gebruikt overal een gekleurde linker-accentbalk; het prototype haalde die weg. Voor consistentie over álle pagina's houden we <b>één dunne (3px) gedempte linker-accent</b> als prioriteitssignaal, met een uppercase lead-tag. Geen zware gevulde icoon-tegel meer.</p>
+    <div class="insights">
+      <div class="insight pos"><span class="tx"><span class="lead-tag">Recommended</span><b>36.687 companies (92%) are a dormant tail.</b> No recent activity — the clearest candidates for cleanup or archiving.</span><span class="acts"><button class="btn primary" style="padding:9px 15px; font-size:13px">Create selection</button></span></div>
+      <div class="insight watch"><span class="tx"><span class="lead-tag">Worth checking</span><b>188 companies are unreachable.</b> No valid phone or email on the record — they can't be contacted through the CRM.</span></div>
+      <div class="insight crit"><span class="tx"><span class="lead-tag" style="color:var(--bad-ink)">Attention</span><b>Win rate is 24.4%, with 59.9% of sales lost.</b> A useful first question is what the 1.187 lost deals had in common.</span></div>
+      <div class="insight"><span class="tx"><span class="lead-tag info">Context</span><b>Priority is set to “Middel” for 99.9% of tickets.</b> With almost everything on one value, priority gives little signal for triage.</span></div>
+    </div>
+    <div class="rule">Accent-kleur = gedempt semantisch (good/mod/bad) of neutraal (<code>cn</code>) voor pure context. KPI-cijfers die "slecht" zijn (win rate, unassigned) → <code>--bad-ink</code>, niet fel rood.</div>
+  </div>
+
+  <!-- GUARDRAILS -->
+  <div class="sec">
+    <h2>Kruispunt-regels (samengevat)</h2>
+    <div class="grid g2">
+      <div class="note"><b>Weight / Importance</b><br>Nu groen in de live app (<span class="x">Required/High = groen</span>). → neutrale nadruk-ramp (<span class="ok">strong / mid / faint</span>). Groen blijft alléén gezondheid.</div>
+      <div class="note"><b>User-levels</b><br>Nu <span class="x">groen/blauw/amber/rood</span>. → eigen level-ramp <span class="ok">groen / teal / ocher / neutraal</span>; Dormant is neutraal, geen alarm-rood; blauw vervalt.</div>
+      <div class="note"><b>Settings-dropdowns</b><br>Nu <span class="x">lavendel/paars</span> (off-palette). → neutrale <code>sel</code>-control in het palet.</div>
+      <div class="note"><b>Insights</b><br>Live = linker-accent; prototype = geen. → <span class="ok">één dunne gedempte linker-accent</span> overal.</div>
+      <div class="note"><b>KPI-"slechte" cijfers</b><br>Nu <span class="x">fel rood</span> (win rate, unassigned…). → gedempt <code>--bad-ink</code>.</div>
+      <div class="note"><b>Shell</b><br>Live = donkergroene sidebar + witte kaarten. → migratie naar <span class="ok">Zwevend mono</span>: getinte kaarten, blended shell, wit zwevend paneel.</div>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

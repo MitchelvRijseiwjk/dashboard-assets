@@ -93,7 +93,7 @@ function validateCustomDates() {
     if (selects[i].value === 'custom') {
       var di = selects[i].parentNode.querySelector('.custom-date-input');
       if (!di || !di.value) {
-        di.style.borderColor = '#c62828';
+        di.style.borderColor = 'var(--bad)';
         di.focus();
         return false;
       }
@@ -139,20 +139,27 @@ function dpSvg(name, sz) {
 }
 
 var DP_SCOPES = [
-  { id: 'active', icon: 'activity', title: 'Active base', desc: 'Created or active in period', rec: true },
+  // The active scope is a fixed 12-month activity window, not the chosen period, and it
+  // does not include newly created records without activity. ScopeCountFetch and the
+  // entity fetch scripts all key off the same fixed window, so the label says so.
+  { id: 'active', icon: 'activity', title: 'Active base', desc: 'Active in the last 12 months', rec: true },
   { id: 'created', icon: 'seedling', title: 'Newly created', desc: 'Only records added in period', rec: false },
   { id: 'all', icon: 'database', title: 'Full database', desc: 'Everything, period ignored', rec: false }
 ];
 
 var DP_COV = {
-  active: { label: 'Active base', rows: [['Company', 'created or active'], ['Contact', 'created or active'], ['Sale', 'open or active'], ['Project', 'active'], ['Requests', 'open or updated'], ['Activities', 'logged in period']] },
+  // Verified against the live scripts. Under the active scope OverviewFetch.applyScope
+  // filters on an appointment inside the fixed 12-month window; record status plays no
+  // part. Tickets have no appointment key, so active falls back to the created date and
+  // does follow the chosen period. Activities are always windowed on activeDate.
+  active: { label: 'Active base', rows: [['Company', 'activity in last 12 months'], ['Contact', 'activity in last 12 months'], ['Sale', 'activity in last 12 months'], ['Project', 'activity in last 12 months'], ['Requests', 'created in period'], ['Activities', 'logged in period']] },
   created: { label: 'Newly created', rows: [['Company', 'created in period'], ['Contact', 'created in period'], ['Sale', 'created in period'], ['Project', 'created in period'], ['Requests', 'created in period'], ['Activities', 'logged in period']] },
   all: { label: 'Full database', rows: [['Company', 'entire database'], ['Contact', 'entire database'], ['Sale', 'entire database'], ['Project', 'entire database'], ['Requests', 'entire database'], ['Activities', 'logged in period']] }
 };
 
 function dpControlHtml(P) {
-  var lbl = 'color:var(--so-charcoal);opacity:.75;font-size:14px;';
-  var inp = 'padding:9px 11px;font-size:14px;font-family:inherit;';
+  var lbl = 'color:var(--so-charcoal);opacity:.75;font-size:var(--fs-body);';
+  var inp = 'padding:9px 11px;font-size:var(--fs-body);font-family:inherit;';
   var h = '';
   h += '<div class="dp-wrap" style="display:flex;flex-direction:column">';
 
@@ -169,14 +176,14 @@ function dpControlHtml(P) {
   h += '<input type="number" id="' + P + 'RollN" value="12" min="1" max="120" style="width:72px;' + inp + '">';
   h += '<select id="' + P + 'RollUnit" style="width:132px;' + inp + '"><option value="month" selected>months</option><option value="year">years</option></select>';
   h += '<span style="color:var(--so-text-muted);display:inline-flex">' + dpSvg('arrow', 16) + '</span>';
-  h += '<span id="' + P + 'Preview" style="color:var(--so-green-light);font-size:15px;font-weight:700"></span>';
+  h += '<span id="' + P + 'Preview" style="color:var(--so-green-light);font-size:var(--fs-navtop);font-weight:700"></span>';
   h += '</div>';
   h += '<div class="dp-custom" data-dp-cust="' + P + '" style="display:none;align-items:center;gap:11px;flex-wrap:wrap;margin-top:14px">';
   h += '<span style="' + lbl + '">From</span>';
   h += '<input type="date" id="' + P + 'DateFrom" style="width:162px;' + inp + '">';
   h += '<span style="' + lbl + '">to</span>';
   h += '<input type="date" id="' + P + 'DateTo" style="width:162px;' + inp + '">';
-  h += '<span id="' + P + 'Span" style="color:var(--so-text-muted);font-size:13px"></span>';
+  h += '<span id="' + P + 'Span" style="color:var(--so-text-muted);font-size:var(--fs-kpisub)"></span>';
   h += '</div>';
   h += '</div>';
 
@@ -188,26 +195,26 @@ function dpControlHtml(P) {
   for (var i = 0; i < DP_SCOPES.length; i++) {
     var sc = DP_SCOPES[i];
     h += '<div class="dp-scope-btn" data-scope="' + sc.id + '" style="position:relative;background:var(--so-white);border:1px solid var(--so-border);padding:13px 15px 12px;cursor:pointer;min-height:70px">';
-    if (sc.rec) h += '<span style="position:absolute;top:-10px;left:14px;font-size:10px;font-weight:700;letter-spacing:.03em;color:var(--so-white);background:var(--so-green);border-radius:999px;padding:3px 10px">Recommended</span>';
+    if (sc.rec) h += '<span style="position:absolute;top:-10px;left:14px;font-size:var(--fs-tag);font-weight:700;letter-spacing:.03em;color:var(--so-white);background:var(--so-green);border-radius:999px;padding:3px 10px">Recommended</span>';
     h += '<span class="dp-card-chk" style="position:absolute;top:13px;right:13px;color:var(--so-green-light);display:none">' + dpSvg('check', 16) + '</span>';
-    h += '<div style="display:flex;align-items:center;gap:8px"><span style="color:var(--so-green-light);display:inline-flex">' + dpSvg(sc.icon, 18) + '</span><span style="font-size:15px;font-weight:700;color:var(--so-charcoal)">' + sc.title + '</span></div>';
-    h += '<div style="font-size:12.5px;color:var(--so-text-muted);margin-top:7px;line-height:1.45">' + sc.desc + '</div>';
+    h += '<div style="display:flex;align-items:center;gap:8px"><span style="color:var(--so-green-light);display:inline-flex">' + dpSvg(sc.icon, 18) + '</span><span style="font-size:var(--fs-navtop);font-weight:700;color:var(--so-charcoal)">' + sc.title + '</span></div>';
+    h += '<div style="font-size:var(--fs-count);color:var(--so-text-muted);margin-top:7px;line-height:1.45">' + sc.desc + '</div>';
     h += '</div>';
   }
   h += '</div>';
 
   h += dpCountBarHtml(P);
 
-  h += '<button type="button" class="dp-cov-toggle" data-dp-cov="' + P + '" style="display:inline-flex;align-items:center;gap:8px;margin-top:16px;background:none;border:none;color:var(--so-green-light);font-weight:700;font-size:14px;font-family:inherit;cursor:pointer;padding:4px 0">';
+  h += '<button type="button" class="dp-cov-toggle" data-dp-cov="' + P + '" style="display:inline-flex;align-items:center;gap:8px;margin-top:16px;background:none;border:none;color:var(--so-green-light);font-weight:700;font-size:var(--fs-body);font-family:inherit;cursor:pointer;padding:4px 0">';
   h += '<span class="dp-cov-cx" style="display:inline-flex;transition:transform .2s">' + dpSvg('chevron', 16) + '</span>What gets included';
   h += '</button>';
   h += '<div class="dp-cov-wrap" data-dp-cov-wrap="' + P + '" style="display:none">';
   h += '<div style="display:flex;align-items:center;gap:7px;margin:13px 0 13px">';
   h += '<span title="For each entity, this is which records the scores count under the chosen scope." style="color:var(--so-text-muted);cursor:help;display:inline-flex">' + dpSvg('info', 14) + '</span>';
-  h += '<span style="font-size:13px;color:var(--so-charcoal)">With <span id="' + P + 'CovScope" style="font-weight:700;color:var(--so-green-light)">Active base</span>, the scores cover</span>';
+  h += '<span style="font-size:var(--fs-kpisub);color:var(--so-charcoal)">With <span id="' + P + 'CovScope" style="font-weight:700;color:var(--so-green-light)">Active base</span>, the scores cover</span>';
   h += '</div>';
   h += '<div id="' + P + 'CovGrid" style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px"></div>';
-  h += '<div style="display:flex;align-items:center;gap:8px;margin-top:15px"><span style="color:var(--so-text-muted);display:inline-flex">' + dpSvg('clock', 15) + '</span><span style="font-size:12px;color:var(--so-text-muted)">Adoption and momentum always measure activity inside the period, whatever the scope.</span></div>';
+  h += '<div style="display:flex;align-items:center;gap:8px;margin-top:15px"><span style="color:var(--so-text-muted);display:inline-flex">' + dpSvg('clock', 15) + '</span><span style="font-size:var(--fs-chip);color:var(--so-text-muted)">Adoption and momentum always measure activity inside the period, whatever the scope.</span></div>';
   h += '</div>';
   h += '</div>';
 
@@ -259,7 +266,7 @@ function dpUpdateCov(P) {
   if (!g) return;
   var h = '';
   for (var i = 0; i < c.rows.length; i++) {
-    h += '<div style="display:flex;align-items:center;justify-content:space-between;background:var(--so-dune);border-radius:7px;padding:8px 11px"><span style="font-size:13px;color:var(--so-charcoal)">' + c.rows[i][0] + '</span><span style="font-size:12px;color:var(--so-charcoal);background:var(--so-dune-dark1);border-radius:6px;padding:3px 9px;white-space:nowrap">' + c.rows[i][1] + '</span></div>';
+    h += '<div style="display:flex;align-items:center;justify-content:space-between;background:var(--so-dune);border-radius:7px;padding:8px 11px"><span style="font-size:var(--fs-kpisub);color:var(--so-charcoal)">' + c.rows[i][0] + '</span><span style="font-size:var(--fs-chip);color:var(--so-charcoal);background:var(--so-dune-dark1);border-radius:6px;padding:3px 9px;white-space:nowrap">' + c.rows[i][1] + '</span></div>';
   }
   g.innerHTML = h;
 }
@@ -301,8 +308,8 @@ function dpCountBarHtml(P) {
   h += '<span style="color:var(--so-green);display:inline-flex">' + dpSvg('database', 18) + '</span>';
   h += '<div style="flex:1;min-width:0">';
   h += '<div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px;margin-bottom:7px">';
-  h += '<span style="font-size:13px;color:var(--so-charcoal)">Companies in this scan</span>';
-  h += '<span id="' + P + 'ScopeCountNum" style="font-size:13px;color:var(--so-text-muted)">Calculating\u2026</span>';
+  h += '<span style="font-size:var(--fs-kpisub);color:var(--so-charcoal)">Companies in this scan</span>';
+  h += '<span id="' + P + 'ScopeCountNum" style="font-size:var(--fs-kpisub);color:var(--so-text-muted)">Calculating\u2026</span>';
   h += '</div>';
   h += '<div style="height:6px;background:var(--so-dune-dark2);border-radius:999px;overflow:hidden">';
   h += '<div id="' + P + 'ScopeCountBar" style="height:100%;width:0;background:var(--so-green);border-radius:999px;transition:width .35s ease"></div>';
@@ -575,7 +582,7 @@ function dpCollapseEntities(cardId) {
   while (h3.firstChild) { left.appendChild(h3.firstChild); }
   var sum = document.createElement('span');
   sum.className = 'dp-ent-sum';
-  sum.style.cssText = 'font-size:.78rem;font-weight:500;color:var(--so-text-muted)';
+  sum.style.cssText = 'font-size:var(--fs-count);font-weight:500;color:var(--so-text-muted)';
   sum.textContent = dpEntitiesSummary(cardId);
   left.appendChild(sum);
 
@@ -684,6 +691,13 @@ function _ruleRows(entityKey) {
 function getRulesParam(entityKey) { var rows = _ruleRows(entityKey); return rows.length ? String.fromCharCode(38) + 'rules=' + encodeURIComponent(rows.join(';')) : ''; }
 function aaHasRules(entityKey) { return _ruleRows(entityKey).length > 0; }
 
+// CompanyQualityFetch was split into two endpoints so each half gets its own
+// request timeout: eighteen counted queries in one call exceeded the 150 second
+// limit on a tenant where every query runs about ten times slower than normal.
+// The second url is derived from the first, so the host file does not need to be
+// re-pasted for this change.
+var funnelUrl = (typeof qualityUrl === 'string' && qualityUrl) ? qualityUrl.replace('CompanyQualityFetch', 'CompanyFunnelFetch') : '';
+
 function dateFilterNotice(suppressFilter) {
   var key = currentAnalysisEntity;
   var df = suppressFilter ? '' : activeFilterValue[key];
@@ -725,7 +739,7 @@ function _fmtScanDate(iso) {
 function scanPillHtml() {
   var st = (typeof daSettings !== 'undefined' && daSettings.getScanState) ? daSettings.getScanState() : null;
   if (!st || !st.scannedAt) return '';
-  return '<span style="display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:500;padding:5px 12px;border-radius:999px;background:#E2EFDC;color:#2E5E2A;border:1px solid #CDE2C4;white-space:nowrap">'
+  return '<span style="display:inline-flex;align-items:center;gap:6px;font-size:var(--fs-chip);font-weight:500;padding:5px 12px;border-radius:999px;background:#E2EFDC;color:#2E5E2A;border:1px solid #CDE2C4;white-space:nowrap">'
     + '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8.5 12.5l2.5 2.5 4.5-5"/></svg>'
     + 'Last scan ' + _fmtScanDate(st.scannedAt) + '</span>';
 }
@@ -853,8 +867,8 @@ function startAnalyzeAll() {
   dpInit();
   var _per = dpResolve('aa');
   if (dpMode('aa') === 'custom') {
-    if (!_per.from) { var _af = document.getElementById('aaDateFrom'); if (_af) { _af.style.borderColor = '#c62828'; _af.focus(); } return; }
-    if (!_per.to) { var _at = document.getElementById('aaDateTo'); if (_at) { _at.style.borderColor = '#c62828'; _at.focus(); } return; }
+    if (!_per.from) { var _af = document.getElementById('aaDateFrom'); if (_af) { _af.style.borderColor = 'var(--bad)'; _af.focus(); } return; }
+    if (!_per.to) { var _at = document.getElementById('aaDateTo'); if (_at) { _at.style.borderColor = 'var(--bad)'; _at.focus(); } return; }
   }
   activeScope = dpScope('aa');
   activeWindowTo = _per.to;
@@ -1261,7 +1275,7 @@ function aaRunFullEntity(key, cb, markStepDone) {
   var totalSteps = 1; // overview always
   if (ec.udefId > 0) totalSteps++;
   if (ec.hasTicketFields) totalSteps++;
-  if (hasDetails) totalSteps += 3; // core + quality + detail
+  if (hasDetails) totalSteps += 4; // core + quality + funnel + detail
   totalSteps++; // extra tables always
   var doRules = aaHasRules(key);
   if (doRules) totalSteps++; // RulesFetch when the entity has active rules
@@ -1319,42 +1333,63 @@ function aaRunFullEntity(key, cb, markStepDone) {
     }
     if (!companyDetailData) companyDetailData = {};
 
-    // 3a: CompanyCoreFetch (~6s)
+    // Chained, not parallel. See the note in runFullEntity: on a throughput-bound
+    // tenant a fourth concurrent company call slowed every script by about 1.8x
+    // and pushed the funnel half past the 150 second request limit. One at a time
+    // keeps each request inside the limit.
+    function aaCo2() {
+      ajax(qualityUrl + dfParam + catParam + getExclParam('company'), function(d) {
+        if (d && d.quality) companyDetailData.quality = d.quality;
+        if (typeof renderDQScore === 'function') renderDQScore('company');
+        if (typeof renderCompanyOverviewV2 === 'function') renderCompanyOverviewV2();
+        stepDone('quality');
+        aaCo2b();
+      });
+    }
+
+    function aaCo2b() {
+      ajax(funnelUrl + dfParam + catParam + getExclParam('company'), function(d) {
+        if (d) {
+          if (d.funnel) companyDetailData.funnel = d.funnel;
+          if (d.churnRisk) companyDetailData.churnRisk = d.churnRisk;
+        }
+        if (companyDetailData.funnel) {
+          companyCrossData = companyDetailData;
+          if (typeof renderCrossEntityFunnel === 'function') renderCrossEntityFunnel(companyDetailData);
+        }
+        if (typeof renderCompanyDetails === 'function') renderCompanyDetails(companyDetailData);
+        if (typeof renderCompanyOverviewV2 === 'function') renderCompanyOverviewV2();
+        if (typeof renderDQScore === 'function') renderDQScore('company');
+        stepDone('funnel');
+        aaCo3();
+      });
+    }
+
+    function aaCo3() {
+      ajax(detailUrl + dfParam + catParam, function(d) {
+        if (d) {
+          if (d.associates) companyDetailData.associates = d.associates;
+          if (d.categoryEffectiveness) companyDetailData.categoryEffectiveness = d.categoryEffectiveness;
+        }
+        if (typeof renderCompanyDetails === 'function') renderCompanyDetails(companyDetailData);
+        if (typeof renderCompanyOverviewV2 === 'function') renderCompanyOverviewV2();
+        stepDone('assoc');
+      });
+    }
+
+    // 3a of 4: CompanyCoreFetch
     ajax(coreUrl + dfParam + catParam, function(d) {
       if (d) {
         if (d.activityHealth) companyDetailData.activityHealth = d.activityHealth;
         if (d.trend) companyDetailData.trend = d.trend;
         if (d.trendMonthly) companyDetailData.trendMonthly = d.trendMonthly;
         if (d.trendBefore !== undefined) companyDetailData.trendBefore = d.trendBefore;
+        if (d.newRecords) companyDetailData.newRecords = d.newRecords;
       }
       if (typeof renderCompanyDetails === 'function') renderCompanyDetails(companyDetailData);
+      if (typeof renderCompanyOverviewV2 === 'function') renderCompanyOverviewV2();
       stepDone('core');
-    });
-
-    // 3b: CompanyQualityFetch (~5s)
-    ajax(qualityUrl + dfParam + catParam + getExclParam('company'), function(d) {
-      if (d) {
-        if (d.quality) companyDetailData.quality = d.quality;
-        if (d.funnel) companyDetailData.funnel = d.funnel;
-        if (d.churnRisk) companyDetailData.churnRisk = d.churnRisk;
-      }
-      if (companyDetailData.funnel) {
-        companyCrossData = companyDetailData;
-        if (typeof renderCrossEntityFunnel === 'function') renderCrossEntityFunnel(companyDetailData);
-      }
-      if (typeof renderCompanyDetails === 'function') renderCompanyDetails(companyDetailData);
-      if (typeof renderDQScore === 'function') renderDQScore('company');
-      stepDone('quality');
-    });
-
-    // 3c: CompanyDetailFetch (~25s)
-    ajax(detailUrl + dfParam + catParam, function(d) {
-      if (d) {
-        if (d.associates) companyDetailData.associates = d.associates;
-        if (d.categoryEffectiveness) companyDetailData.categoryEffectiveness = d.categoryEffectiveness;
-      }
-      if (typeof renderCompanyDetails === 'function') renderCompanyDetails(companyDetailData);
-      stepDone('assoc');
+      aaCo2();
     });
   }
 
@@ -1392,8 +1427,8 @@ function launchDashboard() {
   var setupDate = document.getElementById('setupDateFilter');
   var _per = dpResolve('setup');
   if (dpMode('setup') === 'custom') {
-    if (!_per.from) { var _sf = document.getElementById('setupDateFrom'); if (_sf) { _sf.style.borderColor = '#c62828'; _sf.focus(); } return; }
-    if (!_per.to) { var _st = document.getElementById('setupDateTo'); if (_st) { _st.style.borderColor = '#c62828'; _st.focus(); } return; }
+    if (!_per.from) { var _sf = document.getElementById('setupDateFrom'); if (_sf) { _sf.style.borderColor = 'var(--bad)'; _sf.focus(); } return; }
+    if (!_per.to) { var _st = document.getElementById('setupDateTo'); if (_st) { _st.style.borderColor = 'var(--bad)'; _st.focus(); } return; }
   }
   activeScope = dpScope('setup');
   activeWindowTo = _per.to;
@@ -1537,25 +1572,25 @@ function fillBar(p, h, c) {
 function barCell(pct, color) {
   return '<span class="bar-cell">' + fillBar(pct, null, color) + '<span class="pct-text">' + pct + P + '</span></span>';
 }
+// Three bands, because the semantic ramp has three roles (P1). The old fourth
+// threshold at 15 mapped onto the same red as the band below it, so it never
+// produced a visible distinction; only the legend claimed it did.
 function slColor(pct) {
-  if (pct >= 70) return 'var(--sl-good)';
-  if (pct >= 40) return 'var(--sl-ok)';
-  if (pct >= 15) return 'var(--sl-warn)';
-  return 'var(--sl-bad)';
+  if (pct >= 70) return 'var(--good)';
+  if (pct >= 40) return 'var(--mod)';
+  return 'var(--bad)';
 }
 function slColorInv(pct) {
-  if (pct < 10) return 'var(--sl-good)';
-  if (pct < 30) return 'var(--sl-ok)';
-  if (pct < 60) return 'var(--sl-warn)';
-  return 'var(--sl-bad)';
+  if (pct < 10) return 'var(--good)';
+  if (pct < 30) return 'var(--mod)';
+  return 'var(--bad)';
 }
 // Verdict word + inline tint colours for a score, thresholds aligned 1:1 with slColor (70/40/15).
 // Colours are returned inline so the pill renders correctly even if CSS and JS are briefly out of sync.
 function slBand(pct) {
-  if (pct >= 70) return { w: 'Good', bg: '#e7f3e8', fg: '#1e5e22', dot: 'var(--sl-good)' };
-  if (pct >= 40) return { w: 'Moderate', bg: '#fdf3df', fg: '#9a6800', dot: 'var(--sl-ok)' };
-  if (pct >= 15) return { w: 'Needs attention', bg: '#fceee2', fg: '#aa4a00', dot: 'var(--sl-warn)' };
-  return { w: 'Critical', bg: '#fbeaea', fg: '#a32d2d', dot: 'var(--sl-bad)' };
+  if (pct >= 70) return { w: 'Good', bg: 'var(--good-bg)', fg: 'var(--good-ink)', dot: 'var(--good)' };
+  if (pct >= 40) return { w: 'Moderate', bg: 'var(--mod-bg)', fg: 'var(--mod-ink)', dot: 'var(--mod)' };
+  return { w: 'Needs attention', bg: 'var(--bad-bg)', fg: 'var(--bad-ink)', dot: 'var(--bad)' };
 }
 // Inline info icon with a hover tooltip (no icon font dependency)
 var SB_INFO_SVG = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><line x1="12" y1="11" x2="12" y2="16"/><line x1="12" y1="7.5" x2="12.01" y2="7.5"/></svg>';
@@ -1589,8 +1624,8 @@ function attnBandWord(score) {
   var b = attnBand(score);
   return b === 'high' ? 'High' : (b === 'medium' ? 'Medium' : 'Low');
 }
-var ATTN_HIGH_SVG = '<svg width="18" height="18" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="#c62828"/><rect x="11" y="6.5" width="2" height="7" rx="1" fill="#fff"/><circle cx="12" cy="16.5" r="1.2" fill="#fff"/></svg>';
-var ATTN_MED_SVG = '<svg width="18" height="18" viewBox="0 0 24 24"><path d="M12 3 L22 20 L2 20 Z" fill="#ef6c00"/><rect x="11" y="9" width="2" height="6" rx="1" fill="#fff"/><circle cx="12" cy="17.5" r="1.1" fill="#fff"/></svg>';
+var ATTN_HIGH_SVG = '<svg width="18" height="18" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="var(--bad)"/><rect x="11" y="6.5" width="2" height="7" rx="1" fill="#fff"/><circle cx="12" cy="16.5" r="1.2" fill="#fff"/></svg>';
+var ATTN_MED_SVG = '<svg width="18" height="18" viewBox="0 0 24 24"><path d="M12 3 L22 20 L2 20 Z" fill="var(--mod)"/><rect x="11" y="9" width="2" height="6" rx="1" fill="#fff"/><circle cx="12" cy="17.5" r="1.1" fill="#fff"/></svg>';
 // Icon + hover tooltip for an attention cell. Empty string for rows that carry no weight.
 function attnIconHtml(score, reason) {
   var band = attnBand(score);
@@ -1601,6 +1636,11 @@ function attnIconHtml(score, reason) {
 // Sort row objects {attn, badness, html} by attention desc, worst-percentage first on ties, then join.
 function attnSortRows(rows) {
   rows.sort(function(a, b) {
+    // Rows that carry no action sink to the bottom regardless of their score: a field
+    // excluded from the score and a field nobody has ever filled both used to rank
+    // above half-complete fields, purely because 0% empty scores worst.
+    var ao = a.off ? 1 : 0, bo = b.off ? 1 : 0;
+    if (ao !== bo) return ao - bo;
     if (b.attn !== a.attn) return b.attn - a.attn;
     return b.badness - a.badness;
   });
@@ -1618,10 +1658,9 @@ function slHealthWord(pct) {
 // Shared colour key shown once per scored page
 function slKeyHtml() {
   return '<div class="sb-key">'
-    + '<span class="sb-keychip"><span class="sb-kdot" style="background:var(--sl-bad)"></span>&lt;15</span>'
-    + '<span class="sb-keychip"><span class="sb-kdot" style="background:var(--sl-warn)"></span>15\u201339</span>'
-    + '<span class="sb-keychip"><span class="sb-kdot" style="background:var(--sl-ok)"></span>40\u201369</span>'
-    + '<span class="sb-keychip"><span class="sb-kdot" style="background:var(--sl-good)"></span>70+ Good</span>'
+    + '<span class="sb-keychip"><span class="sb-kdot" style="background:var(--bad)"></span>&lt;40 Needs attention</span>'
+    + '<span class="sb-keychip"><span class="sb-kdot" style="background:var(--mod)"></span>40\u201369 Moderate</span>'
+    + '<span class="sb-keychip"><span class="sb-kdot" style="background:var(--good)"></span>70+ Good</span>'
     + '<span class="sb-keynote">Absolute, measured against your own data</span>'
     + '</div>';
 }

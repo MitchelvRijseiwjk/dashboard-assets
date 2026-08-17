@@ -31,15 +31,22 @@ function renderUdef(ent, idx, entityKey) {
       var f = ent.fields[fi];
       var pid = f.progId || f.label || ('f' + fi);
       var imp = udefCfg[pid] || 'normal';
+      // Two kinds of row drop out of the ranking: a field excluded from the score, and
+      // a field nobody has ever filled. Neither is an action, so neither belongs above
+      // the fields that are half complete.
       var rc = '';
       if (f.filled === 0) rc = 'unused';
+      var uOff = (imp === 'excluded' || f.filled === 0) ? 1 : 0;
+      if (uOff) rc = (rc ? rc + ' ' : '') + 'dimmed';
       var uBad = 100 - f.percent;
       var uAttn = attnScore(uBad, imp);
       var uReason = '<b>' + attnBandWord(uAttn) + ' attention.</b> ' + _capFirst(imp) + ' field, ' + Math.round(uBad) + '% empty. Higher completeness lifts the Data Quality score.';
-      var dimStyle = imp === 'excluded' ? ' style="opacity:0.4"' : '';
+      var dimStyle = '';  // dimming is a row class now, see .data-table tr.dimmed
       var tr = '<tr class="' + rc + '"' + dimStyle + '>';
       tr += '<td class="attn-col" data-sort-value="' + uAttn + '">' + attnIconHtml(uAttn, uReason) + '</td>';
-      tr += '<td data-sort-value="' + f.label + '">' + f.label + '</td>';
+      // Same reason chip as the flags table: excluded is a setting, never used is data.
+      var uChip = imp === 'excluded' ? '<span class="excl-chip">Not scored</span>' : (f.filled === 0 ? '<span class="excl-chip">Never used</span>' : '');
+      tr += '<td data-sort-value="' + f.label + '">' + f.label + uChip + '</td>';
       tr += '<td data-sort-value="' + f.type + '"><span class="type-badge">' + f.type + '</span>';
       if (f.items && f.items.length > 0) {
         ddCnt++;
@@ -63,7 +70,7 @@ function renderUdef(ent, idx, entityKey) {
       tr += '<td style="text-align:center"><span class="imp-badge ' + imp + '">' + imp + '</span></td>';
       tr += '<td class="col-right" data-sort-value="' + f.percent + '">' + barCell(f.percent, '') + '</td>';
       tr += '</tr>';
-      uRows.push({ attn: uAttn, badness: uBad, html: tr });
+      uRows.push({ attn: uAttn, badness: uBad, off: uOff, html: tr });
     }
     h += attnSortRows(uRows);
     h += '</tbody></table>';
@@ -274,7 +281,7 @@ function invalidateExtraCache() {
 function loadingPlaceholder(label) {
   return '<div style="display:flex;align-items:center;gap:12px;padding:32px 20px;color:#999">' +
     '<div style="width:20px;height:20px;border:2.5px solid #e0dfdc;border-top-color:var(--so-green);border-radius:50%;animation:spin .8s linear infinite"></div>' +
-    '<span style="font-size:.85rem">' + label + '</span></div>';
+    '<span style="font-size:var(--fs-table)">' + label + '</span></div>';
 }
 
 // Spinner/fadeIn keyframes moved to da-styles.css
@@ -346,7 +353,7 @@ function startFullEntity(key) {
   var totalSteps = 2; // overview + extra (always)
   if (ec && ec.udefId > 0) totalSteps++;
   if (ec && ec.hasTicketFields) totalSteps++;
-  if (hasDetails) totalSteps += 3; // core + quality + detail (3 parallel scripts)
+  if (hasDetails) totalSteps += 4; // core + quality + funnel + detail (4 parallel scripts)
   var completedSteps = 0;
   var dfParam = getDateFilterParam();
 
@@ -422,61 +429,86 @@ function startFullEntity(key) {
     // Each script renders its part independently as it arrives
     // companyDetailData is progressively built up
 
-    // Call 1: CompanyCoreFetch (activity health, trend) — lightweight, ~6s
+    // The four company scripts run one after another, not in parallel.
+    //
+    // Splitting the quality script gave each half its own request limit but made
+    // things worse on a throughput-bound tenant: with a fourth concurrent call
+    // every script slowed by roughly 1.8x, including scripts that were not
+    // touched, and the funnel half alone then took longer (177s) than the whole
+    // unsplit script had (157s). The database is the constraint, so running more
+    // at once only divides the same capacity and pushes individual requests past
+    // the 150 second limit.
+    //
+    // Chained, each request gets the full capacity and stays well inside the
+    // limit, which is what the limit applies to. Total wall time is comparable
+    // because the work is the same; it is only spread differently.
+    function coCall2() {
+      ajax(qualityUrl + dfParam + catParam + getExclParam('company'), function(d) {
+        if (!companyDetailData) companyDetailData = {};
+        if (d && d.quality) companyDetailData.quality = d.quality;
+        if (typeof renderDQScore === 'function') renderDQScore('company');
+        renderCompanyOverviewV2();
+        stepDone('Quality counts loaded');
+        coCall2b();
+      });
+    }
+
+    function coCall2b() {
+      ajax(funnelUrl + dfParam + catParam + getExclParam('company'), function(d) {
+        if (!companyDetailData) companyDetailData = {};
+        if (d) {
+          if (d.funnel) companyDetailData.funnel = d.funnel;
+          if (d.churnRisk) companyDetailData.churnRisk = d.churnRisk;
+        }
+        if (companyDetailData.funnel) {
+          companyCrossData = companyDetailData;
+          renderCrossEntityFunnel(companyDetailData);
+          var crossEl2 = document.getElementById('companyCrossContent');
+          if (crossEl2) crossEl2.style.animation = 'fadeIn .3s ease';
+        }
+        populateDetailCatFilter();
+        var countEl = document.getElementById('companyDetailFilterCount');
+        if (countEl && companyDetailData.activityHealth) {
+          countEl.textContent = companyDetailCatValue ? fmtNum(companyDetailData.activityHealth.total) + ' companies' : '';
+        }
+        renderCompanyDetails(companyDetailData);
+        renderDQScore('company');
+        renderCompanyOverviewV2();
+        stepDone('Funnel loaded');
+        coCall3();
+      });
+    }
+
+    function coCall3() {
+      ajax(detailUrl + dfParam + catParam, function(d) {
+        if (!companyDetailData) companyDetailData = {};
+        if (d) {
+          if (d.associates) companyDetailData.associates = d.associates;
+          if (d.categoryEffectiveness) companyDetailData.categoryEffectiveness = d.categoryEffectiveness;
+        }
+        renderCompanyDetails(companyDetailData);
+        renderCompanyOverviewV2();
+        stepDone('Associate breakdown loaded');
+      });
+    }
+
+    // Call 1 of 4: CompanyCoreFetch (activity health, trend)
     ajax(coreUrl + dfParam + catParam, function(d) {
       if (!companyDetailData) companyDetailData = {};
+      // Without this payload the overview loses the database composition and the
+      // registration-year trend, with nothing on screen to explain why. Say so.
+      if (!d && typeof console !== 'undefined') console.warn('[HealthCheck] CompanyCoreFetch returned no data; database composition and registration trend will be missing.');
       if (d) {
         if (d.activityHealth) companyDetailData.activityHealth = d.activityHealth;
         if (d.trend) companyDetailData.trend = d.trend;
         if (d.trendMonthly) companyDetailData.trendMonthly = d.trendMonthly;
         if (d.trendBefore !== undefined) companyDetailData.trendBefore = d.trendBefore;
+        if (d.newRecords) companyDetailData.newRecords = d.newRecords;
       }
-      // Re-render details with whatever data we have so far
       renderCompanyDetails(companyDetailData);
       renderCompanyOverviewV2();
       stepDone('Activity health loaded');
-    });
-
-    // Call 2: CompanyQualityFetch (quality, funnel, segments, churn) — countRows only, ~5s
-    ajax(qualityUrl + dfParam + catParam + getExclParam('company'), function(d) {
-      if (!companyDetailData) companyDetailData = {};
-      if (d) {
-        if (d.quality) companyDetailData.quality = d.quality;
-        if (d.funnel) companyDetailData.funnel = d.funnel;
-        if (d.churnRisk) companyDetailData.churnRisk = d.churnRisk;
-      }
-      // Render funnel (creates category filter)
-      if (companyDetailData.funnel) {
-        companyCrossData = companyDetailData;
-        renderCrossEntityFunnel(companyDetailData);
-        var crossEl2 = document.getElementById('companyCrossContent');
-        if (crossEl2) crossEl2.style.animation = 'fadeIn .3s ease';
-      }
-      populateDetailCatFilter();
-      var countEl = document.getElementById('companyDetailFilterCount');
-      if (countEl && companyDetailData.activityHealth) {
-        countEl.textContent = companyDetailCatValue ? fmtNum(companyDetailData.activityHealth.total) + ' companies' : '';
-      }
-      // Re-render details
-      renderCompanyDetails(companyDetailData);
-      // Trigger DQ score recalc (quality data now available)
-      renderDQScore('company');
-      renderCompanyOverviewV2();
-      stepDone('Quality analysis loaded');
-    });
-
-    // Call 3: CompanyDetailFetch (associates, category effectiveness) — bulk loop, ~25s
-    ajax(detailUrl + dfParam + catParam, function(d) {
-      if (!companyDetailData) companyDetailData = {};
-      if (d) {
-        if (d.associates) companyDetailData.associates = d.associates;
-        if (d.categoryEffectiveness) companyDetailData.categoryEffectiveness = d.categoryEffectiveness;
-      }
-      // Re-render details (now with associate + category data)
-      renderCompanyDetails(companyDetailData);
-      var detailEl2 = document.getElementById('companyDetailContent');
-      if (detailEl2) detailEl2.style.animation = 'fadeIn .3s ease';
-      stepDone('Associate breakdown loaded');
+      coCall2();
     });
   }
 
@@ -593,6 +625,65 @@ function pushStdListValues(key, d) {
 // Idempotent: re-callable from every load path; each block guards on its data.
 // Re-inserts the score banner at the end so re-renders keep it.
 // =====================================================
+// ===== Shared Overview components (float-mono redesign) — one source, all entities =====
+function hcKpi(label, value, sub, dot, action) {
+  var d = (typeof dot === 'string' && dot) ? '<span class="kdot" style="background:' + dot + '"></span> ' : '';
+  var a = (typeof action === 'string' && action) ? '<button class="act">' + action + ' <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>' : '';
+  return '<div class="kpi"><div class="kl">' + d + label + '</div><div class="kv">' + value + '</div><div class="ks">' + sub + '</div>' + a + '</div>';
+}
+// Engagement and recency segments are a distribution, not a status, so they run the
+// teal ramp (prototype order c1 -> c3 -> c5 -> cn) and never borrow the semantic
+// colours. Ordered checks: the label "Active, No Pipeline" also contains "active".
+function hcEngColor(name) {
+  var nm = (name || '').toLowerCase();
+  if (nm.indexOf('fully') >= 0) return 'var(--c1)';
+  if (nm.indexOf('active (6m)') >= 0) return 'var(--c1)';
+  if (nm.indexOf('cooling') >= 0) return 'var(--c3)';
+  if (nm.indexOf('empty') >= 0) return 'var(--cn)';
+  if (nm.indexOf('no activity') >= 0) return 'var(--cn)';
+  if (nm.indexOf('dormant') >= 0) return 'var(--c5)';
+  return 'var(--c3)';
+}
+
+// A stacked bar segment. Zero-value segments are dropped entirely, because the bar
+// carries a 2px gap and a 2px min-width so a genuinely tiny slice stays visible.
+// Rendering an empty category through that turns it into a phantom stripe.
+function hcBarSeg(pct, color, label, extraStyle) {
+  if (!(pct > 0)) return '';
+  var ex = (typeof extraStyle === 'string' && extraStyle) ? ';' + extraStyle : '';
+  return '<span style="width:' + Number(pct).toFixed(1) + '%;background:' + color + ex + '">' + (label || '') + '</span>';
+}
+
+function hcSecLabel(t) { return '<div class="seclabel">' + t + '</div>'; }
+function hcInsight(kind, bold, rest, buttons) {
+  // kind: 'primary' (act on this) | 'warn' (worth checking) | 'neutral' (context) | 'good' (all clear)
+  var ICONS = {
+    primary: '<path d="M3 7h18M6 12h12M10 17h4"/>',
+    warn: '<path d="M12 9v4M12 17h.01M10.3 4l-7 12a2 2 0 0 0 1.7 3h14a2 2 0 0 0 1.7-3l-7-12a2 2 0 0 0-3.4 0z"/>',
+    neutral: '<circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/>',
+    good: '<path d="M20 6L9 17l-5-5"/>'
+  };
+  var SKIN = {
+    primary: '',
+    warn: 'background:var(--mod-bg);color:var(--mod-ink);border-color:var(--mod-line)',
+    neutral: 'background:var(--chip-fill);color:var(--chip-ink);border-color:var(--chip-line)',
+    good: 'background:var(--good-bg);color:var(--good-ink);border-color:var(--good-line)'
+  };
+  var TAGS = {
+    primary: '<span class="tag">Recommended</span> ',
+    warn: '<span class="tag warn">Worth checking</span> ',
+    neutral: '',
+    good: ''
+  };
+  if (!ICONS[kind]) kind = 'neutral';
+  var sk = SKIN[kind] ? ' style="' + SKIN[kind] + '"' : '';
+  var ico = '<span class="ico"' + sk + '><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">' + ICONS[kind] + '</svg></span>';
+  var btns = ''; buttons = buttons || [];
+  for (var i = 0; i < buttons.length; i++) btns += '<button class="btn-s ' + (buttons[i].p ? 'primary' : 'ghost') + '">' + buttons[i].l + '</button>';
+  var body = TAGS[kind] + (bold ? '<b>' + bold + '</b> ' : '') + (rest || '');
+  return '<div class="insight' + (kind === 'primary' ? ' primary' : '') + '">' + ico + '<span class="tx">' + body + '</span>' + (btns ? '<span class="acts">' + btns + '</span>' : '') + '</div>';
+}
+
 function renderCompanyOverviewV2() {
   var el = document.getElementById('companyOverviewContent');
   if (!el) return;
@@ -611,23 +702,13 @@ function renderCompanyOverviewV2() {
   var BAD = 'var(--sl-bad,#c62828)';
   var MUTED = 'var(--so-text-muted,#6b706c)';
 
-  function secLabel(t) {
-    return '<div style="font-size:.68rem;letter-spacing:.06em;text-transform:uppercase;color:#a79e8d;font-weight:600;margin:16px 2px 10px">' + t + '</div>';
-  }
-  function kpiCard(label, value, sub, alert) {
-    var bd = alert ? ';border-color:#f0d9c2' : '';
-    var vc = alert ? BAD : GREEN;
-    var lc = alert ? '#c0631a' : MUTED;
-    return '<div class="stat-card" style="background:#fff;border:1px solid #e6e1d8;border-radius:12px;padding:14px' + bd + '">' +
-      '<div style="font-size:11px;letter-spacing:.04em;text-transform:uppercase;color:' + lc + ';margin-bottom:6px">' + label + '</div>' +
-      '<div style="font-size:24px;font-weight:500;line-height:1.1;color:' + vc + '">' + value + '</div>' +
-      '<div style="font-size:12px;color:' + MUTED + ';margin-top:4px">' + sub + '</div></div>';
-  }
+  var secLabel = hcSecLabel;
+  var kpiCard = hcKpi;
   function dotLeg(color, label, val, pct) {
     var nums = '';
     if (val !== '') nums += '<span style="font-weight:600;color:#1c2b29;margin-left:8px">' + val + '</span>';
     if (pct !== '') nums += '<span style="color:#8a8f8b;margin-left:5px">' + pct + '</span>';
-    return '<div style="display:flex;align-items:center;gap:7px;font-size:12px;color:#3c423f;margin:4px 0">' +
+    return '<div style="display:flex;align-items:center;gap:7px;font-size:var(--fs-chip);color:#3c423f;margin:4px 0">' +
       '<span style="width:10px;height:10px;border-radius:3px;flex:none;background:' + color + '"></span>' +
       '<span>' + label + '</span>' + nums + '</div>';
   }
@@ -646,48 +727,66 @@ function renderCompanyOverviewV2() {
     var withPersons = o ? o.withPersons : 0;
     var withPersonsPct = totalC > 0 ? Math.round(withPersons / totalC * 1000) / 10 : 0;
 
+    // The dormant tail is the part of the database outside the scan. Under the full
+    // database scope nothing is outside it, so the tile would read a hard zero and
+    // suggest no company is dormant, right after the active scope showed hundreds.
+    // The split only carries meaning inside a scoped run, so the tile is replaced by
+    // the coverage figure it can still answer there.
+    var scopeAll = (typeof activeScope !== 'undefined' && activeScope === 'all');
     h += secLabel('State \u00b7 where things stand');
-    h += '<div class="stat-row" style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px">';
-    h += kpiCard('Companies', fmtNum(totalC), 'of ' + fmtNum(dbT) + ' total', false);
-    h += kpiCard('Dormant tail', fmtNum(dormantTail), dormantPct + '% with no recent activity', true);
-    h += kpiCard('New this year', fmtNum(newThisYear), 'registered this year', false);
-    h += kpiCard('With contact person', withPersonsPct + '%', fmtNum(withPersons) + ' companies', false);
+    h += '<div class="kpis">';
+    h += kpiCard('Companies', fmtNum(totalC), scopeAll ? 'whole database' : 'of ' + fmtNum(dbT) + ' total', '', '');
+    if (scopeAll) {
+      var wpAll = o ? (o.withActivities || 0) : 0;
+      var wpAllPct = totalC > 0 ? Math.round(wpAll / totalC * 100) : 0;
+      h += kpiCard('With activity', fmtNum(wpAll), wpAllPct + '% active in the last 12 months', 'var(--cn)', '');
+    } else {
+      h += kpiCard('Dormant tail', fmtNum(dormantTail), dormantPct + '% with no recent activity', 'var(--cn)', 'Create selection');
+    }
+    h += kpiCard('New this year', fmtNum(newThisYear), 'registered this year', '', '');
+    h += kpiCard('With contact person', withPersonsPct + '%', fmtNum(withPersons) + ' companies', 'var(--good)', '');
     h += '</div>';
   }
 
   // ---- STATE: database composition (active vs dormant) + engagement segments ----
+  // Under the full database scope the active/dormant split collapses to one full bar,
+  // so the bar is skipped and only the engagement breakdown below it is kept.
   if (ah && ah.dbTotal) {
     var tC = ah.total;
     var dbC = ah.dbTotal;
     var dorm = dbC - tC;
     var actPct = dbC > 0 ? (tC / dbC * 100) : 0;
     var dormPctC = 100 - actPct;
-    h += secLabel('Database composition');
-    h += '<div class="entity-card" style="background:#fbfaf7;border:1px solid #dcd5c8;border-radius:12px;padding:16px">';
-    h += '<div style="display:flex;height:30px;border-radius:6px;overflow:hidden;margin-bottom:10px">';
-    h += '<div style="width:' + actPct.toFixed(1) + '%;background:' + GREEN + ';display:flex;align-items:center;justify-content:center;color:#fff;font-size:11px;font-weight:600">' + (actPct >= 6 ? actPct.toFixed(0) + '%' : '') + '</div>';
-    h += '<div style="width:' + dormPctC.toFixed(1) + '%;background:#d8cfc2;display:flex;align-items:center;padding-left:12px;font-size:12px;color:#7a6f5c;font-weight:500">Dormant tail \u00b7 ' + fmtNum(dorm) + ' companies with no recent activity</div>';
+    var compAll = (typeof activeScope !== 'undefined' && activeScope === 'all');
+    h += secLabel(compAll ? 'Engagement' : 'Database composition');
+    h += '<div class="entity-card" style="background:var(--card);border:1px solid var(--card-border);border-radius:16px;padding:16px">';
+    if (!compAll) {
+    h += '<div class="compbar" style="margin-bottom:10px">';
+    h += hcBarSeg(actPct, 'var(--c1)', actPct >= 6 ? actPct.toFixed(0) + '%' : '');
+    h += hcBarSeg(dormPctC, 'var(--cn)', 'Dormant tail \u00b7 ' + fmtNum(dorm) + ' companies with no recent activity', 'color:#6b6657;font-weight:500');
     h += '</div>';
     h += '<div style="display:flex;gap:20px;flex-wrap:wrap;margin-bottom:6px">';
-    h += dotLeg(GREEN, 'Active companies', fmtNum(tC), actPct.toFixed(1) + '%');
-    h += dotLeg('#d8cfc2', 'Dormant tail' + sbInfoIcon('Companies with no registered activity in the selected period. The active companies are the rest. Dormant records are never removed, so they accumulate over time.'), fmtNum(dorm), dormPctC.toFixed(1) + '%');
+    h += dotLeg('var(--c1)', 'Active companies', fmtNum(tC), actPct.toFixed(1) + '%');
+    h += dotLeg('var(--cn)', 'Dormant tail' + sbInfoIcon('Companies with no registered activity in the selected period. The active companies are the rest. Dormant records are never removed, so they accumulate over time.'), fmtNum(dorm), dormPctC.toFixed(1) + '%');
     h += '</div>';
+    } // end of the active/dormant split
     if (fn && fn.segments && fn.segments.length > 0) {
       var segs = fn.segments;
       var segTot = fn.total || tC;
-      h += '<div style="font-size:12px;color:' + MUTED + ';border-top:1px solid #eee5d8;padding-top:12px;margin-top:10px;margin-bottom:10px">How engaged the active companies are</div>';
-      h += '<div style="display:flex;height:26px;border-radius:6px;overflow:hidden;margin-bottom:12px">';
+            var engCol = hcEngColor;
+      h += '<div style="font-size:var(--fs-chip);color:var(--muted);' + (compAll ? '' : 'border-top:1px solid var(--line);padding-top:12px;margin-top:10px;') + 'margin-bottom:10px">How engaged ' + (compAll ? 'the companies' : 'the active companies') + ' are</div>';
+      h += '<div class="engbar" style="margin-bottom:12px">';
       for (var sa = 0; sa < segs.length; sa++) {
         var sp = segTot > 0 ? (segs[sa].count / segTot * 100) : 0;
-        var segIn = sp >= 9 ? '<span style="color:#fff;font-size:10px;font-weight:600;text-shadow:0 1px 1px rgba(0,0,0,.3)">' + sp.toFixed(0) + '%</span>' : '';
-        h += '<div style="width:' + sp.toFixed(1) + '%;background:' + segs[sa].color + ';display:flex;align-items:center;justify-content:center">' + segIn + '</div>';
+        var segIn = sp >= 9 ? sp.toFixed(0) + '%' : '';
+        h += hcBarSeg(sp, engCol(segs[sa].name), segIn);
       }
       h += '</div>';
       h += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:9px 24px">';
       for (var sb = 0; sb < segs.length; sb++) {
         var sbp = segTot > 0 ? Math.round(segs[sb].count / segTot * 1000) / 10 : 0;
-        h += '<div style="display:flex;gap:7px"><span style="width:10px;height:10px;border-radius:3px;flex:none;background:' + segs[sb].color + ';margin-top:3px"></span><div style="min-width:0"><div style="font-size:12px;color:#1c2b29"><b style="font-weight:600">' + segs[sb].name + '</b> <span style="color:#6b706c;font-weight:500;margin-left:2px">' + fmtNum(segs[sb].count) + ' \u00b7 ' + sbp + '%</span></div>';
-        if (segs[sb].description) h += '<div style="font-size:11px;color:#8a8f8b;line-height:1.35;margin-top:1px">' + segs[sb].description + '</div>';
+        h += '<div style="display:flex;gap:7px"><span style="width:10px;height:10px;border-radius:3px;flex:none;background:' + engCol(segs[sb].name) + ';margin-top:3px"></span><div style="min-width:0"><div style="font-size:var(--fs-chip);color:#1c2b29"><b style="font-weight:600">' + segs[sb].name + '</b> <span style="color:#6b706c;font-weight:500;margin-left:2px">' + fmtNum(segs[sb].count) + ' \u00b7 ' + sbp + '%</span></div>';
+        if (segs[sb].description) h += '<div style="font-size:var(--fs-kpisub);color:var(--muted);line-height:1.35;margin-top:1px">' + segs[sb].description + '</div>';
         h += '</div></div>';
       }
       h += '</div>';
@@ -706,40 +805,37 @@ function renderCompanyOverviewV2() {
     // for every year and carries no signal. In that case show the age distribution instead.
     var saturated = (minRet >= 90);
     var n = trend.length;
-    var vbW = 600, vbH = saturated ? 232 : 248, x0 = 46, plotW = vbW - x0 - 14, plotH = 175, baseY = 200, slot = plotW / n;
     var sumC = 0, sumA = 0;
-    var svg = '<svg viewBox="0 0 ' + vbW + ' ' + vbH + '" width="100%" height="' + (saturated ? 218 : 232) + '" role="img" aria-label="Companies by registration year">';
-    svg += '<line x1="' + x0 + '" y1="' + (baseY - plotH) + '" x2="' + (x0 + plotW) + '" y2="' + (baseY - plotH) + '" stroke="#efe9df"/>';
-    svg += '<line x1="' + x0 + '" y1="' + baseY + '" x2="' + (x0 + plotW) + '" y2="' + baseY + '" stroke="#e0dacf"/>';
-    svg += '<text x="' + (x0 - 6) + '" y="' + (baseY - plotH + 4) + '" text-anchor="end" font-size="10" fill="#a8a99f">' + maxC + '</text>';
-    svg += '<text x="' + (x0 - 6) + '" y="' + baseY + '" text-anchor="end" font-size="10" fill="#a8a99f">0</text>';
+    // Prototype chart: a CSS flex row, so the columns always spread evenly across the
+    // card. The previous inline SVG had a fixed viewBox and preserved its aspect ratio,
+    // so on a wide card it stayed a narrow band with the bars clustered together.
+    var cols = '', xax = '', rets = '';
     for (var bi = 0; bi < n; bi++) {
       var t = trend[bi]; sumC += t.count; sumA += t.active;
-      var bh = t.count > 0 ? Math.round(t.count / maxC * plotH) : 0;
-      var bx = x0 + bi * slot + slot * 0.16, bwid = slot * 0.68, by = baseY - bh;
-      var fill = (bi === n - 1) ? '#7fb3ad' : '#0f5c57';
-      svg += '<rect x="' + bx.toFixed(1) + '" y="' + by + '" width="' + bwid.toFixed(1) + '" height="' + bh + '" rx="2" fill="' + fill + '"/>';
-      if (bh > 14) svg += '<text x="' + (bx + bwid / 2).toFixed(1) + '" y="' + (by - 4) + '" text-anchor="middle" font-size="10.5" font-weight="500" fill="#06423e">' + t.count + '</text>';
-      svg += '<text x="' + (bx + bwid / 2).toFixed(1) + '" y="' + (baseY + 16) + '" text-anchor="middle" font-size="10" fill="#8a8f8b">' + t.year + '</text>';
+      var bh = t.count > 0 ? Math.max(2, Math.round(t.count / maxC * 190)) : 0;
+      cols += '<div class="col' + (bi === n - 1 ? ' partial' : '') + '"><span class="cval">' + t.count + '</span><div class="cbar" style="height:' + bh + 'px"></div></div>';
+      xax += '<span>' + t.year + '</span>';
       if (!saturated) {
         var ret = t.count > 0 ? Math.round(t.active / t.count * 100) : 0;
-        svg += '<text x="' + (bx + bwid / 2).toFixed(1) + '" y="' + (baseY + 29) + '" text-anchor="middle" font-size="9" fill="#b7b2a6">' + ret + '%</text>';
+        rets += '<span style="color:var(--faint);font-size:var(--fs-th)">' + ret + '%</span>';
       }
     }
-    svg += '</svg>';
+    var svg = '<div class="chart" role="img" aria-label="Companies by registration year">' + cols + '</div>';
+    svg += '<div class="xaxis">' + xax + '</div>';
+    if (rets) svg += '<div class="xaxis" style="padding-top:0">' + rets + '</div>';
     h += secLabel('Trajectory \u00b7 over time');
-    h += '<div class="entity-card" style="background:#faf8f3;border:1px solid #e6e1d8;border-radius:12px;padding:18px">';
+    h += '<div class="entity-card" style="background:var(--card);border:1px solid #e6e1d8;border-radius:16px;padding:18px">';
     if (saturated) {
-      h += '<div style="font-size:14px;font-weight:500;color:' + GREEN + ';margin-bottom:3px">Active companies by registration year</div>';
-      h += '<div style="font-size:12px;color:' + MUTED + ';margin-bottom:12px">Each bar counts the currently active companies by the year they were first registered. ' + fmtNum(trendBefore) + ' were registered before this range.</div>';
+      h += '<div style="font-size:var(--fs-cardtitle);font-weight:700;color:var(--ink);margin-bottom:3px">Active companies by registration year</div>';
+      h += '<div style="font-size:var(--fs-chip);color:' + MUTED + ';margin-bottom:12px">Each bar counts the currently active companies by the year they were first registered. ' + fmtNum(trendBefore) + ' were registered before this range.</div>';
       h += svg;
-      h += '<div style="font-size:12px;color:#5b6b5f;background:#eef3ee;border-radius:6px;padding:10px 12px;margin-top:12px;line-height:1.5">Only currently active companies are counted here, grouped by registration year. Companies that are no longer active are left out, so this reflects the registration years of the part of the base still in use.</div>';
+      h += '<div style="font-size:var(--fs-chip);color:#5b6b5f;background:#eef3ee;border-radius:6px;padding:10px 12px;margin-top:12px;line-height:1.5">Only currently active companies are counted here, grouped by registration year. Companies that are no longer active are left out, so this reflects the registration years of the part of the base still in use.</div>';
     } else {
       var overallRet = sumC > 0 ? Math.round(sumA / sumC * 100) : 0;
-      h += '<div style="display:flex;align-items:baseline;margin-bottom:3px"><div style="font-size:14px;font-weight:500;color:' + GREEN + '">New companies per year</div><div style="margin-left:auto"><span style="font-size:17px;font-weight:500;color:' + GREEN + '">' + overallRet + '%</span><span style="font-size:12px;color:' + MUTED + '"> still active</span></div></div>';
-      h += '<div style="font-size:12px;color:' + MUTED + ';margin-bottom:12px">Bars show how many companies were added each year. The percentage under each bar is how many of that year\u0027s companies are still active today.</div>';
+      h += '<div style="display:flex;align-items:baseline;margin-bottom:3px"><div style="font-size:var(--fs-cardtitle);font-weight:700;color:var(--ink)">New companies per year</div><div style="margin-left:auto"><span style="font-size:var(--fs-cardtitle);font-weight:800;color:var(--ink)">' + overallRet + '%</span><span style="font-size:var(--fs-chip);color:' + MUTED + '"> still active</span></div></div>';
+      h += '<div style="font-size:var(--fs-chip);color:' + MUTED + ';margin-bottom:12px">Bars show how many companies were added each year. The percentage under each bar is how many of that year\u0027s companies are still active today.</div>';
       h += svg;
-      h += '<div style="font-size:12px;color:#5b6b5f;background:#eef3ee;border-radius:6px;padding:10px 12px;margin-top:12px;line-height:1.5">A low percentage on the most recent years means newly added companies stop being used quickly. The older years stay high partly because inactive companies are never removed from the database.</div>';
+      h += '<div style="font-size:var(--fs-chip);color:#5b6b5f;background:#eef3ee;border-radius:6px;padding:10px 12px;margin-top:12px;line-height:1.5">A low percentage on the most recent years means newly added companies stop being used quickly. The older years stay high partly because inactive companies are never removed from the database.</div>';
     }
     h += '</div>';
   }
@@ -755,26 +851,26 @@ function renderCompanyOverviewV2() {
       var items = catDist.items.slice().sort(function(a, b) { return b.count - a.count; });
       var catTot = catDist.total || 0;
       if (catTot <= 0) { catTot = 0; for (var ck = 0; ck < items.length; ck++) catTot += items[ck].count; }
-      var palette = ['#06423e', '#0f5c57', '#2e7d32', '#ef6c00', '#5dcaa5', '#b7dea9'];
+      var palette = ['#0d5f59', '#2f817a', '#51a399', '#82c2b8', '#b3ddd5', '#dcebe7'];
       var topN = items.slice(0, 6), otherC = 0;
       for (var ok = 6; ok < items.length; ok++) otherC += items[ok].count;
       h += secLabel('Context');
-      h += '<div class="entity-card" style="background:#fff;border:1px solid #e6e1d8;border-radius:12px;padding:16px">';
-      h += '<div style="display:flex;align-items:center;margin-bottom:10px"><div style="font-size:13px;font-weight:500;color:' + GREEN + '">Category mix</div><span style="margin-left:auto;font-size:11px;color:#a09a8e">for context, not something to act on</span></div>';
-      h += '<div style="display:flex;height:26px;border-radius:5px;overflow:hidden;margin-bottom:8px">';
+      h += '<div class="entity-card" style="background:var(--card);border:1px solid #e6e1d8;border-radius:16px;padding:16px">';
+      h += '<div style="display:flex;align-items:center;margin-bottom:10px"><div style="font-size:var(--fs-cardtitle);font-weight:700;color:var(--ink)">Category mix</div><span style="margin-left:auto;font-size:var(--fs-th);color:#a09a8e">for context, not something to act on</span></div>';
+      h += '<div class="catbar" style="margin-bottom:8px">';
       for (var pi = 0; pi < topN.length; pi++) {
         var pp = catTot > 0 ? (topN[pi].count / catTot * 100) : 0;
-        var catIn = pp >= 10 ? '<span style="color:#fff;font-size:9.5px;font-weight:600;text-shadow:0 1px 1px rgba(0,0,0,.3)">' + pp.toFixed(0) + '%</span>' : '';
-        h += '<div style="width:' + pp.toFixed(1) + '%;background:' + palette[pi] + ';display:flex;align-items:center;justify-content:center">' + catIn + '</div>';
+        var catIn = pp >= 10 ? pp.toFixed(0) + '%' : '';
+        h += hcBarSeg(pp, palette[pi], catIn);
       }
-      if (otherC > 0) { var op = catTot > 0 ? (otherC / catTot * 100) : 0; h += '<div style="width:' + op.toFixed(1) + '%;background:#c9c4ba"></div>'; }
+      if (otherC > 0) { var op = catTot > 0 ? (otherC / catTot * 100) : 0; h += hcBarSeg(op, 'var(--cn)', ''); }
       h += '</div>';
-      h += '<div style="display:flex;gap:14px;flex-wrap:wrap;font-size:11px;color:' + MUTED + '">';
+      h += '<div style="display:flex;gap:8px 18px;flex-wrap:wrap;font-size:var(--fs-kpisub);color:' + MUTED + '">';
       for (var li = 0; li < topN.length; li++) {
         var lp = catTot > 0 ? Math.round(topN[li].count / catTot * 1000) / 10 : 0;
         h += '<span><span style="display:inline-block;width:9px;height:9px;border-radius:2px;vertical-align:-1px;margin-right:4px;background:' + palette[li] + '"></span>' + topN[li].name + ' ' + lp + '%</span>';
       }
-      if (otherC > 0) { var lop = catTot > 0 ? Math.round(otherC / catTot * 1000) / 10 : 0; h += '<span><span style="display:inline-block;width:9px;height:9px;border-radius:2px;vertical-align:-1px;margin-right:4px;background:#c9c4ba"></span>Other ' + lop + '%</span>'; }
+      if (otherC > 0) { var lop = catTot > 0 ? Math.round(otherC / catTot * 1000) / 10 : 0; h += '<span><span style="display:inline-block;width:9px;height:9px;border-radius:2px;vertical-align:-1px;margin-right:4px;background:var(--cn)"></span>Other ' + lop + '%</span>'; }
       h += '</div></div>';
     }
   }
@@ -783,17 +879,27 @@ function renderCompanyOverviewV2() {
   if (ah && ah.dbTotal) {
     var iDorm = ah.dbTotal - ah.total;
     var iDormPct = ah.dbTotal > 0 ? Math.round(iDorm / ah.dbTotal * 100) : 0;
-    h += secLabel('Insights');
-    h += '<div class="entity-card" style="background:#fff;border:1px solid #e6e1d8;border-radius:12px;padding:16px">';
+    h += secLabel('Insights \u00b7 recommended actions');
+    h += '<div style="position:relative">';
     if (iDormPct >= 40) {
-      h += '<div style="border-left:3px solid ' + BAD + ';background:#fdeeed;padding:9px 12px;border-radius:0 6px 6px 0;margin-bottom:9px;font-size:12px;line-height:1.5;color:#3c423f"><b style="color:#1c2b29">' + fmtNum(iDorm) + ' companies (' + iDormPct + '%) are a dormant tail.</b> They have no recent activity and are the clearest candidates for cleanup or archiving.</div>';
+      h += hcInsight('primary', fmtNum(iDorm) + ' companies (' + iDormPct + '%) are a dormant tail.', 'No recent activity, so these are the clearest candidates for cleanup or archiving.', [{ l: 'Create selection', p: true }, { l: 'Export list' }]);
+    }
+    // Records created inside the chosen period that carry no activity at all fall
+    // outside the active scope by definition, so they never reach the scores. They
+    // are a real finding on their own, in the same family as the dormant tail.
+    var nr = cd.newRecords || null;
+    if (nr && nr.withoutActivity > 0) {
+      var nrPct = nr.createdInPeriod > 0 ? Math.round(nr.withoutActivity / nr.createdInPeriod * 100) : 0;
+      h += hcInsight('warn', fmtNum(nr.withoutActivity) + ' newly created companies have no activity yet.',
+        'Of the ' + fmtNum(nr.createdInPeriod) + ' companies added in this period, ' + nrPct + '% have no logged activity, so they sit outside the active scope and outside the scores. Worth checking whether they were imported and then left alone.',
+        [{ l: 'Create selection', p: true }, { l: 'Export list' }]);
     }
     if (fn && fn.segments) {
       for (var fi = 0; fi < fn.segments.length; fi++) {
         var sg = fn.segments[fi];
         var nm = (sg.name || '').toLowerCase();
         if (nm.indexOf('empty') >= 0 && sg.count > 0) {
-          h += '<div style="border-left:3px solid #ef6c00;background:#fdf4ec;padding:9px 12px;border-radius:0 6px 6px 0;font-size:12px;line-height:1.5;color:#3c423f"><b style="color:#1c2b29">' + fmtNum(sg.count) + ' empty shells.</b> Active companies with no contact person at all. Worth checking whether they are still needed or can be cleaned up.</div>';
+          h += hcInsight('warn', fmtNum(sg.count) + ' empty shells.', 'Active companies with no contact person at all. Worth checking whether they are still needed or can be cleaned up.', [{ l: 'Review ' + fmtNum(sg.count) }]);
           break;
         }
       }
@@ -820,9 +926,9 @@ function renderSaleOverviewV2() {
   var dists = ov.distributions || [];
 
   var GREEN = 'var(--so-green,#06423e)', OKC = 'var(--sl-ok,#f9a825)', WARN = 'var(--sl-warn,#ef6c00)', BAD = 'var(--sl-bad,#c62828)', GOOD = 'var(--sl-good,#2e7d32)', MUTED = 'var(--so-text-muted,#6b706c)';
-  function secLabel(t) { return '<div style="font-size:.68rem;letter-spacing:.06em;text-transform:uppercase;color:#a79e8d;font-weight:600;margin:16px 2px 10px">' + t + '</div>'; }
-  function kpiCard(label, value, sub, alert) { var bd = alert ? ';border-color:#f0d9c2' : ''; var vc = alert ? BAD : GREEN; var lc = alert ? '#c0631a' : MUTED; return '<div class="stat-card" style="background:#fff;border:1px solid #e6e1d8;border-radius:12px;padding:14px' + bd + '"><div style="font-size:11px;letter-spacing:.04em;text-transform:uppercase;color:' + lc + ';margin-bottom:6px">' + label + '</div><div style="font-size:24px;font-weight:500;line-height:1.1;color:' + vc + '">' + value + '</div><div style="font-size:12px;color:' + MUTED + ';margin-top:4px">' + sub + '</div></div>'; }
-  function dotLeg(color, label, val, pc) { var nums = ''; if (val !== '') nums += '<span style="font-weight:600;color:#1c2b29;margin-left:8px">' + val + '</span>'; if (pc !== '') nums += '<span style="color:#8a8f8b;margin-left:5px">' + pc + '</span>'; return '<div style="display:flex;align-items:center;gap:7px;font-size:12px;color:#3c423f;margin:4px 0"><span style="width:10px;height:10px;border-radius:3px;flex:none;background:' + color + '"></span><span>' + label + '</span>' + nums + '</div>'; }
+  var secLabel = hcSecLabel;
+  var kpiCard = hcKpi;
+  function dotLeg(color, label, val, pc) { var nums = ''; if (val !== '') nums += '<span style="font-weight:600;color:#1c2b29;margin-left:8px">' + val + '</span>'; if (pc !== '') nums += '<span style="color:#8a8f8b;margin-left:5px">' + pc + '</span>'; return '<div style="display:flex;align-items:center;gap:7px;font-size:var(--fs-chip);color:#3c423f;margin:4px 0"><span style="width:10px;height:10px;border-radius:3px;flex:none;background:' + color + '"></span><span>' + label + '</span>' + nums + '</div>'; }
   function findDist(key) { for (var i = 0; i < dists.length; i++) { if ((dists[i].title || '').toLowerCase().indexOf(key) >= 0) return dists[i]; } return null; }
   function dval(d, name) { if (d && d.items) { for (var i = 0; i < d.items.length; i++) { if ((d.items[i].name || '').toLowerCase() === name) return d.items[i].count; } } return 0; }
   function pct(n, t) { return t > 0 ? Math.round(n / t * 1000) / 10 : 0; }
@@ -850,27 +956,70 @@ function renderSaleOverviewV2() {
   h += kpiCard('Stage not set', noStagePct + '%', fmtNum(noStage) + ' without a stage', noStagePct >= 40);
   h += '</div>';
 
-  // ---- Status split (donut) + Sale type ----
-  h += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px">';
-  var segs = [{ n: 'Lost', v: lost, c: BAD }, { n: 'Open', v: open, c: OKC }, { n: 'Sold', v: sold, c: GOOD }, { n: 'Stalled', v: stalled, c: '#c9c4ba' }];
-  var cum = 0, circles = '';
-  for (var si = 0; si < segs.length; si++) {
-    var sp = total > 0 ? (segs[si].v / total * 100) : 0;
-    circles += '<circle cx="90" cy="90" r="70" fill="none" stroke="' + segs[si].c + '" stroke-width="26" stroke-dasharray="' + sp.toFixed(1) + ' ' + (100 - sp).toFixed(1) + '" stroke-dashoffset="' + (25 - cum).toFixed(1) + '" pathLength="100"/>';
-    cum += sp;
+  // ---- Status split: two tiers (STATUS-SPLIT-B) ----
+  // Tier 1 splits every sale into running vs decided; tier 2 shows the outcome
+  // inside the decided ones so the win rate carries its own denominator. Open is a
+  // running state and not a verdict, so it takes the neutral --open teal instead of
+  // borrowing the semantic ramp. Labels under 6% are dropped rather than clipped.
+  function ssSeg(pctv, bg, label, lightFill) {
+    if (!(pctv > 0)) return '';
+    var cls = lightFill ? ' class="lt"' : '';
+    var txt = pctv >= 6 ? (label || '') : '';
+    return '<span' + cls + ' style="width:' + pctv.toFixed(1) + '%;background:' + bg + '">' + txt + '</span>';
   }
-  h += '<div class="entity-card" style="background:#fff;border:1px solid #e6e1d8;border-radius:12px;padding:16px">';
-  h += '<div style="font-size:13px;font-weight:500;color:' + GREEN + ';margin-bottom:10px">Status split</div>';
-  h += '<div style="display:flex;gap:12px;align-items:center"><svg viewBox="0 0 180 180" width="118" height="118" role="img" aria-label="Sale status split"><circle cx="90" cy="90" r="70" fill="none" stroke="#efe9df" stroke-width="26"/>' + circles + '<text x="90" y="86" text-anchor="middle" font-size="17" font-weight="500" fill="#06423e">' + fmtNum(total) + '</text><text x="90" y="103" text-anchor="middle" font-size="10" fill="#8a8f8b">sales</text></svg>';
-  h += '<div style="flex:1;min-width:0">' + dotLeg(BAD, 'Lost', fmtNum(lost), pct(lost, total) + '%') + dotLeg(OKC, 'Open', fmtNum(open), pct(open, total) + '%') + dotLeg(GOOD, 'Sold', fmtNum(sold), pct(sold, total) + '%') + dotLeg('#c9c4ba', 'Stalled' + sbInfoIcon('A sale put on hold, neither won nor lost yet.'), fmtNum(stalled), pct(stalled, total) + '%') + '</div></div></div>';
+  function ssRow(name, count, pctv, dotCol, tip) {
+    var off = count > 0 ? '' : ' off';
+    var fill = count > 0 ? '<u style="width:' + Math.max(pctv, 1).toFixed(1) + '%;background:' + dotCol + '"></u>' : '';
+    return '<div class="row' + off + '"><i style="background:' + dotCol + '"></i>'
+      + '<span class="nm">' + name + (tip ? sbInfoIcon(tip) : '') + '</span>'
+      + '<span class="ct">' + fmtNum(count) + '</span>'
+      + '<span class="tr">' + fill + '</span>'
+      + '<span class="pc">' + pctv + '%</span></div>';
+  }
+
+  var openPct = pct(open, total), decidedPct = pct(decided, total);
+  h += '<div class="entity-card ssplit" style="background:var(--card);border:1px solid var(--card-border);border-radius:16px;padding:18px 20px;margin-top:14px">';
+  h += '<div class="chead"><h3>Status split</h3><span class="tot">' + fmtNum(total) + ' sales</span></div>';
+  h += '<p class="desc">First how much is still running, then how the decided sales ended, so the win rate sits in its own denominator.</p>';
+
+  h += '<div class="tier"><div class="tier-h"><b>All sales</b><span>' + fmtNum(total) + '</span>'
+    + '<span class="r">Still open: <b>' + fmtNum(open) + '</b> \u00b7 Decided: <b>' + fmtNum(decided) + '</b></span></div>';
+  h += '<div class="sbar">'
+    + ssSeg(openPct, 'var(--open)', openPct + '% still open \u00b7 ' + fmtNum(open), true)
+    + ssSeg(decidedPct, 'var(--cn)', decidedPct + '% decided \u00b7 ' + fmtNum(decided), true)
+    + '</div></div>';
+
+  h += '<div class="b2"><div>';
+  h += '<div class="tier-h"><b>Of the ' + fmtNum(decided) + ' decided</b><span>outcome</span></div>';
+  if (decided > 0) {
+    var soldPct = pct(sold, decided), lostPct = pct(lost, decided);
+    h += '<div class="mini">'
+      + ssSeg(soldPct, 'var(--good-deep)', fmtNum(sold) + ' Sold', false)
+      + ssSeg(lostPct, 'var(--bad)', fmtNum(lost) + ' Lost', false)
+      + '</div>';
+    h += '<div class="wrow">Win rate <b>' + winRate + '%</b><span style="color:var(--faint)">\u00b7 ' + fmtNum(sold) + ' won of ' + fmtNum(decided) + '</span></div>';
+  } else {
+    h += '<div class="none">No decided sales in this period yet.</div>';
+  }
+  h += '</div><div>';
+  h += '<div class="tier-h"><b>Worth checking</b><span>across all sales</span></div>';
+  h += '<div class="rows">';
+  h += ssRow('Without a stage', noStage, pct(noStage, total), 'var(--mod)', '');
+  h += ssRow('Stalled', stalled, pct(stalled, total), 'var(--cn)', 'A sale put on hold, neither won nor lost yet.');
+  h += '</div></div></div></div>';
+
+  // ---- Sale type ----
+  h += '<div style="margin-top:14px">';
   if (typeD && typeD.items && typeD.items.length > 0) {
     var titems = typeD.items.slice().sort(function (a, b) { return b.count - a.count; });
     var ttot = 0; for (var ti = 0; ti < titems.length; ti++) ttot += titems[ti].count;
-    var tpal = ['#0f5c57', '#5dcaa5', '#b7dea9', '#c9c4ba'];
-    h += '<div class="entity-card" style="background:#fff;border:1px solid #e6e1d8;border-radius:12px;padding:16px"><div style="font-size:13px;font-weight:500;color:' + GREEN + '">Sale type</div><div style="font-size:11px;color:#8a8f8b;margin:2px 0 11px">From the Sale Type field on each sale, chosen by the user. It is not derived from the data.</div>';
+    var tpal = ['var(--c1)', 'var(--c3)', 'var(--c5)', 'var(--cn)'];
+    h += '<div class="entity-card" style="background:var(--card);border:1px solid #e6e1d8;border-radius:16px;padding:16px"><div style="font-size:var(--fs-cardtitle);font-weight:700;color:var(--ink)">Sale type</div><div style="font-size:var(--fs-kpisub);color:var(--muted);margin:2px 0 11px">From the Sale Type field on each sale, chosen by the user. It is not derived from the data.</div>';
     for (var tj = 0; tj < titems.length && tj < 4; tj++) {
       var tp = pct(titems[tj].count, ttot);
-      h += '<div style="margin-bottom:9px"><div style="display:flex;font-size:12px;margin-bottom:3px"><span>' + titems[tj].name + '</span><b style="margin-left:auto;color:#6b706c">' + tp + '%</b></div><div style="height:9px;background:#eef0ec;border-radius:5px"><div style="width:' + Math.max(tp, 1).toFixed(0) + '%;height:9px;background:' + tpal[Math.min(tj, 3)] + ';border-radius:5px"></div></div></div>';
+      // A value with no sales is kept in the list but greyed, never dropped.
+      var tOff = titems[tj].count > 0 ? '' : 'color:var(--faint);';
+      h += '<div style="margin-bottom:9px"><div style="display:flex;font-size:var(--fs-chip);margin-bottom:3px;' + tOff + '"><span>' + titems[tj].name + '</span><b style="margin-left:auto;' + (tOff ? 'color:var(--faint);font-weight:600' : 'color:var(--muted)') + '">' + tp + '%</b></div><div style="height:9px;background:var(--track);border-radius:5px"><div style="width:' + (tp > 0 ? Math.max(tp, 1) : 0).toFixed(0) + '%;height:9px;background:' + tpal[Math.min(tj, 3)] + ';border-radius:5px"></div></div></div>';
     }
     h += '</div>';
   }
@@ -898,33 +1047,35 @@ function renderSaleOverviewV2() {
       stageMsg = 'Stage is filled in for most sales and spread across the buckets, which gives a usable basis for pipeline forecasting.';
     }
     h += secLabel(stagePoor ? 'The real gap \u00b7 pipeline data' : 'Pipeline \u00b7 stage tracking');
-    h += '<div class="entity-card" style="background:#fff;border:1px solid #e6e1d8;border-radius:12px;padding:16px"><div style="font-size:13px;font-weight:500;color:' + GREEN + ';margin-bottom:2px">Stage / probability tracking' + sbInfoIcon('The probability field on each sale (Low, Middle or High chance). It is what pipeline forecasting relies on.') + '</div><div style="font-size:12px;color:' + MUTED + ';margin-bottom:12px;line-height:1.5">' + stageMsg + '</div>';
-    h += '<div style="display:flex;height:30px;border-radius:6px;overflow:hidden;margin-bottom:12px">';
-    h += '<div style="width:' + spNo + '%;background:#d8cfc2;display:flex;align-items:center;padding-left:10px;font-size:11px;color:#7a6f5c;font-weight:500">' + (spNo >= 12 ? spNo.toFixed(0) + '% no stage set' : '') + '</div>';
-    h += '<div style="width:' + spLow + '%;background:' + OKC + ';display:flex;align-items:center;justify-content:center;font-size:10px;color:#fff;font-weight:600;text-shadow:0 1px 1px rgba(0,0,0,.3)">' + (spLow >= 14 ? spLow.toFixed(0) + '% low chance' : (spLow >= 7 ? spLow.toFixed(0) + '%' : '')) + '</div>';
-    h += '<div style="width:' + spMid + '%;background:#5dcaa5"></div><div style="width:' + spHigh + '%;background:' + GOOD + '"></div></div>';
-    h += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:2px 24px">' + dotLeg('#d8cfc2', 'No value', fmtNum(noStage), spNo + '%') + dotLeg('#5dcaa5', 'Middle chance', fmtNum(mid), spMid + '%') + dotLeg(OKC, 'Low chance', fmtNum(low), spLow + '%') + dotLeg(GOOD, 'High chance', fmtNum(high), spHigh + '%') + '</div></div>';
+    h += '<div class="entity-card" style="background:var(--card);border:1px solid #e6e1d8;border-radius:16px;padding:16px"><div style="font-size:var(--fs-cardtitle);font-weight:700;color:var(--ink);margin-bottom:2px">Stage / probability tracking' + sbInfoIcon('The probability field on each sale (Low, Middle or High chance). It is what pipeline forecasting relies on.') + '</div><div style="font-size:var(--fs-chip);color:' + MUTED + ';margin-bottom:12px;line-height:1.5">' + stageMsg + '</div>';
+    h += '<div class="engbar" style="height:30px;margin-bottom:12px">';
+    h += hcBarSeg(spNo, 'var(--cn)', spNo >= 12 ? Number(spNo).toFixed(0) + '% no stage set' : '', 'color:#6b6657;font-weight:500');
+    h += hcBarSeg(spLow, OKC, spLow >= 14 ? Number(spLow).toFixed(0) + '% low chance' : (spLow >= 7 ? Number(spLow).toFixed(0) + '%' : ''));
+    h += hcBarSeg(spMid, 'var(--c3)', '');
+    h += hcBarSeg(spHigh, GOOD, '');
+    h += '</div>';
+    h += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:2px 24px">' + dotLeg('var(--cn)', 'No value', fmtNum(noStage), spNo + '%') + dotLeg('var(--c3)', 'Middle chance', fmtNum(mid), spMid + '%') + dotLeg(OKC, 'Low chance', fmtNum(low), spLow + '%') + dotLeg(GOOD, 'High chance', fmtNum(high), spHigh + '%') + '</div></div>';
   }
 
   // ---- INSIGHTS ----
   h += secLabel('Insights');
   var insH = '';
   if (decided > 0 && winRate < 35) {
-    insH += '<div style="border-left:3px solid ' + BAD + ';background:#fdeeed;padding:9px 12px;border-radius:0 6px 6px 0;margin-bottom:9px;font-size:12px;line-height:1.5;color:#3c423f"><b style="color:#1c2b29">Win rate is ' + winRate + '%, with ' + pct(lost, total) + '% of sales lost.</b> A useful first question is what the ' + fmtNum(lost) + ' lost deals had in common.</div>';
+    insH += hcInsight('primary', 'Win rate is ' + winRate + '%, with ' + pct(lost, total) + '% of sales lost.', 'A useful first question is what the ' + fmtNum(lost) + ' lost deals had in common.');
   }
   if (noStagePct >= 40) {
-    insH += '<div style="border-left:3px solid ' + WARN + ';background:#fdf4ec;padding:9px 12px;border-radius:0 6px 6px 0;margin-bottom:9px;font-size:12px;line-height:1.5;color:#3c423f"><b style="color:#1c2b29">' + noStagePct + '% of sales have no stage set.</b> The pipeline cannot be forecast reliably until stage is filled in.</div>';
+    insH += hcInsight('warn', noStagePct + '% of sales have no stage set.', 'The pipeline cannot be forecast reliably until stage is filled in.');
   }
   var noQuote = (o.withQuote === 0), noStake = (o.withStakeholders === 0);
   if (noQuote || noStake) {
     var qsTitle = (noQuote && noStake) ? 'Quotes and stakeholders are unused' : (noQuote ? 'Quotes are unused' : 'Stakeholders are unused');
     var qsDetail = (noQuote && noStake) ? 'Neither is filled in on any sale, so both features are currently left untouched.' : 'It is not filled in on any sale, so the feature is currently left untouched.';
-    insH += '<div style="border-left:3px solid #8a8f8b;background:#f4f3f0;padding:9px 12px;border-radius:0 6px 6px 0;margin-bottom:9px;font-size:12px;line-height:1.5;color:#3c423f"><b style="color:#1c2b29">' + qsTitle + '.</b> ' + qsDetail + '</div>';
+    insH += hcInsight('neutral', qsTitle + '.', qsDetail);
   }
   if (insH === '') {
-    insH = '<div style="border-left:3px solid ' + GOOD + ';background:#eef5ec;padding:9px 12px;border-radius:0 6px 6px 0;font-size:12px;line-height:1.5;color:#3c423f">No major data issues stand out for sales in this period.</div>';
+    insH = hcInsight('good', '', 'No major data issues stand out for sales in this period.');
   }
-  h += '<div class="entity-card" style="background:#fff;border:1px solid #e6e1d8;border-radius:12px;padding:16px">' + insH + '</div>';
+  h += insH;
 
   el.innerHTML = h;
 }
@@ -939,11 +1090,11 @@ function renderContactOverviewV2() {
   if (!ov) return;
   var o = ov.overview || {};
   var GREEN = 'var(--so-green,#06423e)', BAD = 'var(--sl-bad,#c62828)', WARN = 'var(--sl-warn,#ef6c00)', MUTED = 'var(--so-text-muted,#6b706c)';
-  function secLabel(t) { return '<div style="font-size:.68rem;letter-spacing:.06em;text-transform:uppercase;color:#a79e8d;font-weight:600;margin:16px 2px 10px">' + t + '</div>'; }
-  function kpiCard(label, value, sub, alert) { var bd = alert ? ';border-color:#f0d9c2' : ''; var vc = alert ? BAD : GREEN; var lc = alert ? '#c0631a' : MUTED; return '<div class="stat-card" style="background:#fff;border:1px solid #e6e1d8;border-radius:12px;padding:14px' + bd + '"><div style="font-size:11px;letter-spacing:.04em;text-transform:uppercase;color:' + lc + ';margin-bottom:6px">' + label + '</div><div style="font-size:24px;font-weight:500;line-height:1.1;color:' + vc + '">' + value + '</div><div style="font-size:12px;color:' + MUTED + ';margin-top:4px">' + sub + '</div></div>'; }
+  var secLabel = hcSecLabel;
+  var kpiCard = hcKpi;
   var total = o.total || 0;
   function P(n) { return total > 0 ? Math.round((o[n] || 0) / total * 1000) / 10 : 0; }
-  function bar(label, n) { var p = total > 0 ? Math.round(n / total * 1000) / 10 : 0; return '<div style="margin-bottom:11px"><div style="display:flex;font-size:12px;margin-bottom:4px;color:#3c423f"><span>' + label + '</span><span style="margin-left:auto;color:#6b706c"><b style="color:#1c2b29">' + p + '%</b> &middot; ' + fmtNum(n) + '</span></div><div style="height:10px;background:#eef0ec;border-radius:5px"><div style="width:' + Math.max(p, 1).toFixed(0) + '%;height:10px;background:#0f5c57;border-radius:5px"></div></div></div>'; }
+  function bar(label, n) { var p = total > 0 ? Math.round(n / total * 1000) / 10 : 0; return '<div style="margin-bottom:11px"><div style="display:flex;font-size:var(--fs-chip);margin-bottom:4px;color:#3c423f"><span>' + label + '</span><span style="margin-left:auto;color:#6b706c"><b style="color:#1c2b29">' + p + '%</b> &middot; ' + fmtNum(n) + '</span></div><div style="height:10px;background:var(--track);border-radius:5px"><div style="width:' + (p > 0 ? Math.max(p, 1) : 0).toFixed(0) + '%;height:10px;background:#0f5c57;border-radius:5px"></div></div></div>'; }
 
   var h = '';
   h += dateFilterNotice();
@@ -955,7 +1106,7 @@ function renderContactOverviewV2() {
   h += kpiCard('With position', P('withPosition') + '%', fmtNum(o.withPosition || 0) + ' have a role', P('withPosition') < 60);
   h += '</div>';
   h += secLabel('Field completeness');
-  h += '<div class="entity-card" style="background:#fff;border:1px solid #e6e1d8;border-radius:12px;padding:16px"><div style="font-size:12px;color:' + MUTED + ';margin-bottom:12px">How completely the key contact fields are filled in.</div>';
+  h += '<div class="entity-card" style="background:var(--card);border:1px solid #e6e1d8;border-radius:16px;padding:16px"><div style="font-size:var(--fs-chip);color:' + MUTED + ';margin-bottom:12px">How completely the key contact fields are filled in.</div>';
   h += bar('Email address', o.withEmail || 0);
   h += bar('Phone number', o.withPhone || 0);
   h += bar('Position', o.withPosition || 0);
@@ -971,19 +1122,19 @@ function renderContactOverviewV2() {
   var insC = '';
   var posPct = P('withPosition'), titlePct = P('withTitle'), phonePct = P('withPhone'), emailPct = P('withEmail');
   if (posPct < 60 || titlePct < 60) {
-    insC += '<div style="border-left:3px solid ' + WARN + ';background:#fdf4ec;padding:9px 12px;border-radius:0 6px 6px 0;margin-bottom:9px;font-size:12px;line-height:1.5;color:#3c423f"><b style="color:#1c2b29">Role data is incomplete.</b> Position is filled for ' + posPct + '% and job title for ' + titlePct + '% of contacts. That limits any targeting or segmentation by role.</div>';
+    insC += hcInsight('warn', 'Role data is incomplete.', 'Position is filled for ' + posPct + '% and job title for ' + titlePct + '% of contacts. That limits any targeting or segmentation by role.');
   }
   if (emailPct < 85) {
-    insC += '<div style="border-left:3px solid ' + WARN + ';background:#fdf4ec;padding:9px 12px;border-radius:0 6px 6px 0;margin-bottom:9px;font-size:12px;line-height:1.5;color:#3c423f"><b style="color:#1c2b29">' + (100 - Math.round(emailPct)) + '% of contacts have no email address.</b> Email is the main outreach channel for most teams, so those gaps limit who can be reached.</div>';
+    insC += hcInsight('warn', (100 - Math.round(emailPct)) + '% of contacts have no email address.', 'Email is the main outreach channel for most teams, so those gaps limit who can be reached.');
   }
   if (phonePct < 75) {
     var emNote = emailPct >= 85 ? ' Email coverage is strong at ' + emailPct + '%, so most contacts are still reachable, just not by phone.' : '';
-    insC += '<div style="border-left:3px solid #8a8f8b;background:#f4f3f0;padding:9px 12px;border-radius:0 6px 6px 0;margin-bottom:9px;font-size:12px;line-height:1.5;color:#3c423f"><b style="color:#1c2b29">' + (100 - Math.round(phonePct)) + '% of contacts have no phone number.</b>' + emNote + '</div>';
+    insC += hcInsight('neutral', (100 - Math.round(phonePct)) + '% of contacts have no phone number.', emNote);
   }
   if (insC === '') {
-    insC = '<div style="border-left:3px solid var(--sl-good,#2e7d32);background:#eef5ec;padding:9px 12px;border-radius:0 6px 6px 0;font-size:12px;line-height:1.5;color:#3c423f">Contact detail coverage looks healthy across the main fields.</div>';
+    insC = hcInsight('good', '', 'Contact detail coverage looks healthy across the main fields.');
   }
-  h += '<div class="entity-card" style="background:#fff;border:1px solid #e6e1d8;border-radius:12px;padding:16px">' + insC + '</div>';
+  h += insC;
   el.innerHTML = h;
 }
 
@@ -998,10 +1149,10 @@ function renderProjectOverviewV2() {
   var o = ov.overview || {};
   var dists = ov.distributions || [];
   var GREEN = 'var(--so-green,#06423e)', BAD = 'var(--sl-bad,#c62828)', WARN = 'var(--sl-warn,#ef6c00)', MUTED = 'var(--so-text-muted,#6b706c)';
-  function secLabel(t) { return '<div style="font-size:.68rem;letter-spacing:.06em;text-transform:uppercase;color:#a79e8d;font-weight:600;margin:16px 2px 10px">' + t + '</div>'; }
-  function kpiCard(label, value, sub, alert) { var bd = alert ? ';border-color:#f0d9c2' : ''; var vc = alert ? BAD : GREEN; var lc = alert ? '#c0631a' : MUTED; return '<div class="stat-card" style="background:#fff;border:1px solid #e6e1d8;border-radius:12px;padding:14px' + bd + '"><div style="font-size:11px;letter-spacing:.04em;text-transform:uppercase;color:' + lc + ';margin-bottom:6px">' + label + '</div><div style="font-size:24px;font-weight:500;line-height:1.1;color:' + vc + '">' + value + '</div><div style="font-size:12px;color:' + MUTED + ';margin-top:4px">' + sub + '</div></div>'; }
+  var secLabel = hcSecLabel;
+  var kpiCard = hcKpi;
   function findDist(k) { for (var i = 0; i < dists.length; i++) { if ((dists[i].title || '').toLowerCase().indexOf(k) >= 0) return dists[i]; } return null; }
-  function miniList(title, d) { var s = '<div class="entity-card" style="background:#fff;border:1px solid #e6e1d8;border-radius:12px;padding:16px"><div style="font-size:13px;font-weight:500;color:' + GREEN + ';margin-bottom:10px">' + title + '</div>'; var any = false; if (d && d.items) { for (var i = 0; i < d.items.length; i++) { if (d.items[i].count > 0) { any = true; s += '<div style="display:flex;font-size:12px;margin:5px 0;color:#3c423f"><span>' + d.items[i].name + '</span><b style="margin-left:auto;color:#1c2b29">' + fmtNum(d.items[i].count) + '</b></div>'; } } } if (!any) s += '<div style="font-size:12px;color:' + MUTED + '">No values set.</div>'; return s + '</div>'; }
+  function miniList(title, d) { var s = '<div class="entity-card" style="background:var(--card);border:1px solid #e6e1d8;border-radius:16px;padding:16px"><div style="font-size:var(--fs-cardtitle);font-weight:700;color:var(--ink);margin-bottom:10px">' + title + '</div>'; var any = false; if (d && d.items) { for (var i = 0; i < d.items.length; i++) { if (d.items[i].count > 0) { any = true; s += '<div style="display:flex;font-size:var(--fs-chip);margin:5px 0;color:#3c423f"><span>' + d.items[i].name + '</span><b style="margin-left:auto;color:#1c2b29">' + fmtNum(d.items[i].count) + '</b></div>'; } } } if (!any) s += '<div style="font-size:var(--fs-chip);color:' + MUTED + '">No values set.</div>'; return s + '</div>'; }
 
   var total = o.total || 0, overdue = o.overdue || 0, withMembers = o.withMembers || 0;
   var h = '';
@@ -1018,20 +1169,20 @@ function renderProjectOverviewV2() {
   if (total > 0 && total <= 10) {
     var od = overdue > 0 ? (', ' + (overdue >= total ? 'all' : fmtNum(overdue)) + ' of them overdue') : '';
     var mem = withMembers === 0 ? ', and none have members assigned' : '';
-    insP += '<div style="border-left:3px solid ' + WARN + ';background:#fdf4ec;padding:9px 12px;border-radius:0 6px 6px 0;margin-bottom:9px;font-size:12px;line-height:1.5;color:#3c423f"><b style="color:#1c2b29">Projects are barely used.</b> There ' + (total === 1 ? 'is' : 'are') + ' only ' + fmtNum(total) + ' project' + (total === 1 ? '' : 's') + ' in this CRM' + od + mem + '. If projects matter to the business this is an adoption gap rather than a data quality one.</div>';
+    insP += hcInsight('warn', 'Projects are barely used.', 'There ' + (total === 1 ? 'is' : 'are') + ' only ' + fmtNum(total) + ' project' + (total === 1 ? '' : 's') + ' in this CRM' + od + mem + '. If projects matter to the business this is an adoption gap rather than a data quality one.');
   } else if (total > 10) {
     var odPct = Math.round(overdue / total * 100);
     if (odPct >= 40) {
-      insP += '<div style="border-left:3px solid ' + WARN + ';background:#fdf4ec;padding:9px 12px;border-radius:0 6px 6px 0;margin-bottom:9px;font-size:12px;line-height:1.5;color:#3c423f"><b style="color:#1c2b29">' + odPct + '% of projects are overdue.</b> Their end date has passed while the project is still open, so either the dates or the statuses need maintaining.</div>';
+      insP += hcInsight('warn', odPct + '% of projects are overdue.', 'Their end date has passed while the project is still open, so either the dates or the statuses need maintaining.');
     }
     if (withMembers === 0) {
-      insP += '<div style="border-left:3px solid ' + WARN + ';background:#fdf4ec;padding:9px 12px;border-radius:0 6px 6px 0;margin-bottom:9px;font-size:12px;line-height:1.5;color:#3c423f"><b style="color:#1c2b29">No projects have members assigned.</b> Without members it is hard to see who is responsible for each project.</div>';
+      insP += hcInsight('warn', 'No projects have members assigned.', 'Without members it is hard to see who is responsible for each project.');
     }
   }
   if (insP === '') {
-    insP = '<div style="border-left:3px solid var(--sl-good,#2e7d32);background:#eef5ec;padding:9px 12px;border-radius:0 6px 6px 0;font-size:12px;line-height:1.5;color:#3c423f">No major issues stand out for projects.</div>';
+    insP = hcInsight('good', '', 'No major issues stand out for projects.');
   }
-  h += '<div class="entity-card" style="background:#fff;border:1px solid #e6e1d8;border-radius:12px;padding:16px">' + insP + '</div>';
+  h += insP;
   el.innerHTML = h;
 }
 
@@ -1050,8 +1201,8 @@ function renderRequestsOverviewV2() {
   var dists = ov.distributions || [];
 
   var GREEN = 'var(--so-green,#06423e)', OKC = 'var(--sl-ok,#f9a825)', WARN = 'var(--sl-warn,#ef6c00)', BAD = 'var(--sl-bad,#c62828)', GOOD = 'var(--sl-good,#2e7d32)', MUTED = 'var(--so-text-muted,#6b706c)';
-  function secLabel(t) { return '<div style="font-size:.68rem;letter-spacing:.06em;text-transform:uppercase;color:#a79e8d;font-weight:600;margin:16px 2px 10px">' + t + '</div>'; }
-  function kpiCard(label, value, sub, alert) { var bd = alert ? ';border-color:#f0d9c2' : ''; var vc = alert ? BAD : GREEN; var lc = alert ? '#c0631a' : MUTED; return '<div class="stat-card" style="background:#fff;border:1px solid #e6e1d8;border-radius:12px;padding:14px' + bd + '"><div style="font-size:11px;letter-spacing:.04em;text-transform:uppercase;color:' + lc + ';margin-bottom:6px">' + label + '</div><div style="font-size:24px;font-weight:500;line-height:1.1;color:' + vc + '">' + value + '</div><div style="font-size:12px;color:' + MUTED + ';margin-top:4px">' + sub + '</div></div>'; }
+  var secLabel = hcSecLabel;
+  var kpiCard = hcKpi;
   function findDist(key) { for (var i = 0; i < dists.length; i++) { if ((dists[i].title || '').toLowerCase().indexOf(key) >= 0) return dists[i]; } return null; }
   function pct(n, t) { return t > 0 ? Math.round(n / t * 1000) / 10 : 0; }
 
@@ -1068,16 +1219,16 @@ function renderRequestsOverviewV2() {
     var tot = 0; for (var j = 0; j < items.length; j++) tot += items[j].v;
     var head = items.slice(0, topN);
     var restV = 0; for (var k = topN; k < items.length; k++) restV += items[k].v;
-    var s = '<div class="entity-card" style="background:#fff;border:1px solid #e6e1d8;border-radius:12px;padding:16px"><div style="font-size:13px;font-weight:500;color:' + GREEN + '">' + title + (tip ? sbInfoIcon(tip) : '') + '</div>';
-    s += note ? '<div style="font-size:11px;color:#8a8f8b;margin:2px 0 11px">' + note + '</div>' : '<div style="height:9px"></div>';
+    var s = '<div class="entity-card" style="background:var(--card);border:1px solid #e6e1d8;border-radius:16px;padding:16px"><div style="font-size:var(--fs-cardtitle);font-weight:700;color:var(--ink)">' + title + (tip ? sbInfoIcon(tip) : '') + '</div>';
+    s += note ? '<div style="font-size:var(--fs-kpisub);color:var(--muted);margin:2px 0 11px">' + note + '</div>' : '<div style="height:9px"></div>';
     for (var m = 0; m < head.length; m++) {
       var p = pct(head[m].v, tot);
       var col = palette[Math.min(m, palette.length - 1)];
-      s += '<div style="margin-bottom:9px"><div style="display:flex;font-size:12px;margin-bottom:3px;gap:8px"><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + head[m].n + '</span><b style="margin-left:auto;color:#1c2b29;flex:none">' + fmtNum(head[m].v) + '</b><span style="color:#8a8f8b;flex:none;width:48px;text-align:right">' + p + '%</span></div><div style="height:9px;background:#eef0ec;border-radius:5px"><div style="width:' + Math.max(p, 0.6).toFixed(1) + '%;height:9px;background:' + col + ';border-radius:5px"></div></div></div>';
+      s += '<div style="margin-bottom:9px"><div style="display:flex;font-size:var(--fs-chip);margin-bottom:3px;gap:8px"><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + head[m].n + '</span><b style="margin-left:auto;color:#1c2b29;flex:none">' + fmtNum(head[m].v) + '</b><span style="color:#8a8f8b;flex:none;width:48px;text-align:right">' + p + '%</span></div><div style="height:9px;background:var(--track);border-radius:5px"><div style="width:' + (p > 0 ? Math.max(p, 0.6) : 0).toFixed(1) + '%;height:9px;background:' + col + ';border-radius:5px"></div></div></div>';
     }
     if (restV > 0) {
       var rp = pct(restV, tot);
-      s += '<div style="margin-bottom:2px"><div style="display:flex;font-size:12px;margin-bottom:3px;gap:8px;color:#8a8f8b"><span>Other (' + (items.length - topN) + ')</span><b style="margin-left:auto;color:#6b706c;flex:none">' + fmtNum(restV) + '</b><span style="flex:none;width:48px;text-align:right">' + rp + '%</span></div><div style="height:9px;background:#eef0ec;border-radius:5px"><div style="width:' + Math.max(rp, 0.6).toFixed(1) + '%;height:9px;background:#cfc9bd;border-radius:5px"></div></div></div>';
+      s += '<div style="margin-bottom:2px"><div style="display:flex;font-size:var(--fs-chip);margin-bottom:3px;gap:8px;color:#8a8f8b"><span>Other (' + (items.length - topN) + ')</span><b style="margin-left:auto;color:#6b706c;flex:none">' + fmtNum(restV) + '</b><span style="flex:none;width:48px;text-align:right">' + rp + '%</span></div><div style="height:9px;background:var(--track);border-radius:5px"><div style="width:' + (rp > 0 ? Math.max(rp, 0.6) : 0).toFixed(1) + '%;height:9px;background:#cfc9bd;border-radius:5px"></div></div></div>';
     }
     return s + '</div>';
   }
@@ -1104,12 +1255,12 @@ function renderRequestsOverviewV2() {
   // ---- Status breakdown (named statuses, the configured truth) ----
   if (statusD) {
     h += secLabel('Status');
-    h += rankCard('Status breakdown', 'The ticket statuses configured in this installation.', statusD, ['#0f5c57', '#3a8f86', '#5dcaa5', '#9bd4b8', '#b7dea9', '#cfe3c0'], 6, '');
+    h += rankCard('Status breakdown', 'The ticket statuses configured in this installation.', statusD, ['var(--c1)', 'var(--c2)', 'var(--c3)', 'var(--c4)', 'var(--c5)', 'var(--c6)'], 6, '');
   }
 
   // ---- Field usage: priority + ticket type ----
-  var pc = prioD ? rankCard('Priority', '', prioD, ['#0f5c57', '#5dcaa5', '#b7dea9', '#c9c4ba', '#d8cfc2'], 5, 'The priority set on each ticket, chosen by the user.') : '';
-  var tc = typeD ? rankCard('Ticket type', '', typeD, ['#0f5c57', '#5dcaa5', '#b7dea9', '#c9c4ba', '#d8cfc2'], 5, 'The ticket type chosen on each ticket. It is not derived from the data.') : '';
+  var pc = prioD ? rankCard('Priority', '', prioD, ['var(--c1)', 'var(--c2)', 'var(--c3)', 'var(--c4)', 'var(--cn)'], 5, 'The priority set on each ticket, chosen by the user.') : '';
+  var tc = typeD ? rankCard('Ticket type', '', typeD, ['var(--c1)', 'var(--c2)', 'var(--c3)', 'var(--c4)', 'var(--cn)'], 5, 'The ticket type chosen on each ticket. It is not derived from the data.') : '';
   if (pc || tc) {
     h += secLabel('Field usage');
     h += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">' + pc + tc + '</div>';
@@ -1119,7 +1270,7 @@ function renderRequestsOverviewV2() {
   h += secLabel('Insights');
   var insR = '';
   if (total > 0 && unaPct >= 30) {
-    insR += '<div style="border-left:3px solid ' + WARN + ';background:#fdf4ec;padding:9px 12px;border-radius:0 6px 6px 0;margin-bottom:9px;font-size:12px;line-height:1.5;color:#3c423f"><b style="color:#1c2b29">' + unaPct + '% of tickets have no owner.</b> ' + fmtNum(unassigned) + ' tickets are not assigned to anyone, which weakens any reporting on workload or responsibility per agent.</div>';
+    insR += hcInsight('warn', unaPct + '% of tickets have no owner.', fmtNum(unassigned) + ' tickets are not assigned to anyone, which weakens any reporting on workload or responsibility per agent.');
   }
   // Priority concentration: if one value dominates, the field gives no triage signal.
   if (prioD && prioD.items) {
@@ -1130,17 +1281,17 @@ function renderRequestsOverviewV2() {
       var pdom = pi[0]; for (var r = 1; r < pi.length; r++) if (pi[r].count > pdom.count) pdom = pi[r];
       var pdomShare = pct(pdom.count, ptot);
       if (pdomShare >= 85) {
-        insR += '<div style="border-left:3px solid #8a8f8b;background:#f4f3f0;padding:9px 12px;border-radius:0 6px 6px 0;margin-bottom:9px;font-size:12px;line-height:1.5;color:#3c423f"><b style="color:#1c2b29">Priority is set to ' + pdom.name + ' for ' + pdomShare + '% of tickets.</b> With almost everything on one value, priority gives little signal for triage or filtering.</div>';
+        insR += hcInsight('neutral', 'Priority is set to ' + pdom.name + ' for ' + pdomShare + '% of tickets.', 'With almost everything on one value, priority gives little signal for triage or filtering.');
       }
     }
   }
   if (total > 0 && engPct < 30) {
-    insR += '<div style="border-left:3px solid #8a8f8b;background:#f4f3f0;padding:9px 12px;border-radius:0 6px 6px 0;margin-bottom:9px;font-size:12px;line-height:1.5;color:#3c423f"><b style="color:#1c2b29">' + engPct + '% of tickets have a reply logged.</b> If most contact runs by phone or outside the ticket that can be expected, otherwise it suggests replies are not being captured in the CRM.</div>';
+    insR += hcInsight('neutral', engPct + '% of tickets have a reply logged.', 'If most contact runs by phone or outside the ticket that can be expected, otherwise it suggests replies are not being captured in the CRM.');
   }
   if (insR === '') {
-    insR = '<div style="border-left:3px solid ' + GOOD + ';background:#eef5ec;padding:9px 12px;border-radius:0 6px 6px 0;font-size:12px;line-height:1.5;color:#3c423f">No major issues stand out for tickets in this period.</div>';
+    insR = hcInsight('good', '', 'No major issues stand out for tickets in this period.');
   }
-  h += '<div class="entity-card" style="background:#fff;border:1px solid #e6e1d8;border-radius:12px;padding:16px">' + insR + '</div>';
+  h += insR;
 
   el.innerHTML = h;
 }
@@ -1161,9 +1312,8 @@ function renderEntityOverview(key, d) {
 
   h += dateFilterNotice();
 
-  h += '<div class="detail-section">';
-  h += '<div class="detail-section-head">' + secHead(cfg.title) + '</div>';
-  h += '<div class="stat-row">';
+  h += hcSecLabel(cfg.title);
+  h += '<div class="kpis" style="grid-template-columns:repeat(' + Math.min(cfg.stats.length, 5) + ',minmax(0,1fr))">';
   for (var i = 0; i < cfg.stats.length; i++) {
     var s = cfg.stats[i];
     if (s[0] === totalKey) {
@@ -1172,15 +1322,14 @@ function renderEntityOverview(key, d) {
       h += ovCard(s[1], o[s[0]], total, '');
     }
   }
-  h += '</div></div>';
+  h += '</div>';
 
   if (cfg.sections) {
     for (var si = 0; si < cfg.sections.length; si++) {
       var sec = cfg.sections[si];
       var secTotal = o[sec.totalKey];
-      h += '<div class="detail-section">';
-      h += '<div class="detail-section-head">' + secHead(sec.title) + '</div>';
-      h += '<div class="stat-row">';
+      h += hcSecLabel(sec.title);
+      h += '<div class="kpis" style="grid-template-columns:repeat(' + Math.min(sec.stats.length, 5) + ',minmax(0,1fr))">';
       for (var sj = 0; sj < sec.stats.length; sj++) {
         var ss = sec.stats[sj];
         if (ss[0] === sec.totalKey) {
@@ -1223,22 +1372,21 @@ function renderEntityOverview(key, d) {
 }
 
 function secHead(t) {
-  return '<h4 style="font-size:.85rem;text-transform:uppercase;color:var(--so-text-muted);margin-bottom:12px;font-weight:600;letter-spacing:.5px">' + t + '</h4>';
+  return '<h4 style="font-size:var(--fs-table);text-transform:uppercase;color:var(--so-text-muted);margin-bottom:12px;font-weight:600;letter-spacing:.5px">' + t + '</h4>';
 }
 
+// Every generic entity overview builds its figures through this one helper, so
+// routing it at hcKpi puts Activities, Marketing, Selection, Requests and Extra
+// Tables on the same tile as the entity pages in a single step.
 function ovCard(label, value, total, color) {
   var v = (typeof value === 'number' && !isNaN(value)) ? value : 0;
-  var h = '<div class="stat-card">';
-  h += '<div class="stat-value">' + fmtNum(v) + '</div>';
-  h += '<div class="stat-label">' + label + '</div>';
+  var sub = '';
   if (total && total > 0) {
     var pct = Math.round((v / total) * 1000) / 10;
     if (isNaN(pct)) pct = 0;
-    h += '<div style="margin-top:6px">' + fillBar(pct, 8, color) + '</div>';
-    h += '<div class="stat-label" style="margin-top:3px">' + pct + P + '</div>';
+    sub = fillBar(pct, 8, color) + '<div style="margin-top:4px">' + pct + P + '</div>';
   }
-  h += '</div>';
-  return h;
+  return hcKpi(label, fmtNum(v), sub, '', '');
 }
 
 function pctCard(label, pct, desc, color, count, base) {
@@ -1252,7 +1400,7 @@ function pctCard(label, pct, desc, color, count, base) {
     h += '<div class="stat-label">' + label + '</div>';
   }
   h += '<div style="margin-top:6px">' + fillBar(v, 8, color) + '</div>';
-  h += '<div class="stat-label" style="margin-top:4px;font-size:.7rem;color:#999">' + desc + '</div>';
+  h += '<div class="stat-label" style="margin-top:4px;font-size:var(--fs-th);color:#999">' + desc + '</div>';
   h += '</div>';
   return h;
 }
@@ -1335,6 +1483,10 @@ function fetchCompanyDetails(cb) {
   if (companyDetailCache[key]) {
     companyDetailData = companyDetailCache[key];
     renderCompanyDetails(companyDetailData);
+    // The Company Overview reads companyDetailData for the database composition and
+    // the registration-year trend. Without this it keeps the version rendered before
+    // the detail data existed, so both blocks silently disappear on a cache hit.
+    renderCompanyOverviewV2();
     if (companyDetailData.funnel) {
       companyCrossData = companyDetailData;
       renderCrossEntityFunnel(companyDetailData);
@@ -1353,7 +1505,8 @@ function fetchCompanyDetails(cb) {
     catParam = String.fromCharCode(38) + 'categoryName=' + encodeURIComponent(companyDetailCatValue);
   }
   var dfParam = getDateFilterParam();
-  var pending = 3;
+  // Four calls since CompanyQualityFetch was split into quality and funnel.
+  var pending = 4;
   companyDetailData = {};
 
   function checkDone() {
@@ -1373,14 +1526,21 @@ function fetchCompanyDetails(cb) {
       if (d.trend) companyDetailData.trend = d.trend;
       if (d.trendMonthly) companyDetailData.trendMonthly = d.trendMonthly;
       if (d.trendBefore !== undefined) companyDetailData.trendBefore = d.trendBefore;
+        if (d.newRecords) companyDetailData.newRecords = d.newRecords;
     }
     checkDone();
   });
 
-  // Call 2: Quality (quality, funnel, churn)
+  // Call 2: Quality counts
   ajax(qualityUrl + dfParam + catParam + getExclParam('company'), function(d) {
+    if (d && d.quality) companyDetailData.quality = d.quality;
+    checkDone();
+  });
+
+  // Call 2b: Funnel, segments and churn, split off so each half has its own
+  // request timeout.
+  ajax(funnelUrl + dfParam + catParam + getExclParam('company'), function(d) {
     if (d) {
-      if (d.quality) companyDetailData.quality = d.quality;
       if (d.funnel) companyDetailData.funnel = d.funnel;
       if (d.churnRisk) companyDetailData.churnRisk = d.churnRisk;
     }
@@ -1511,11 +1671,11 @@ function renderCrossEntityFunnel(d) {
 
   // -- Inline category filter bar (always visible) --
   h += '<div class="cat-filter-bar" id="companyCatFilterBar">';
-  h += '<span style="font-weight:500;font-size:.85rem;color:var(--so-charcoal)">Category filter:</span>';
+  h += '<span style="font-weight:500;font-size:var(--fs-table);color:var(--so-charcoal)">Category filter:</span>';
   h += '<select id="companyDetailCatFilter" class="cat-filter-select" onchange="onDetailFilterChange(\'company\')">';
   h += '<option value="">All categories</option>';
   h += '</select>';
-  h += '<span class="filter-count" id="companyDetailFilterCount" style="font-size:.82rem;color:#666"></span>';
+  h += '<span class="filter-count" id="companyDetailFilterCount" style="font-size:var(--fs-kpisub);color:#666"></span>';
   h += '<span class="filter-reset-link" id="companyFilterReset" style="display:none" onclick="resetDetailFilter(\'company\')">Reset</span>';
   h += '</div>';
 
@@ -1529,13 +1689,21 @@ function renderCrossEntityFunnel(d) {
     { label: 'With Contact Person', count: f.withPerson, from: f.total, desc: 'Has at least one linked person' },
     { label: 'With Activity (12m)', count: f.withPersonActivity, from: f.withPerson, desc: 'Person + recent activity logged' }
   ];
-  if (showPipeline) {
+  // pipelineKnown is false when the backend skipped the pipeline intersection
+  // because the tenant carries too many appointments in the window for it to be
+  // computed inside the request limit. Dropping the step is honest; showing a
+  // zero would read as "nobody has an open sale".
+  var pipeKnown = (f.pipelineKnown !== false);
+  if (showPipeline && pipeKnown) {
     funnelSteps.push({ label: 'With ' + pipeLabel, count: f.withPersonActivitySale, from: f.withPersonActivity, desc: 'Active + ' + pipeLabel.toLowerCase() });
   }
 
   h += '<div class="entity-card">';
   h += '<div class="entity-header"><div class="entity-info"><h3>CRM Health Pipeline</h3></div>';
   h += '<span class="record-badge">' + fmtNum(f.total) + ' companies</span></div>';
+  if (showPipeline && !pipeKnown) {
+    h += '<div style="font-size:var(--fs-kpisub);color:var(--muted);margin:2px 0 10px">The ' + pipeLabel.toLowerCase() + ' step is left out here. This database holds ' + fmtNum(f.appointmentsInWindow || 0) + ' activities in the last 12 months, and combining activity with pipeline over that volume does not finish inside the request limit. Every other figure on this page is unaffected.</div>';
+  }
   h += '<table class="data-table"><thead><tr>';
   h += '<th>Stage</th><th class="col-right" style="width:80px">Count</th><th class="col-right" style="width:80px">% of Total</th><th class="col-right" style="width:90px">Conversion</th><th class="col-right" style="width:130px">Completeness</th>';
   h += '</tr></thead><tbody>';
@@ -1546,7 +1714,7 @@ function renderCrossEntityFunnel(d) {
     var col = slColor(pctTotal);
     h += '<tr>';
     h += '<td><span style="font-weight:500">' + step.label + '</span>';
-    h += '<div style="font-size:.75rem;color:var(--so-text-muted)">' + step.desc + '</div></td>';
+    h += '<div style="font-size:var(--fs-chip);color:var(--so-text-muted)">' + step.desc + '</div></td>';
     h += '<td class="col-right">' + fmtNum(step.count) + '</td>';
     h += '<td class="col-right">' + pctTotal + P + '</td>';
     h += '<td class="col-right">' + conv + '</td>';
@@ -1566,11 +1734,11 @@ function renderCrossEntityFunnel(d) {
     var seg = segs[si];
     var segPct = f.total > 0 ? Math.round(seg.count / f.total * 1000) / 10 : 0;
     h += '<tr>';
-    h += '<td><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:' + seg.color + ';margin-right:8px;vertical-align:middle"></span>';
+    h += '<td><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:' + hcEngColor(seg.name) + ';margin-right:8px;vertical-align:middle"></span>';
     h += '<span style="font-weight:500">' + seg.name + '</span></td>';
     h += '<td class="col-right">' + fmtNum(seg.count) + '</td>';
-    h += '<td style="color:var(--so-text-muted);font-size:.82rem">' + seg.description + '</td>';
-    h += '<td class="col-right">' + barCell(segPct, seg.color) + '</td>';
+    h += '<td style="color:var(--so-text-muted);font-size:var(--fs-kpisub)">' + seg.description + '</td>';
+    h += '<td class="col-right">' + barCell(segPct, hcEngColor(seg.name)) + '</td>';
     h += '</tr>';
   }
   h += '</tbody></table></div>';
@@ -1620,7 +1788,7 @@ function gatherEntityData(key) {
       compData.withPerson = f.withPerson;
       compData.withActivity = f.withPersonActivity;
       var pt = (typeof daSettings !== 'undefined') ? daSettings.getPipelineType('company') : 'sale';
-      if (pt !== 'none') compData.withPipeline = f.withPersonActivitySale;
+      if (pt !== 'none' && f.pipelineKnown !== false) compData.withPipeline = f.withPersonActivitySale;
       adoptionTotal = f.total || total;
     }
   } else if (key === 'contact') {
@@ -1756,55 +1924,54 @@ function renderScoreBanner(key) {
   if (!el) return;
   var scores = refreshEntityScores(key);
   if (!scores) return;
-
   var existing = el.querySelector('.scores-banner');
   if (existing) existing.parentNode.removeChild(existing);
-
-  var hasAnything = scores.health || scores.dq || scores.integrity || scores.adoption;
-  if (!hasAnything) return;
-
+  if (!scores.health && !scores.dq && !scores.integrity && !scores.adoption) return;
   var desc = sbDescs[key] || sbDescs.company;
-  var h = '<div class="scores-banner">';
-  h += '<div class="sb-top">';
 
-  // Left: Overall Health ring + verdict word
-  if (scores.health) {
-    var hc = slColor(scores.health.total);
-    var hb = slBand(scores.health.total);
-    h += '<div class="sb-main">';
-    h += '<div class="sb-ring sb-ring-lg" style="--score:' + scores.health.total + ';--color:' + hc + '">';
-    h += '<span class="sb-val sb-val-lg">' + scores.health.total + '<small>%</small></span>';
-    h += '</div>';
-    h += '<div class="sb-main-lbl">Overall Health' + sbInfoIcon(sbTips.health) + '</div>';
-    h += '<span class="sb-band" style="background:' + hb.bg + ';color:' + hb.fg + '"><span class="sb-band-dot" style="background:' + hb.dot + '"></span>' + hb.w + '</span>';
-    h += '</div>';
-  }
-
-  h += '<div class="sb-divider"></div>';
-
-  // Right: 3 sub-score rows
   var subs = [];
-  if (scores.dq) subs.push({ label: 'Data Quality', desc: desc.dq, score: scores.dq.total, tip: sbTips.dq });
-  if (scores.integrity) subs.push({ label: 'Data Integrity', desc: desc.int, score: scores.integrity.total, tip: sbTips.int });
-  if (scores.adoption) subs.push({ label: 'Adoption', desc: desc.adopt, score: scores.adoption.total, tip: sbTips.adopt });
+  if (scores.dq) subs.push({ k: 'dq', label: 'Data Quality', desc: desc.dq, score: scores.dq.total, tip: sbTips.dq });
+  if (scores.integrity) subs.push({ k: 'integrity', label: 'Data Integrity', desc: desc.int, score: scores.integrity.total, tip: sbTips.int });
+  if (scores.adoption) subs.push({ k: 'adoption', label: 'Adoption', desc: desc.adopt, score: scores.adoption.total, tip: sbTips.adopt });
 
-  h += '<div class="sb-list">';
+  var comps = (scores.health && scores.health.components) ? scores.health.components : [];
+  var HPTS = { high: 3, medium: 2, low: 1 };
+  var totalPts = 0;
+  for (var p = 0; p < comps.length; p++) totalPts += (HPTS[comps[p].weight] || 2);
+  function wpctFor(k) { for (var q = 0; q < comps.length; q++) { if (comps[q].key === k) return totalPts > 0 ? Math.round((HPTS[comps[q].weight] || 2) / totalPts * 100) : 0; } return 0; }
+
+  var ht = scores.health ? scores.health.total : (subs.length ? subs[0].score : 0);
+  var hbnd = slBand(ht);
+  var h = '<div class="scores-banner card hero">';
+  h += '<div class="donut-wrap">';
+  h += '<div class="donut" style="background:conic-gradient(from -90deg, ' + slColor(ht) + ' 0 ' + ht + '%, var(--track) ' + ht + '% 100%)"><span class="val">' + ht + '<sup>%</sup></span></div>';
+  h += '<div class="ttl">Overall Health' + sbInfoIcon(sbTips.health) + '</div>';
+  h += '<span class="badge" style="background:' + hbnd.bg + ';color:' + hbnd.fg + '"><span class="dot" style="background:' + hbnd.dot + '"></span> ' + hbnd.w + '</span>';
+  h += '</div>';
+  h += '<div class="subs">';
   for (var i = 0; i < subs.length; i++) {
     var s = subs[i];
     var col = slColor(s.score);
     var bnd = slBand(s.score);
-    h += '<div class="sb-row">';
-    h += '<div class="sb-row-info"><div class="sb-row-lbl">' + s.label + sbInfoIcon(s.tip) + '</div><div class="sb-row-desc">' + s.desc + '</div></div>';
-    h += '<div class="sb-row-band"><span class="sb-band" style="background:' + bnd.bg + ';color:' + bnd.fg + '"><span class="sb-band-dot" style="background:' + bnd.dot + '"></span>' + bnd.w + '</span></div>';
-    h += '<div class="sb-row-val" style="color:' + col + '">' + s.score + '%</div>';
-    h += '<div class="sb-row-bar"><div class="sb-row-fill" style="width:' + s.score + '%;background:' + col + '"></div></div>';
+    var wp = wpctFor(s.k);
+    var wc = wp > 0 ? '<span class="w">weighs ' + wp + '%</span>' : '';
+    h += '<div class="subrow">';
+    h += '<div class="lab"><b>' + s.label + '</b>' + wc + sbInfoIcon(s.tip) + '<p>' + s.desc + '</p></div>';
+    h += '<span class="badge" style="background:' + bnd.bg + ';color:' + bnd.fg + '"><span class="dot" style="background:' + bnd.dot + '"></span> ' + bnd.w + '</span>';
+    h += '<div class="barwrap"><div class="bar"><i style="width:' + s.score + '%;background:' + col + '"></i></div><span class="pct" style="color:' + col + '">' + s.score + '%</span></div>';
     h += '</div>';
   }
   h += '</div>';
-
-  h += '</div>'; // end sb-top
-  h += sbFoot(key, scores);
-  h += '</div>'; // end scores-banner
+  var verdict = sbVerdict(key, scores);
+  h += '<div class="hero-foot" style="grid-column:1 / -1">';
+  if (verdict) h += '<span class="summary">' + verdict + '</span>';
+  h += '<span class="note">Overall = weighted average of the three \u00b7 measured against your own data</span>';
+  h += '</div>';
+  h += '<div style="grid-column:1 / -1; display:flex; align-items:center; gap:14px; margin-top:12px">';
+  h += '<span style="color:var(--faint); font-size:var(--fs-chip); font-weight:700; letter-spacing:.06em; text-transform:uppercase">Score bands</span>';
+  h += '<div class="legend"><span class="lg"><i style="background:var(--bad)"></i> &lt;40 Needs attention</span><span class="lg"><i style="background:var(--mod)"></i> 40\u201369 Moderate</span><span class="lg"><i style="background:var(--good)"></i> 70+ Good</span></div>';
+  h += '</div>';
+  h += '</div>';
   var fn = el.querySelector('.filter-notice');
   if (fn) fn.insertAdjacentHTML('afterend', h);
   else el.insertAdjacentHTML('afterbegin', h);
@@ -1854,15 +2021,20 @@ function renderDQScore(key) {
           var iss = allIssues[i];
           var isActive = qiFields.indexOf(iss.key) >= 0;
           var pct = Math.round((iss.val / total) * 1000) / 10;
-          var col = slColorInv(pct);
+          // A flag outside the score gets a neutral bar. It used to keep its semantic
+          // colour, so the longest, reddest bar in the table belonged to the one row
+          // that does not count, which is the opposite of what the table is sorted on.
+          var col = isActive ? slColorInv(pct) : 'var(--cn)';
           var attn = isActive ? Math.round(pct) : -1;
           var reason = '<b>' + attnBandWord(attn) + ' attention.</b> Active quality flag, ' + Math.round(pct) + '% of companies affected. Fewer affected lifts the score.';
-          var dimStyle = isActive ? '' : ' style="opacity:0.4"';
-          var badge = isActive ? '' : ' <span style="font-size:.65rem;color:var(--so-text-muted)">(not in score)</span>';
-          var row = '<tr' + dimStyle + '><td class="attn-col">' + attnIconHtml(attn, reason) + '</td><td>' + iss.label + badge + '</td>';
+          var dimStyle = '';  // dimming is a row class now, see .data-table tr.dimmed
+          // The chip carries the reason, so a greyed row explains itself instead of
+          // leaving the reader to guess what the shade means.
+          var badge = isActive ? '' : '<span class="excl-chip">Not scored</span>';
+          var row = '<tr class="' + (isActive ? '' : 'dimmed') + '"' + dimStyle + '><td class="attn-col">' + attnIconHtml(attn, reason) + '</td><td>' + iss.label + badge + '</td>';
           row += '<td class="col-right">' + fmtNum(iss.val) + '</td>';
           row += '<td class="col-right">' + barCell(pct, col) + '</td></tr>';
-          qRows.push({ attn: attn, badness: pct, html: row });
+          qRows.push({ attn: attn, badness: pct, off: isActive ? 0 : 1, html: row });
         }
         h += attnSortRows(qRows);
         h += '</tbody></table></div>';
@@ -1894,13 +2066,13 @@ function renderDQScore(key) {
           var badness = 100 - pct;
           var attn = attnScore(badness, imp);
           var reason = '<b>' + attnBandWord(attn) + ' attention.</b> ' + _capFirst(imp) + ' field, ' + Math.round(badness) + '% empty. Higher completeness lifts the Data Quality score.';
-          var dimStyle = imp === 'excluded' ? ' style="opacity:0.4"' : '';
+          var dimStyle = '';  // dimming is a row class now, see .data-table tr.dimmed
           var badgeHtml = '<span class="imp-badge ' + imp + '">' + imp + '</span>';
-          var row = '<tr' + dimStyle + '><td class="attn-col">' + attnIconHtml(attn, reason) + '</td><td>' + label + '</td>';
+          var row = '<tr class="' + (imp === 'excluded' ? 'dimmed' : '') + '"' + dimStyle + '><td class="attn-col">' + attnIconHtml(attn, reason) + '</td><td>' + label + '</td>';
           row += '<td class="col-right">' + fmtNum(val) + '</td>';
           row += '<td style="text-align:center">' + badgeHtml + '</td>';
           row += '<td class="col-right">' + barCell(pct, '') + '</td></tr>';
-          cRows.push({ attn: attn, badness: badness, html: row });
+          cRows.push({ attn: attn, badness: badness, off: imp === 'excluded' ? 1 : 0, html: row });
         }
         h += attnSortRows(cRows);
         h += '</tbody></table></div>';
@@ -1934,13 +2106,13 @@ function renderDQScore(key) {
         var fBad = 100 - fPct;
         var fAttn = attnScore(fBad, imp);
         var fReason = '<b>' + attnBandWord(fAttn) + ' attention.</b> ' + _capFirst(imp) + ' field, ' + Math.round(fBad) + '% empty. Higher completeness lifts the Data Quality score.';
-        var dimStyle = imp === 'excluded' ? ' style="opacity:0.4"' : '';
+        var dimStyle = '';  // dimming is a row class now, see .data-table tr.dimmed
         var badgeHtml = '<span class="imp-badge ' + imp + '">' + imp + '</span>';
-        var eRow = '<tr' + dimStyle + '><td class="attn-col">' + attnIconHtml(fAttn, fReason) + '</td><td>' + fLabel + '</td>';
+        var eRow = '<tr class="' + (imp === 'excluded' ? 'dimmed' : '') + '"' + dimStyle + '><td class="attn-col">' + attnIconHtml(fAttn, fReason) + '</td><td>' + fLabel + '</td>';
         eRow += '<td class="col-right">' + fmtNum(fVal) + '</td>';
         eRow += '<td style="text-align:center">' + badgeHtml + '</td>';
         eRow += '<td class="col-right">' + barCell(fPct, '') + '</td></tr>';
-        eRows.push({ attn: fAttn, badness: fBad, html: eRow });
+        eRows.push({ attn: fAttn, badness: fBad, off: imp === 'excluded' ? 1 : 0, html: eRow });
       }
       h += attnSortRows(eRows);
       h += '</tbody></table></div>';
@@ -1981,11 +2153,11 @@ function computeDQScore(key) {
 // reload with the Adoption tab bar via companyDetailCatValue.
 function integrityCatFilterBar() {
   var h = '<div class="cat-filter-bar" id="companyIntegrityCatFilterBar">';
-  h += '<span style="font-weight:500;font-size:.85rem;color:var(--so-charcoal)">Category filter:</span>';
+  h += '<span style="font-weight:500;font-size:var(--fs-table);color:var(--so-charcoal)">Category filter:</span>';
   h += '<select id="companyIntegrityDetailCatFilter" class="cat-filter-select" onchange="onDetailFilterChange(\'companyIntegrity\')">';
   h += '<option value="">All categories</option>';
   h += '</select>';
-  h += '<span class="filter-count" id="companyIntegrityDetailFilterCount" style="font-size:.82rem;color:#666"></span>';
+  h += '<span class="filter-count" id="companyIntegrityDetailFilterCount" style="font-size:var(--fs-kpisub);color:#666"></span>';
   h += '<span class="filter-reset-link" id="companyIntegrityFilterReset" style="display:none" onclick="resetDetailFilter(\'companyIntegrity\')">Reset</span>';
   h += '</div>';
   return h;
@@ -2009,7 +2181,7 @@ function renderAdoptionTab(key) {
     hAd += '<div class="entity-header"><div class="entity-info">';
     hAd += '<h3>Adoption Score</h3>';
     hAd += '</div>';
-    hAd += '<span class="record-badge" style="background:' + ac + ';color:#fff;font-size:1.1rem;padding:4px 14px;border-radius:12px">' + ad.total + P + '</span></div>';
+    hAd += '<span class="record-badge" style="background:' + ac + ';color:#fff;font-size:var(--fs-cardtitle);padding:4px 14px;border-radius:16px">' + ad.total + P + '</span></div>';
     hAd += '<div class="tbl-cap"><b>Higher coverage is better.</b> Drives the Adoption score. Sorted by attention, so heavily weighted components with the largest gaps sit on top.</div>';
     hAd += '<table class="data-table"><thead><tr><th class="attn-col"></th><th>Component</th><th class="col-right" style="width:80px">Count</th><th style="text-align:center;width:90px">Weight</th><th class="col-right" style="width:130px">Completeness</th></tr></thead><tbody>';
     var adRows = [];
@@ -2040,7 +2212,7 @@ function renderAdoptionTab(key) {
     hInt += '<div class="entity-header"><div class="entity-info">';
     hInt += '<h3>Data Integrity</h3>';
     hInt += '</div>';
-    hInt += '<span class="record-badge" style="background:' + ic + ';color:#fff;font-size:1.1rem;padding:4px 14px;border-radius:12px">' + ig.total + P + '</span></div>';
+    hInt += '<span class="record-badge" style="background:' + ic + ';color:#fff;font-size:var(--fs-cardtitle);padding:4px 14px;border-radius:16px">' + ig.total + P + '</span></div>';
     hInt += '<div class="tbl-cap"><b>Lower is better.</b> Drives the Data Integrity score. Sorted by attention, so heavily weighted checks affecting the most records sit on top.</div>';
     hInt += '<table class="data-table"><thead><tr><th class="attn-col"></th><th>Check</th><th class="col-right" style="width:80px">Affected</th><th style="text-align:center;width:90px">Weight</th><th class="col-right" style="width:130px">% Affected</th></tr></thead><tbody>';
     var igRows = [];
@@ -2063,7 +2235,7 @@ function renderAdoptionTab(key) {
     // --- Rule checks (from intake conditional rules) ---
     var ruleResults = (window.rulesData && window.rulesData[key]) ? window.rulesData[key] : [];
     if (ruleResults.length > 0) {
-      hInt += '<tr><td colspan="5" style="padding:12px 8px 8px;font-size:12px;font-weight:600;letter-spacing:.02em;color:var(--so-green);border-bottom:1px solid var(--so-border);border-top:2px solid var(--so-border)"><span style="display:inline-flex;align-items:center;gap:6px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="6" y1="3" x2="6" y2="15"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/></svg>Rule checks &middot; ' + ruleResults.length + ' evaluated</span></td></tr>';
+      hInt += '<tr><td colspan="5" style="padding:12px 8px 8px;font-size:var(--fs-chip);font-weight:600;letter-spacing:.02em;color:var(--so-green);border-bottom:1px solid var(--so-border);border-top:2px solid var(--so-border)"><span style="display:inline-flex;align-items:center;gap:6px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="6" y1="3" x2="6" y2="15"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/></svg>Rule checks &middot; ' + ruleResults.length + ' evaluated</span></td></tr>';
       var rRows = [];
       for (var ri = 0; ri < ruleResults.length; ri++) {
         var rv = ruleResults[ri];
@@ -2074,8 +2246,8 @@ function renderAdoptionTab(key) {
         var rvAttn = attnScore(rvPct, rvW);
         var rvTip = 'Rule: for category <b>' + (rv.condLabel || '?') + '</b>, field <b>' + (rv.reqLabel || '?') + '</b> must be filled.';
         if (rv.segmentTotal > 0) rvTip += '<br>' + rv.violations + ' of ' + fmtNum(rv.segmentTotal) + ' records in this segment are missing the field.';
-        if (rv.ownerLabel) rvTip += '<br><span style="display:inline-flex;align-items:center;gap:4px;margin-top:4px;font-size:11px;font-weight:600;color:var(--so-green-light);background:var(--so-meadow);padding:2px 8px;border-radius:4px">' + rv.ownerLabel + '</span>';
-        else rvTip += '<br><span style="display:inline-flex;align-items:center;gap:4px;margin-top:4px;font-size:11px;color:var(--so-text-muted)">No owner assigned</span>';
+        if (rv.ownerLabel) rvTip += '<br><span style="display:inline-flex;align-items:center;gap:4px;margin-top:4px;font-size:var(--fs-th);font-weight:600;color:var(--so-green-light);background:var(--so-meadow);padding:2px 8px;border-radius:4px">' + rv.ownerLabel + '</span>';
+        else rvTip += '<br><span style="display:inline-flex;align-items:center;gap:4px;margin-top:4px;font-size:var(--fs-th);color:var(--so-text-muted)">No owner assigned</span>';
         var rvReason = '<b>' + attnBandWord(rvAttn) + ' attention.</b> ' + _capFirst(rvW) + ' weight, ' + rvPct + '% of segment affected.';
         var rvRow = '<tr><td class="attn-col">' + attnIconHtml(rvAttn, rvReason) + '</td>';
         rvRow += '<td>' + (rv.condLabel || '?') + ' &rarr; ' + (rv.reqLabel || '?') + sbInfoIcon(rvTip) + '</td>';
@@ -2145,24 +2317,23 @@ function renderCompanyDetails(d) {
     h += '<div class="detail-section">';
     h += '<div class="detail-section-head">' + secHead('Activity Recency') + '<span class="record-badge">' + fmtNum(total) + ' companies</span></div>';
     var ahParts = [
-      { val: ah.active6m, col: 'var(--sl-good)', label: 'Active (6m)' },
-      { val: ah.dormant12m, col: 'var(--sl-ok)', label: 'Cooling (6\u201312m)' },
-      { val: ah.dormantOlder, col: 'var(--sl-warn)', label: 'Dormant (>12m)' },
-      { val: ah.noActivity, col: 'var(--sl-bad)', label: 'No Activity' }
+      { val: ah.active6m, label: 'Active (6m)' },
+      { val: ah.dormant12m, label: 'Cooling (6\u201312m)' },
+      { val: ah.dormantOlder, label: 'Dormant (>12m)' },
+      { val: ah.noActivity, label: 'No Activity' }
     ];
-    h += '<div class="stacked-bar" style="height:28px;border-radius:6px">';
+    for (var ci = 0; ci < ahParts.length; ci++) ahParts[ci].col = hcEngColor(ahParts[ci].label);
+    h += '<div class="engbar" style="height:28px">';
     for (var i = 0; i < ahParts.length; i++) {
       var pct = ahParts[i].val / total * 100;
-      if (pct > 0) {
-        var segLabel = pct >= 10 ? '<span style="font-size:.72rem;color:#fff;font-weight:600">' + fmtNum(ahParts[i].val) + ' (' + (Math.round(pct * 10) / 10) + P + ')</span>' : '';
-        h += '<div class="stacked-segment" style="width:' + pct + P + ';background:' + ahParts[i].col + ';display:flex;align-items:center;justify-content:center;overflow:hidden;border-radius:0">' + segLabel + '</div>';
-      }
+      var segLabel = pct >= 10 ? fmtNum(ahParts[i].val) + ' (' + (Math.round(pct * 10) / 10) + P + ')' : '';
+      h += hcBarSeg(pct, ahParts[i].col, segLabel);
     }
     h += '</div>';
     h += '<div style="display:flex;gap:16px;margin-top:6px;flex-wrap:wrap">';
     for (var i = 0; i < ahParts.length; i++) {
       var pct = Math.round(ahParts[i].val / total * 1000) / 10;
-      h += '<span style="font-size:.75rem;color:#666;display:flex;align-items:center;gap:4px">';
+      h += '<span style="font-size:var(--fs-chip);color:#666;display:flex;align-items:center;gap:4px">';
       h += '<span style="width:8px;height:8px;border-radius:50%;background:' + ahParts[i].col + ';flex-shrink:0"></span>';
       h += ahParts[i].label + ': ' + fmtNum(ahParts[i].val) + ' (' + pct + P + ')';
       h += '</span>';
@@ -2209,11 +2380,11 @@ function renderCompanyDetails(d) {
       h += '<tr>';
       h += '<td data-sort-value="' + c.name + '">' + c.name + '</td>';
       h += '<td class="col-right" data-sort-value="' + c.total + '">' + fmtNum(c.total) + '</td>';
-      h += '<td class="col-right" data-sort-value="' + pctPers + '">' + fmtNum(c.withPerson) + '<span style="color:#999;font-size:.75rem;margin-left:4px">' + pctPers + P + '</span></td>';
-      h += '<td class="col-right" data-sort-value="' + pctAct + '">' + fmtNum(c.withActivity) + '<span style="color:#999;font-size:.75rem;margin-left:4px">' + pctAct + P + '</span></td>';
+      h += '<td class="col-right" data-sort-value="' + pctPers + '">' + fmtNum(c.withPerson) + '<span style="color:#999;font-size:var(--fs-chip);margin-left:4px">' + pctPers + P + '</span></td>';
+      h += '<td class="col-right" data-sort-value="' + pctAct + '">' + fmtNum(c.withActivity) + '<span style="color:#999;font-size:var(--fs-chip);margin-left:4px">' + pctAct + P + '</span></td>';
       if (catShowPipe) {
         var pctSale = c.total > 0 ? Math.round((c.withSale / c.total) * 1000) / 10 : 0;
-        h += '<td class="col-right" data-sort-value="' + pctSale + '">' + fmtNum(c.withSale) + '<span style="color:#999;font-size:.75rem;margin-left:4px">' + pctSale + P + '</span></td>';
+        h += '<td class="col-right" data-sort-value="' + pctSale + '">' + fmtNum(c.withSale) + '<span style="color:#999;font-size:var(--fs-chip);margin-left:4px">' + pctSale + P + '</span></td>';
       }
       h += '<td class="col-right" data-sort-value="' + engagement + '">' + barCell(engagement, engCol) + '</td>';
       h += '</tr>';
@@ -2275,11 +2446,11 @@ function renderCompanyDetails(d) {
       var displayName = a.name;
       if (/^\(\d+\)$/.test(displayName)) { displayName = '<span style="color:#999;font-style:italic">Unknown user ' + displayName + '</span>'; }
       r += '<td data-sort-value="' + a.name + '">' + displayName + '</td>';
-      r += '<td class="col-right" data-sort-value="' + a.total + '">' + fmtNum(a.total) + '<span style="color:#999;font-size:.75rem;margin-left:4px">' + shareP + P + '</span></td>';
-      r += '<td class="col-right" data-sort-value="' + a.withPersons + '">' + fmtNum(a.withPersons) + '<span style="color:#999;font-size:.75rem;margin-left:4px">' + pctPers + P + '</span></td>';
-      r += '<td class="col-right" data-sort-value="' + a.withActivities + '">' + fmtNum(a.withActivities) + '<span style="color:#999;font-size:.75rem;margin-left:4px">' + pctAct + P + '</span></td>';
-      r += '<td class="col-right" data-sort-value="' + a.withEmail + '">' + fmtNum(a.withEmail) + '<span style="color:#999;font-size:.75rem;margin-left:4px">' + pctEm + P + '</span></td>';
-      r += '<td class="col-right" data-sort-value="' + stale + '">' + fmtNum(stale) + '<span style="color:#999;font-size:.75rem;margin-left:4px">' + pctStale + P + '</span></td>';
+      r += '<td class="col-right" data-sort-value="' + a.total + '">' + fmtNum(a.total) + '<span style="color:#999;font-size:var(--fs-chip);margin-left:4px">' + shareP + P + '</span></td>';
+      r += '<td class="col-right" data-sort-value="' + a.withPersons + '">' + fmtNum(a.withPersons) + '<span style="color:#999;font-size:var(--fs-chip);margin-left:4px">' + pctPers + P + '</span></td>';
+      r += '<td class="col-right" data-sort-value="' + a.withActivities + '">' + fmtNum(a.withActivities) + '<span style="color:#999;font-size:var(--fs-chip);margin-left:4px">' + pctAct + P + '</span></td>';
+      r += '<td class="col-right" data-sort-value="' + a.withEmail + '">' + fmtNum(a.withEmail) + '<span style="color:#999;font-size:var(--fs-chip);margin-left:4px">' + pctEm + P + '</span></td>';
+      r += '<td class="col-right" data-sort-value="' + stale + '">' + fmtNum(stale) + '<span style="color:#999;font-size:var(--fs-chip);margin-left:4px">' + pctStale + P + '</span></td>';
       r += '<td class="col-right" data-sort-value="' + compP + '">' + barCell(compP, '') + '</td>';
       r += '</tr>';
       return r;
@@ -2292,12 +2463,12 @@ function renderCompanyDetails(d) {
         var gCompP = g.total > 0 ? Math.round(((g.withPersons + g.withActivities + g.withEmail) / (g.total * 3)) * 100) : 0;
         var gPctStale = g.total > 0 ? Math.round((g.stale / g.total) * 1000) / 10 : 0;
         h += '<tr class="assoc-group-header" onclick="togGroup(this)">';
-        h += '<td data-sort-value="' + g.name + '"><svg class="group-chevron" viewBox="0 0 10 6" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M1 1l4 4 4-4" stroke="#333" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>' + g.name + ' <span style="color:#999;font-weight:400;font-size:.75rem">(' + g.members.length + ')</span></td>';
-        h += '<td class="col-right" data-sort-value="' + g.total + '">' + fmtNum(g.total) + '<span style="color:#999;font-size:.75rem;margin-left:4px">' + gShareP + P + '</span></td>';
+        h += '<td data-sort-value="' + g.name + '"><svg class="group-chevron" viewBox="0 0 10 6" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M1 1l4 4 4-4" stroke="#333" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>' + g.name + ' <span style="color:#999;font-weight:400;font-size:var(--fs-chip)">(' + g.members.length + ')</span></td>';
+        h += '<td class="col-right" data-sort-value="' + g.total + '">' + fmtNum(g.total) + '<span style="color:#999;font-size:var(--fs-chip);margin-left:4px">' + gShareP + P + '</span></td>';
         h += '<td class="col-right" data-sort-value="' + g.withPersons + '">' + fmtNum(g.withPersons) + '</td>';
         h += '<td class="col-right" data-sort-value="' + g.withActivities + '">' + fmtNum(g.withActivities) + '</td>';
         h += '<td class="col-right" data-sort-value="' + g.withEmail + '">' + fmtNum(g.withEmail) + '</td>';
-        h += '<td class="col-right" data-sort-value="' + g.stale + '">' + fmtNum(g.stale) + '<span style="color:#999;font-size:.75rem;margin-left:4px">' + gPctStale + P + '</span></td>';
+        h += '<td class="col-right" data-sort-value="' + g.stale + '">' + fmtNum(g.stale) + '<span style="color:#999;font-size:var(--fs-chip);margin-left:4px">' + gPctStale + P + '</span></td>';
         h += '<td class="col-right" data-sort-value="' + gCompP + '">' + barCell(gCompP, '') + '</td>';
         h += '</tr>';
         for (var mi = 0; mi < g.members.length; mi++) {
@@ -2385,18 +2556,13 @@ function renderExtra(tbl, idx) {
         h += '<div class="relation-block"><div class="relation-block-header">';
         h += '<div><span class="field-name">' + rf.displayName + '</span> <code>(' + rf.fieldName + ')</code></div>';
         h += '<span class="badge-relation">' + rf.entityType + '</span></div>';
-        h += '<div class="stat-row">';
-        h += '<div class="stat-card"><div class="stat-value">' + rf.filledCount + ' / ' + tbl.totalRows + '</div>';
-        h += '<div class="stat-label">Records with ' + rf.entityType + '</div>';
-        h += '<div style="margin-top:6px">' + fillBar(rf.fillPercent, 8) + '</div>';
-        h += '<div class="stat-label" style="margin-top:3px">' + rf.fillPercent + P + ' filled</div></div>';
-        h += '<div class="stat-card"><div class="stat-value">' + rf.uniqueCount + '</div>';
-        h += '<div class="stat-label">Unique ' + rf.entityType + 's linked</div></div>';
-        h += '<div class="stat-card"><div class="stat-value">' + rf.avgPerEntity + '</div>';
-        h += '<div class="stat-label">Avg records per ' + rf.entityType + '</div></div>';
-        h += '<div class="stat-card"><div class="stat-value">' + rf.coveragePercent + P + '</div>';
-        h += '<div class="stat-label">' + rf.uniqueCount + ' of ' + rf.totalEntityCount + ' ' + rf.entityType + 's</div>';
-        h += '<div class="stat-label">have a record in this table</div></div>';
+        h += '<div class="kpis" style="grid-template-columns:repeat(4,minmax(0,1fr))">';
+        h += hcKpi('Records with ' + rf.entityType, rf.filledCount + ' / ' + tbl.totalRows,
+          fillBar(rf.fillPercent, 8) + '<div style="margin-top:4px">' + rf.fillPercent + P + ' filled</div>', '', '');
+        h += hcKpi('Unique ' + rf.entityType + 's linked', rf.uniqueCount, '', '', '');
+        h += hcKpi('Avg records per ' + rf.entityType, rf.avgPerEntity, '', '', '');
+        h += hcKpi(rf.entityType + 's covered', rf.coveragePercent + P,
+          rf.uniqueCount + ' of ' + rf.totalEntityCount + ' have a record here', '', '');
         h += '</div></div>';
       }
       h += '</div>';
@@ -2416,7 +2582,7 @@ function renderExtra(tbl, idx) {
         var rc = '';
         if (f.filledCount === 0) rc = 'unused';
         h += '<tr class="' + rc + '">';
-        h += '<td data-sort-value="' + f.displayName + '">' + f.displayName + ' <code style="font-size:.75rem;color:#999">(' + f.fieldName + ')</code></td>';
+        h += '<td data-sort-value="' + f.displayName + '">' + f.displayName + ' <code style="font-size:var(--fs-chip);color:#999">(' + f.fieldName + ')</code></td>';
         h += '<td data-sort-value="' + f.fieldType + '"><span class="type-badge">' + f.fieldType + '</span></td>';
         h += '<td class="col-right" data-sort-value="' + f.filledCount + '">' + f.filledCount + '</td>';
         h += '<td class="col-right" data-sort-value="' + f.fillPercent + '">' + f.fillPercent + P + '</td>';
@@ -2620,7 +2786,7 @@ function renderTicket() {
     h += '<td class="col-right" data-sort-value="' + f.filledCount + '">' + f.filledCount + '</td>';
     h += '<td class="col-right" data-sort-value="' + f.fillPercent + '">' + f.fillPercent + P + '</td>';
     h += '<td>' + fillBar(f.fillPercent) + '</td>';
-    h += '<td style="font-size:.78rem;color:#888">';
+    h += '<td style="font-size:var(--fs-count);color:#888">';
     if (f.isRelation && f.filledCount > 0) {
       h += f.uniqueCount + ' unique ' + f.entityType + 's, ' + f.avgPerEntity + ' avg/entity, ' + f.coveragePercent + P + ' coverage';
     }
@@ -2706,16 +2872,38 @@ function startMomentum(key) {
   });
 }
 
-var MM_GREEN = '#2e7d32';
-var MM_BLUE = '#1565c0';
-var MM_ORANGE = '#f57c00';
-var MM_RED = '#c62828';
+// Level ramp (handover): an ordered scale of its own. No blue, no alarm red.
+// Inactive is neutral, because dormancy is an opportunity and not an error.
+var MM_GREEN = 'var(--lvl-power-dot)';
+var MM_BLUE = 'var(--lvl-regular-dot)';
+var MM_ORANGE = 'var(--lvl-low-dot)';
+var MM_RED = 'var(--lvl-dormant-dot)';
+var MM_LEVELS = {
+  Power:    { bg: 'var(--lvl-power-bg)',   fg: 'var(--lvl-power-ink)',   dot: MM_GREEN },
+  Regular:  { bg: 'var(--lvl-regular-bg)', fg: 'var(--lvl-regular-ink)', dot: MM_BLUE },
+  Low:      { bg: 'var(--lvl-low-bg)',     fg: 'var(--lvl-low-ink)',     dot: MM_ORANGE },
+  Inactive: { bg: 'var(--lvl-dormant-bg)', fg: 'var(--lvl-dormant-ink)', dot: MM_RED }
+};
+function mmLevelStyle(level) { return MM_LEVELS[level] || MM_LEVELS.Inactive; }
 
 function mmLevelColor(level) {
   if (level === 'Power') return MM_GREEN;
   if (level === 'Regular') return MM_BLUE;
   if (level === 'Low') return MM_ORANGE;
   return MM_RED;
+}
+
+// One definition of the Momentum window. The dashboard derived it from the date
+// filter while the PDF report used the full 24-month series, so the same person could
+// be Regular on screen and Low in the report from a single run.
+function mmWindowMonths(monthly) {
+  var n = (monthly && monthly.length) ? monthly.length : 0;
+  var dfVal = '';
+  try { dfVal = (typeof activeFilterValue !== 'undefined' && activeFilterValue) ? (activeFilterValue['activities'] || '') : ''; } catch (e) { dfVal = ''; }
+  if (!dfVal) return n > 0 ? n : 1;
+  var diffMs = new Date().getTime() - new Date(dfVal).getTime();
+  var m = Math.max(1, Math.round(diffMs / (30.44 * 86400000)));
+  return n > 0 ? Math.min(m, n) : m;
 }
 
 function mmUserLevel(total, months) {
@@ -2742,14 +2930,11 @@ function renderMomentum(key, d) {
   // monthly[n-1] = current month (incomplete), monthly[n-2] = last full, monthly[n-3] = previous full
   var lastFullMonth = monthly.length > 1 ? monthly[monthly.length - 2] : null;
   var prevFullMonth = monthly.length > 2 ? monthly[monthly.length - 3] : null;
-  var filterMonths = monthly.length;
+  var filterMonths = mmWindowMonths(monthly);
   var filterLabel = 'All data';
   var dfVal = activeFilterValue['activities'] || '';
   if (dfVal) {
-    var now = new Date();
     var filterDate = new Date(dfVal);
-    var diffMs = now.getTime() - filterDate.getTime();
-    filterMonths = Math.max(1, Math.round(diffMs / (30.44 * 86400000)));
     var mo = filterDate.getMonth() + 1;
     var yr = filterDate.getFullYear();
     filterLabel = 'Since ' + yr + '-' + (mo < 10 ? '0' : '') + mo;
@@ -2757,23 +2942,22 @@ function renderMomentum(key, d) {
   var monthName = lastFullMonth ? lastFullMonth.label.split("'")[0].trim() : '';
   var h = '';
 
-  // KPI cards — reuse detail-section + stat-row + stat-card
-  h += '<div class="detail-section">';
-  h += '<div class="detail-section-head">' + secHead('CRM Momentum \u2014 Last 24 Months') + '</div>';
-  h += '<div class="stat-row">';
+  // KPI cards — the shared hcKpi tiles, so Momentum matches every other entity page
+  h += hcSecLabel('CRM Momentum \u00b7 last 24 months');
+  h += '<div class="kpis">';
   h += mmKpiCard(lastFullMonth ? fmtNum(lastFullMonth.activities) : '0', 'Activities ' + monthName,
     lastFullMonth && prevFullMonth ? mmTrend(lastFullMonth.activities, prevFullMonth.activities) : null);
   h += mmKpiCard(lastFullMonth ? fmtNum(lastFullMonth.documents) : '0', 'Documents ' + monthName,
     lastFullMonth && prevFullMonth ? mmTrend(lastFullMonth.documents, prevFullMonth.documents) : null);
   var auVal = lastFullMonth ? lastFullMonth.activeUsers : 0;
-  h += mmKpiCard(auVal + ' <span style="font-size:.7em;color:#888;font-weight:400">/ ' + totalUsers + '</span>',
+  h += mmKpiCard(auVal + ' <span style="font-size:var(--fs-h1);color:var(--faint);font-weight:400">/ ' + totalUsers + '</span>',
     'Active Users ' + monthName,
     lastFullMonth && prevFullMonth ? mmTrendAbs(lastFullMonth.activeUsers, prevFullMonth.activeUsers) : null);
   var avgAct = (auVal > 0 && lastFullMonth) ? Math.round((lastFullMonth.activities + lastFullMonth.documents) / auVal) : 0;
   var prevAvg = (prevFullMonth && prevFullMonth.activeUsers > 0) ? Math.round((prevFullMonth.activities + prevFullMonth.documents) / prevFullMonth.activeUsers) : 0;
   h += mmKpiCard(fmtNum(avgAct), 'Avg per User ' + monthName,
     lastFullMonth && prevFullMonth ? mmTrend(avgAct, prevAvg) : null);
-  h += '</div></div>';
+  h += '</div>';
 
   h += renderMomentumChart(monthly);
   h += renderUserAdoption(users, totalUsers, d.totalActivities + d.totalDocuments, filterMonths, filterLabel);
@@ -2782,13 +2966,11 @@ function renderMomentum(key, d) {
   mmInitChartTooltip(el, monthly);
 }
 
+// Delegates to the shared KPI tile so Momentum inherits the app-wide treatment.
+// The month-over-month delta rides along as the tile sub-line.
 function mmKpiCard(value, label, trend) {
-  var h = '<div class="stat-card">';
-  h += '<div class="stat-value" style="color:var(--so-charcoal)">' + value + '</div>';
-  h += '<div class="stat-label">' + label + '</div>';
-  if (trend) h += '<div style="font-size:.72rem;margin-top:6px;font-weight:600" class="' + trend.cls + '">' + trend.text + '</div>';
-  h += '</div>';
-  return h;
+  var sub = trend ? '<span class="' + trend.cls + '">' + trend.text + '</span>' : '';
+  return hcKpi(label, value, sub, '', '');
 }
 
 function mmTrend(curr, prev) {
@@ -2824,7 +3006,8 @@ function mmRoundedTopRect(x, y, w, h, r, fill) {
 
 function renderMomentumChart(monthly) {
   if (!monthly || monthly.length === 0) return '';
-  var MM_GREEN_LIGHT = '#a8d3c4';
+  // Volume over time is a distribution, not a health status, so the bars run the
+  // categorical teal ramp and the user line carries the single brand accent (P1).
   var maxTotal = 0, maxUsers = 0;
   for (var i = 0; i < monthly.length; i++) {
     var tot = (monthly[i].activities || 0) + (monthly[i].documents || 0);
@@ -2840,7 +3023,10 @@ function renderMomentumChart(monthly) {
   var magU = Math.pow(10, Math.floor(Math.log10(maxUsers || 1)));
   for (var oi = 0; oi < opts.length; oi++) { if (opts[oi] * magU >= maxUsers) { niceMaxUsr = opts[oi] * magU; break; } }
 
-  var cW = 960, cH = 270, padL = 48, padR = 40, padT = 16, padB = 40;
+  // Wider viewBox so the chart fills a wide card instead of scaling down to a
+  // narrow centred band. The height cap that caused that is gone; the chart now
+  // keeps its ratio and spreads across whatever width the card gives it.
+  var cW = 1240, cH = 300, padL = 52, padR = 46, padT = 18, padB = 44;
   var plotW = cW - padL - padR, plotH = cH - padT - padB;
   var n = monthly.length;
   var ySteps = 4;
@@ -2848,18 +3034,18 @@ function renderMomentumChart(monthly) {
   var yStepUsr = niceMaxUsr / ySteps;
   var baseline = padT + plotH;
   var colW = plotW / n;
-  var barW = Math.min(colW * 0.62, 26);
+  var barW = Math.min(colW * 0.62, 34);
 
   function cx(i) { return padL + colW * (i + 0.5); }
 
-  var svg = '<svg viewBox="0 0 ' + cW + ' ' + cH + '" style="width:100%;height:auto;display:block;max-height:280px">';
+  var svg = '<svg viewBox="0 0 ' + cW + ' ' + cH + '" style="width:100%;height:auto;display:block">';
 
   // Y grid lines + left (total volume) + right (active users) labels
   for (var gi = 0; gi <= ySteps; gi++) {
     var gy = baseline - (gi / ySteps) * plotH;
-    svg += '<line x1="' + padL + '" y1="' + gy.toFixed(1) + '" x2="' + (cW - padR) + '" y2="' + gy.toFixed(1) + '" stroke="#e0dfdc" stroke-width="1"/>';
-    svg += '<text x="' + (padL - 8) + '" y="' + (gy + 4).toFixed(1) + '" text-anchor="end" fill="#999" font-size="10" font-family="DM Sans,sans-serif">' + mmFmtK(Math.round(gi * yStepTot)) + '</text>';
-    svg += '<text x="' + (cW - padR + 8) + '" y="' + (gy + 4).toFixed(1) + '" text-anchor="start" fill="' + MM_BLUE + '" font-size="10" font-family="DM Sans,sans-serif" opacity=".6">' + Math.round(gi * yStepUsr) + '</text>';
+    svg += '<line x1="' + padL + '" y1="' + gy.toFixed(1) + '" x2="' + (cW - padR) + '" y2="' + gy.toFixed(1) + '" style="stroke:var(--line)" stroke-width="1"/>';
+    svg += '<text x="' + (padL - 8) + '" y="' + (gy + 4).toFixed(1) + '" text-anchor="end" style="fill:var(--faint)" font-size="11" font-family="DM Sans,sans-serif">' + mmFmtK(Math.round(gi * yStepTot)) + '</text>';
+    svg += '<text x="' + (cW - padR + 8) + '" y="' + (gy + 4).toFixed(1) + '" text-anchor="start" style="fill:var(--green-deep)" font-size="11" font-family="DM Sans,sans-serif" opacity=".55">' + Math.round(gi * yStepUsr) + '</text>';
   }
 
   // Stacked bars: activities (bottom, square) + documents (top, only outer corners rounded)
@@ -2870,10 +3056,10 @@ function renderMomentumChart(monthly) {
     var yActTop = baseline - actH;
     var yDocTop = yActTop - docH;
     if (docH >= 1) {
-      if (actH > 0) svg += '<rect x="' + bx.toFixed(1) + '" y="' + yActTop.toFixed(1) + '" width="' + barW.toFixed(1) + '" height="' + actH.toFixed(1) + '" fill="' + MM_GREEN + '"/>';
-      svg += mmRoundedTopRect(bx, yDocTop, barW, docH, 3, MM_GREEN_LIGHT);
+      if (actH > 0) svg += '<rect x="' + bx.toFixed(1) + '" y="' + yActTop.toFixed(1) + '" width="' + barW.toFixed(1) + '" height="' + actH.toFixed(1) + '" style="fill:var(--c4)"/>';
+      svg += mmRoundedTopRect(bx, yDocTop, barW, docH, 3, 'var(--c5)');
     } else if (actH > 0) {
-      svg += mmRoundedTopRect(bx, yActTop, barW, actH, 3, MM_GREEN);
+      svg += mmRoundedTopRect(bx, yActTop, barW, actH, 3, 'var(--c4)');
     }
   }
 
@@ -2883,21 +3069,19 @@ function renderMomentumChart(monthly) {
     var yU = niceMaxUsr > 0 ? baseline - (monthly[i].activeUsers / niceMaxUsr) * plotH : baseline;
     usrPts.push(cx(i).toFixed(1) + ',' + yU.toFixed(1));
   }
-  svg += '<polyline points="' + usrPts.join(' ') + '" fill="none" stroke="' + MM_BLUE + '" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>';
-  for (var i = 0; i < n; i++) {
-    if (i === 0 || i === n - 1 || i % 4 === 0) {
-      var p = usrPts[i].split(',');
-      svg += '<circle cx="' + p[0] + '" cy="' + p[1] + '" r="3" fill="' + MM_BLUE + '" stroke="#fff" stroke-width="1.5"/>';
-    }
-  }
+  // No point markers. Every marker that crossed a bar punched a card-coloured ring
+  // into it and read as a hole. The line carries itself: it is the darkest element in
+  // the chart against deliberately light bars, which is the usual way to keep a line
+  // legible over a bar series.
+  svg += '<polyline points="' + usrPts.join(' ') + '" style="fill:none;stroke:var(--green-deep)" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>';
 
   // X labels — every ~2 months
   var xStep = Math.max(1, Math.floor(n / 12));
   for (var i = 0; i < n; i += xStep) {
-    svg += '<text x="' + cx(i).toFixed(1) + '" y="' + (baseline + 20) + '" text-anchor="middle" fill="#999" font-size="10" font-family="DM Sans,sans-serif">' + monthly[i].label + '</text>';
+    svg += '<text x="' + cx(i).toFixed(1) + '" y="' + (baseline + 20) + '" text-anchor="middle" style="fill:var(--faint)" font-size="11" font-family="DM Sans,sans-serif">' + monthly[i].label + '</text>';
   }
   if ((n - 1) % xStep !== 0) {
-    svg += '<text x="' + cx(n - 1).toFixed(1) + '" y="' + (baseline + 20) + '" text-anchor="middle" fill="#999" font-size="10" font-family="DM Sans,sans-serif">' + monthly[n - 1].label + '</text>';
+    svg += '<text x="' + cx(n - 1).toFixed(1) + '" y="' + (baseline + 20) + '" text-anchor="middle" style="fill:var(--faint)" font-size="11" font-family="DM Sans,sans-serif">' + monthly[n - 1].label + '</text>';
   }
 
   // Invisible hover columns for tooltip
@@ -2909,9 +3093,9 @@ function renderMomentumChart(monthly) {
 
   // Legend + plain-language definitions, inside the chart block
   var legend = '<div class="mm-legend" style="padding-left:' + padL + 'px">';
-  legend += '<span class="mm-leg-item"><span class="mm-leg-sw" style="background:' + MM_GREEN + '"></span> Activities</span>';
-  legend += '<span class="mm-leg-item"><span class="mm-leg-sw" style="background:' + MM_GREEN_LIGHT + '"></span> Documents</span>';
-  legend += '<span class="mm-leg-item"><span class="mm-leg-line" style="background:' + MM_BLUE + '"></span> Active users (right axis)</span>';
+  legend += '<span class="mm-leg-item"><span class="mm-leg-sw" style="background:var(--c4)"></span> Activities</span>';
+  legend += '<span class="mm-leg-item"><span class="mm-leg-sw" style="background:var(--c5)"></span> Documents</span>';
+  legend += '<span class="mm-leg-item"><span class="mm-leg-line" style="background:var(--green-deep)"></span> Active users (right axis)</span>';
   legend += '</div>';
   legend += '<div class="mm-chart-defs" style="padding-left:' + padL + 'px"><b>Active user</b> = a user with at least one logged activity or document that month. <b>Avg per user</b> divides that month\'s total activity by its active users. Outlook-synced and private activities are excluded.</div>';
 
@@ -2964,6 +3148,7 @@ function renderUserAdoption(users, totalUsers, grandTotal, filterMonths, filterL
   for (var i = 0; i < users.length; i++) {
     users[i].level = mmUserLevel(users[i].total, filterMonths);
     users[i].levelColor = mmLevelColor(users[i].level);
+    users[i].levelStyle = mmLevelStyle(users[i].level);
     totalAct += users[i].total;
   }
   for (var i = 0; i < users.length; i++) {
@@ -2982,7 +3167,7 @@ function renderUserAdoption(users, totalUsers, grandTotal, filterMonths, filterL
   h += '<div class="entity-header"><div class="entity-info"><h3>User Adoption</h3>';
   h += '<span class="field-count">\u2014 based on date filter</span></div>';
   h += '<div style="display:flex;gap:8px;align-items:center">';
-  h += '<span class="record-badge" style="background:#e8f5e9;color:' + MM_GREEN + ';font-weight:600">' + filterLabel + '</span>';
+  h += '<span class="record-badge" style="background:var(--good-bg);border:1px solid var(--good-line);color:var(--good-ink);font-weight:600">' + filterLabel + '</span>';
   h += '<span class="record-badge">' + totalUsers + ' total users</span></div></div>';
 
   var powerT = 100, regT = 25;
@@ -3001,7 +3186,7 @@ function renderUserAdoption(users, totalUsers, grandTotal, filterMonths, filterL
 
   var top10 = users.slice(0, Math.min(10, users.length));
   if (top10.length > 0 && top10[0].total > 0) {
-    h += '<div style="padding:16px 16px 8px;border-top:1px solid var(--so-border);font-size:.78rem;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.04em">Top 10 Most Active Users</div>';
+    h += '<div style="padding:16px 16px 8px;border-top:1px solid var(--so-border);font-size:var(--fs-seclabel);font-weight:700;color:var(--faint);text-transform:uppercase;letter-spacing:var(--ls-seclabel)">Top 10 Most Active Users</div>';
     h += '<table class="data-table mm-user-table"><thead><tr>';
     h += '<th class="mm-col-rank">#</th><th class="mm-col-user">User</th><th class="mm-col-level">Level</th>';
     h += '<th class="mm-col-group">Group</th><th class="col-right mm-col-num">Activities</th><th class="col-right mm-col-num">Documents</th>';
@@ -3010,10 +3195,10 @@ function renderUserAdoption(users, totalUsers, grandTotal, filterMonths, filterL
     for (var i = 0; i < top10.length; i++) {
       var u = top10[i]; if (u.total === 0) break;
       var pct = totalAct > 0 ? Math.round((u.total / totalAct) * 100) : 0;
-      h += '<tr><td><span class="mm-rank" style="background:' + u.levelColor + '">' + (i + 1) + '</span></td>';
+      h += '<tr><td><span class="mm-rank" style="background:' + u.levelStyle.bg + ';color:' + u.levelStyle.fg + '">' + (i + 1) + '</span></td>';
       h += '<td><strong>' + u.name + '</strong></td>';
-      h += '<td><span class="mm-badge" style="background:' + u.levelColor + '">' + u.level + '</span></td>';
-      h += '<td style="color:#888">' + (u.group || '\u2014') + '</td>';
+      h += '<td><span class="mm-badge" style="background:' + u.levelStyle.bg + ';color:' + u.levelStyle.fg + '">' + u.level + '</span></td>';
+      h += '<td style="color:var(--muted)">' + (u.group || '\u2014') + '</td>';
       h += '<td class="col-right">' + fmtNum(u.activities) + '</td><td class="col-right">' + fmtNum(u.documents) + '</td>';
       h += '<td class="col-right"><strong>' + fmtNum(u.total) + '</strong></td>';
       h += '<td class="col-right">' + mmBarCell(pct, u.levelColor) + '</td></tr>';
@@ -3023,7 +3208,7 @@ function renderUserAdoption(users, totalUsers, grandTotal, filterMonths, filterL
 
   var groups = mmGroupUsers(users);
   if (groups.length > 0) {
-    h += '<div style="padding:16px 16px 8px;border-top:1px solid var(--so-border);font-size:.78rem;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.04em">All Users by Group</div>';
+    h += '<div style="padding:16px 16px 8px;border-top:1px solid var(--so-border);font-size:var(--fs-seclabel);font-weight:700;color:var(--faint);text-transform:uppercase;letter-spacing:var(--ls-seclabel)">All Users by Group</div>';
     h += '<table class="data-table mm-user-table"><thead><tr>';
     h += '<th class="mm-col-rank"></th><th class="mm-col-user">User</th><th class="mm-col-level">Level</th><th class="mm-col-group">Group</th>';
     h += '<th class="col-right mm-col-num">Activities</th><th class="col-right mm-col-num">Documents</th>';
@@ -3035,7 +3220,7 @@ function renderUserAdoption(users, totalUsers, grandTotal, filterMonths, filterL
       var gInfo = grp.members.length + ' user' + (grp.members.length !== 1 ? 's' : '') + ' \u00B7 ' + fmtNum(grp.total) + ' activities';
       if (gPct > 0) gInfo += ' \u00B7 ' + gPct + P;
       h += '<tr class="assoc-group-header" onclick="togGroup(this)"><td colspan="8">' + svgBadgeChev + ' ' + grp.name;
-      h += ' <span style="color:#999;font-weight:400;font-size:.75rem;margin-left:4px">(' + gInfo + ')</span></td></tr>';
+      h += ' <span style="color:var(--faint);font-weight:400;font-size:var(--fs-chip);margin-left:4px">(' + gInfo + ')</span></td></tr>';
       for (var mi = 0; mi < grp.members.length; mi++) {
         var u = grp.members[mi];
         var pct = totalAct > 0 ? Math.round((u.total / totalAct) * 100) : 0;
@@ -3043,8 +3228,8 @@ function renderUserAdoption(users, totalUsers, grandTotal, filterMonths, filterL
         h += '<tr' + (isI ? ' style="opacity:.5"' : '') + '>';
         h += '<td></td>';
         h += '<td style="padding-left:12px">' + (isI ? u.name : '<strong>' + u.name + '</strong>') + '</td>';
-        h += '<td><span class="mm-badge" style="background:' + u.levelColor + '">' + u.level + '</span></td>';
-        h += '<td style="color:#888">' + (u.group || '\u2014') + '</td>';
+        h += '<td><span class="mm-badge" style="background:' + u.levelStyle.bg + ';color:' + u.levelStyle.fg + '">' + u.level + '</span></td>';
+        h += '<td style="color:var(--muted)">' + (u.group || '\u2014') + '</td>';
         h += '<td class="col-right">' + fmtNum(u.activities) + '</td><td class="col-right">' + fmtNum(u.documents) + '</td>';
         h += '<td class="col-right"><strong>' + fmtNum(u.total) + '</strong></td>';
         h += '<td class="col-right">' + (isI ? '\u2014' : mmBarCell(pct, u.levelColor)) + '</td></tr>';
@@ -3074,7 +3259,7 @@ function mmGroupCardInactive(cnt, label, desc, totalUsers, color) {
     + '<div class="mm-ug-pct">' + uP + P + ' of users</div></div>';
 }
 function mmBarCell(pct, color) {
-  return '<div class="bar-cell"><div style="width:80px;height:8px;background:#eee;border-radius:4px;overflow:hidden"><div style="height:100%;width:' + pct + P + ';background:' + color + ';border-radius:4px 0 0 4px"></div></div><span class="pct-text" style="color:' + color + '">' + pct + P + '</span></div>';
+  return '<div class="bar-cell"><div style="width:80px;height:8px;background:var(--track);border-radius:4px;overflow:hidden"><div style="height:100%;width:' + pct + P + ';background:' + color + ';border-radius:4px 0 0 4px"></div></div><span class="pct-text" style="color:' + color + '">' + pct + P + '</span></div>';
 }
 function mmGroupUsers(users) {
   var gm = {}, go = [];

@@ -1135,17 +1135,17 @@
     h += '<div class="sm-subtitle">Classify users by their average monthly activity count.</div>';
     h += '<div class="sm-card"><h3>Level Thresholds</h3>';
     h += '<div class="sm-desc">Users are classified based on their average activities per month in the selected period.</div>';
-    h += '<div class="sm-threshold-row"><div class="sm-threshold-label" style="color:#2e7d32;font-weight:600">Power User</div>';
+    h += '<div class="sm-threshold-row"><div class="sm-threshold-label" style="color:#226a43;font-weight:600">Power User</div>';
     h += '<span style="color:var(--so-text-muted)">\u2265</span>';
     h += '<input type="number" class="sm-threshold-input" id="mmPowerThreshold" value="' + m.powerThreshold + '" min="1" onchange="daSettings.markUnsaved()">';
     h += '<div class="sm-threshold-desc">activities / month (avg)</div></div>';
-    h += '<div class="sm-threshold-row"><div class="sm-threshold-label" style="color:#1565c0;font-weight:600">Regular User</div>';
+    h += '<div class="sm-threshold-row"><div class="sm-threshold-label" style="color:#1f6a63;font-weight:600">Regular User</div>';
     h += '<span style="color:var(--so-text-muted)">\u2265</span>';
     h += '<input type="number" class="sm-threshold-input" id="mmRegularThreshold" value="' + m.regularThreshold + '" min="1" onchange="daSettings.markUnsaved()">';
     h += '<div class="sm-threshold-desc">activities / month (avg)</div></div>';
-    h += '<div class="sm-threshold-row"><div class="sm-threshold-label" style="color:#f57c00;font-weight:600">Low Usage</div>';
+    h += '<div class="sm-threshold-row"><div class="sm-threshold-label" style="color:#785012;font-weight:600">Low Usage</div>';
     h += '<span style="color:var(--so-text-muted)">\u2265 1 activity in period</span></div>';
-    h += '<div class="sm-threshold-row"><div class="sm-threshold-label dim" style="color:#c62828">Inactive</div>';
+    h += '<div class="sm-threshold-row"><div class="sm-threshold-label dim" style="color:#625d51">Inactive</div>';
     h += '<span class="sm-threshold-desc" style="opacity:.5">0 activities</span></div>';
     h += '</div>';
     // Date field
@@ -1220,7 +1220,7 @@
       }
       h += '</div>';
     } else {
-      h += '<div style="padding:10px 0;font-size:.82rem;color:var(--so-text-muted);font-style:italic">No activity types found.</div>';
+      h += '<div style="padding:10px 0;font-size:var(--fs-kpisub);color:var(--so-text-muted);font-style:italic">No activity types found.</div>';
     }
     h += '</div>';
     sec.innerHTML = h;
@@ -1584,7 +1584,7 @@
   }
 
   var _PRIO_MAP = { excluded: { lbl: 'Off', cls: 's-prio-off' }, normal: { lbl: 'Normal', cls: 's-prio-norm' }, required: { lbl: 'Required', cls: 's-prio-req' } };
-  var _PRIO_OPTS = [ { v: 'excluded', l: 'Off', c: '#B4B2A9' }, { v: 'normal', l: 'Normal', c: '#7E9BC4' }, { v: 'required', l: 'Required', c: '#06423E' } ];
+  var _PRIO_OPTS = [ { v: 'excluded', l: 'Off', c: '#c8c2b4' }, { v: 'normal', l: 'Normal', c: '#8a857a' }, { v: 'required', l: 'Required', c: '#3d4a44' } ];
 
   // Importance pill: a colour-coded dropdown trigger (read-only when intake-locked).
   function _prioPill(imp, locked) {
@@ -1678,7 +1678,7 @@
   }
 
   var _HML_MAP = { high:{lbl:'High',cls:'s-prio-hi'}, medium:{lbl:'Medium',cls:'s-prio-md'}, low:{lbl:'Low',cls:'s-prio-lo'} };
-  var _HML_OPTS = [ {v:'high',l:'High',c:'#06423E'}, {v:'medium',l:'Medium',c:'#7E9BC4'}, {v:'low',l:'Low',c:'#B4B2A9'} ];
+  var _HML_OPTS = [ {v:'high',l:'High',c:'#3d4a44'}, {v:'medium',l:'Medium',c:'#8a857a'}, {v:'low',l:'Low',c:'#c8c2b4'} ];
 
   // Weight selector as a colour-coded pill dropdown, dropped into the existing
   // toggle slot so the surrounding row layout stays intact.
