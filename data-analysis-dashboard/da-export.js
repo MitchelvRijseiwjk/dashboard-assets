@@ -163,7 +163,10 @@ function exportFullEntity(key, entityName, udefEntityId, returnWb) {
     }
 
     // Churn Risk Matrix
-    if (dd.churnRisk && dd.activityHealth) {
+    // Skipped when the backend could not compute activeWithSale: the whole matrix
+    // is derived from it, so without it every quadrant would be wrong rather than
+    // merely missing.
+    if (dd.churnRisk && dd.activityHealth && dd.churnRisk.churnKnown !== false) {
       var cr = dd.churnRisk;
       var aht = dd.activityHealth;
       var healthy = cr.activeWithSale || 0;
